@@ -15,6 +15,7 @@ interface AudioPlayerContextType {
   shuffleMode: ShuffleMode;
   queue: Track[];
   audioLevels: number[];
+  audioElement: HTMLAudioElement | null;
 
   // Actions
   play: (track?: Track) => void;
@@ -367,6 +368,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       shuffleMode,
       queue,
       audioLevels,
+      audioElement: audioRef.current,
       play,
       pause,
       togglePlayPause,
