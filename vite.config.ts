@@ -57,4 +57,9 @@
       port: 3000,
       open: true,
     },
+    preview: {
+      port: 4173,
+      host: true,
+      allowedHosts: ['replay-production-9240.up.railway.app'],
+    },
   });
