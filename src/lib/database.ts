@@ -211,7 +211,7 @@ export async function deleteTrack(trackId: string, userId: string): Promise<bool
       'DELETE FROM tracks WHERE id = $1 AND user_id = $2',
       [trackId, userId]
     );
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   } catch (error) {
     console.error('Error deleting track:', error);
     return false;
