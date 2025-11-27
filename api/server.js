@@ -11,6 +11,12 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3001;
 
+// Log startup configuration
+console.log('Starting Replay API Server...');
+console.log('Environment:', process.env.NODE_ENV || 'development');
+console.log('Port:', port);
+console.log('Database URL:', process.env.DATABASE_URL ? 'Configured' : 'Not configured');
+
 // Middleware - Allow all origins in production for now
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' ? true : [
@@ -30,6 +36,15 @@ app.use(express.json({ limit: '50mb' }));
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+// Test database connection on startup
+pool.query('SELECT NOW()', (err, res) => {
+  if (err) {
+    console.error('Failed to connect to database:', err);
+  } else {
+    console.log('✅ Database connected successfully at:', res.rows[0].now);
+  }
 });
 
 // JWT Secret

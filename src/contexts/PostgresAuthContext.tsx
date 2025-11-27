@@ -22,9 +22,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Use the API URL from environment or fall back to relative path
-const API_URL = import.meta.env.VITE_API_URL || '';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 const TOKEN_KEY = 'replay-auth-token';
 const USER_KEY = 'replay-user';
+
+console.log('PostgresAuthContext - API URL:', API_URL);
 
 export const PostgresAuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
