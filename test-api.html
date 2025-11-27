@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>API Connection Test</h1>
+    <button onclick="testHealth()">Test Health Endpoint</button>
+    <button onclick="testSignup()">Test Signup Endpoint</button>
+    <button onclick="testCORS()">Test CORS Headers</button>
+    <pre id="result"></pre>
+
+    <script>
+        const API_URL = 'https://sublime-light-production-53e3.up.railway.app';
+        const resultDiv = document.getElementById('result');
+
+        async function testHealth() {
+            try {
+                resultDiv.textContent = 'Testing health endpoint...';
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultDiv.textContent = `Health check failed: ${error.message}`;
+            }
+        }
+
+        async function testSignup() {
+            try {
+                resultDiv.textContent = 'Testing signup endpoint...';
+                const response = await fetch(`${API_URL}/api/auth/signup`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        password: 'password123',
+                        username: 'testuser'
+                    })
+                });
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    resultDiv.textContent = `Status: ${response.status}\nResponse: ${text}`;
+                } else {
+                    const data = await response.json();
+                    resultDiv.textContent = JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                resultDiv.textContent = `Signup test failed: ${error.message}`;
+            }
+        }
+
+        async function testCORS() {
+            try {
+                resultDiv.textContent = 'Testing CORS with OPTIONS request...';
+                const response = await fetch(`${API_URL}/api/auth/signup`, {
+                    method: 'OPTIONS'
+                });
+
+                const headers = {};
+                for (const [key, value] of response.headers.entries()) {
+                    headers[key] = value;
+                }
+
+                resultDiv.textContent = `Status: ${response.status}\nHeaders: ${JSON.stringify(headers, null, 2)}`;
+            } catch (error) {
+                resultDiv.textContent = `CORS test failed: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

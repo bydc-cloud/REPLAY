@@ -11,11 +11,15 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3001;
 
-// Log startup configuration
-console.log('Starting Replay API Server...');
+// Log startup configuration - v2 with CORS fix
+console.log('='.repeat(50));
+console.log('Starting Replay API Server v2...');
+console.log('Build timestamp:', new Date().toISOString());
 console.log('Environment:', process.env.NODE_ENV || 'development');
 console.log('Port:', port);
 console.log('Database URL:', process.env.DATABASE_URL ? 'Configured' : 'Not configured');
+console.log('CORS: Enabled for all origins');
+console.log('='.repeat(50));
 
 // Middleware - Allow all origins in production for now
 app.use(cors({
