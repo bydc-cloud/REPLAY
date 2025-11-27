@@ -27,8 +27,17 @@ app.use(cors({
   optionsSuccessStatus: 204
 }));
 
-// Handle preflight requests
+// Handle preflight requests explicitly
 app.options('*', cors());
+
+// Add CORS headers to all responses as fallback
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  next();
+});
 app.use(express.json({ limit: '50mb' }));
 
 // Database connection
@@ -178,8 +187,18 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    cors: 'enabled',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Auth routes
 app.post('/api/auth/signup', async (req, res) => {
+  console.log('Signup request received from:', req.headers.origin);
   const { email, password, username } = req.body;
 
   if (!email || !password || !username) {
