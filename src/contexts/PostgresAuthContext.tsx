@@ -21,7 +21,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+// Use the API URL from environment or fall back to relative path
+const API_URL = import.meta.env.VITE_API_URL || '';
 const TOKEN_KEY = 'replay-auth-token';
 const USER_KEY = 'replay-user';
 
@@ -84,7 +85,7 @@ export const PostgresAuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/auth/signup`, {
+      const response = await fetch(`${API_URL}/api/auth/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -115,7 +116,8 @@ export const PostgresAuthProvider = ({ children }: { children: ReactNode }) => {
 
       return true;
     } catch (e) {
-      setError('Network error. Please try again.');
+      console.error('Auth error:', e);
+      setError('Network error. Please check your connection and try again.');
       return false;
     }
   };
@@ -129,7 +131,7 @@ export const PostgresAuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/auth/signin`, {
+      const response = await fetch(`${API_URL}/api/auth/signin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -159,7 +161,8 @@ export const PostgresAuthProvider = ({ children }: { children: ReactNode }) => {
 
       return true;
     } catch (e) {
-      setError('Network error. Please try again.');
+      console.error('Auth error:', e);
+      setError('Network error. Please check your connection and try again.');
       return false;
     }
   };
