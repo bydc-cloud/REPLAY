@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { Music, Disc, Users, ListMusic, Plus, Upload, Loader2, Trash2 } from "lucide-react";
 import { AlbumCard } from "./AlbumCard";
 import { SongCard } from "./SongCard";
-import { useMusicLibrary } from "../contexts/MusicLibraryContext";
+import { useMusicLibrary, Track } from "../contexts/MusicLibraryContext";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
 
 interface ArtistCardProps {
@@ -140,8 +140,13 @@ export const LibraryView = () => {
 
   const handlePlayPlaylist = (playlistId: string) => {
     const playlist = playlists.find(p => p.id === playlistId);
-    if (playlist && playlist.tracks.length > 0) {
-      setQueue(playlist.tracks, 0);
+    if (playlist && playlist.trackIds.length > 0) {
+      const playlistTracks = playlist.trackIds
+        .map(id => tracks.find(t => t.id === id))
+        .filter(t => t !== undefined) as Track[];
+      if (playlistTracks.length > 0) {
+        setQueue(playlistTracks, 0);
+      }
     }
   };
 
@@ -287,8 +292,8 @@ export const LibraryView = () => {
                 <ArtistCard
                   key={artist.id}
                   name={artist.name}
-                  imageUrl={artist.artworkUrl}
-                  trackCount={artist.tracks.length}
+                  imageUrl={artist.imageUrl}
+                  trackCount={artist.trackCount}
                   albumCount={artist.albums.length}
                   onClick={() => handlePlayArtist(artist.name)}
                 />
@@ -350,8 +355,8 @@ export const LibraryView = () => {
                     <PlaylistCard
                       key={playlist.id}
                       name={playlist.name}
-                      songCount={playlist.tracks.length}
-                      imageUrl={playlist.artworkUrl}
+                      songCount={playlist.trackIds.length}
+                      imageUrl={playlist.imageUrl}
                       onClick={() => handlePlayPlaylist(playlist.id)}
                       onDelete={() => deletePlaylist(playlist.id)}
                     />

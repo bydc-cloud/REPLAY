@@ -170,10 +170,10 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       let audioUrl: string | null = null;
 
       if (track.fileUrl.startsWith("indexeddb://")) {
-        const trackId = track.fileUrl.replace("indexeddb://", "");
-        audioUrl = await getAudioUrl(trackId);
-      } else {
+        // For future IndexedDB support
         audioUrl = track.fileUrl;
+      } else {
+        audioUrl = getAudioUrl(track);
       }
 
       if (!audioUrl) {
