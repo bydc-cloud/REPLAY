@@ -1,6 +1,6 @@
 import { X, Heart, SkipBack, Play, Pause, SkipForward, Shuffle, Repeat, Repeat1, Volume2, VolumeX, Maximize2, Minimize2 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { ColorfulVisualizer } from "./ColorfulVisualizer";
+import { CanvasVisualizer } from "./CanvasVisualizer";
 import { useSettings } from "../contexts/SettingsContext";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
@@ -115,7 +115,7 @@ export const VisualizerModal = ({ isOpen, onClose }: VisualizerModalProps) => {
       {/* Full-screen Visualizer - Properly Centered */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="w-full h-full flex items-center justify-center">
-          <ColorfulVisualizer
+          <CanvasVisualizer
             isPlaying={isPlaying}
             variant={visualizerVariant}
             size="full"
