@@ -25,78 +25,78 @@ export const PremiumVisualizerShowcase = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-        {/* Orb Visualizer */}
-        <div className="flex flex-col items-center">
-          <div className="mb-4 flex items-center justify-center">
-            <PremiumCoverArt 
-              isPlaying={isPlaying} 
-              size="lg" 
-              variant="orb"
-            />
-          </div>
-          <div className="text-center">
-            <p className="font-semibold text-[var(--replay-off-white)] mb-1">
-              Orb
-            </p>
-            <p className="text-xs text-[var(--replay-mid-grey)]">
-              3D sphere with rotating spectrum
-            </p>
-          </div>
-        </div>
-
-        {/* Spectrum Visualizer */}
-        <div className="flex flex-col items-center">
-          <div className="mb-4 flex items-center justify-center">
-            <PremiumCoverArt 
-              isPlaying={isPlaying} 
-              size="lg" 
-              variant="spectrum"
-            />
-          </div>
-          <div className="text-center">
-            <p className="font-semibold text-[var(--replay-off-white)] mb-1">
-              Spectrum
-            </p>
-            <p className="text-xs text-[var(--replay-mid-grey)]">
-              Full frequency spectrum analyzer
-            </p>
-          </div>
-        </div>
-
-        {/* Particles Visualizer */}
+        {/* Bars Visualizer */}
         <div className="flex flex-col items-center">
           <div className="mb-4 flex items-center justify-center">
             <PremiumCoverArt
               isPlaying={isPlaying}
               size="lg"
-              variant="particles"
+              variant="bars"
             />
           </div>
           <div className="text-center">
             <p className="font-semibold text-[var(--replay-off-white)] mb-1">
-              Particles
+              Bars
             </p>
             <p className="text-xs text-[var(--replay-mid-grey)]">
-              Floating particle system
+              Classic frequency bars
             </p>
           </div>
         </div>
 
-        {/* Galaxy Visualizer */}
+        {/* Wave Visualizer */}
         <div className="flex flex-col items-center">
           <div className="mb-4 flex items-center justify-center">
             <PremiumCoverArt
               isPlaying={isPlaying}
               size="lg"
-              variant="galaxy"
+              variant="wave"
             />
           </div>
           <div className="text-center">
             <p className="font-semibold text-[var(--replay-off-white)] mb-1">
-              Galaxy
+              Wave
             </p>
             <p className="text-xs text-[var(--replay-mid-grey)]">
-              Cosmic spiral effect
+              Flowing wave animation
+            </p>
+          </div>
+        </div>
+
+        {/* Pulse Visualizer */}
+        <div className="flex flex-col items-center">
+          <div className="mb-4 flex items-center justify-center">
+            <PremiumCoverArt
+              isPlaying={isPlaying}
+              size="lg"
+              variant="pulse"
+            />
+          </div>
+          <div className="text-center">
+            <p className="font-semibold text-[var(--replay-off-white)] mb-1">
+              Pulse
+            </p>
+            <p className="text-xs text-[var(--replay-mid-grey)]">
+              Pulsing ring visualizer
+            </p>
+          </div>
+        </div>
+
+        {/* Circle Visualizer */}
+        <div className="flex flex-col items-center">
+          <div className="mb-4 flex items-center justify-center">
+            <PremiumCoverArt
+              isPlaying={isPlaying}
+              size="lg"
+              variant="circle"
+            />
+          </div>
+          <div className="text-center">
+            <p className="font-semibold text-[var(--replay-off-white)] mb-1">
+              Circle
+            </p>
+            <p className="text-xs text-[var(--replay-mid-grey)]">
+              360° radial spectrum
             </p>
           </div>
         </div>

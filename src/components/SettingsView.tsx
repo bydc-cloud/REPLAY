@@ -4,8 +4,8 @@ import { PremiumCoverArt } from "./PremiumCoverArt";
 import { useSettings } from "../contexts/SettingsContext";
 
 interface SettingsViewProps {
-  selectedVisualizer: "orb" | "spectrum" | "particles" | "galaxy" | "dna" | "radial";
-  onVisualizerChange: (variant: "orb" | "spectrum" | "particles" | "galaxy" | "dna" | "radial") => void;
+  selectedVisualizer: "bars" | "wave" | "pulse" | "circle" | "dots" | "lines";
+  onVisualizerChange: (variant: "bars" | "wave" | "pulse" | "circle" | "dots" | "lines") => void;
 }
 
 export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: SettingsViewProps) => {
@@ -14,50 +14,50 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
 
   const visualizers = [
     {
-      variant: "orb" as const,
-      name: "Orb",
-      description: "3D rotating spectrum sphere with colorful gradient bars",
-      features: ["Bass reactive", "360° rotation", "Multi-layer glow"],
+      variant: "bars" as const,
+      name: "Bars",
+      description: "Classic frequency bars with smooth animation",
+      features: ["60fps", "GPU accelerated", "Responsive"],
       gradient: "from-purple-500/20 to-pink-500/20",
       borderGradient: "from-purple-500/50 to-pink-500/50"
     },
     {
-      variant: "spectrum" as const,
-      name: "Spectrum",
-      description: "Full rainbow frequency analyzer with dynamic bars",
-      features: ["Real-time bars", "Rainbow gradient", "Reflection effect"],
+      variant: "wave" as const,
+      name: "Wave",
+      description: "Flowing wave animation with smooth transitions",
+      features: ["Smooth motion", "Reactive", "Colorful"],
       gradient: "from-blue-500/20 to-cyan-500/20",
       borderGradient: "from-blue-500/50 to-cyan-500/50"
     },
     {
-      variant: "particles" as const,
-      name: "Particles",
-      description: "Floating particle field with glowing orbs",
-      features: ["Dynamic movement", "Glowing particles", "Orbital motion"],
+      variant: "pulse" as const,
+      name: "Pulse",
+      description: "Pulsing ring visualizer with bass response",
+      features: ["Bass reactive", "Concentric rings", "Smooth pulse"],
       gradient: "from-green-500/20 to-emerald-500/20",
       borderGradient: "from-green-500/50 to-emerald-500/50"
     },
     {
-      variant: "galaxy" as const,
-      name: "Galaxy",
-      description: "Spiral galaxy with nebula clouds and cosmic colors",
-      features: ["Spiral arms", "Nebula effect", "Galactic core"],
+      variant: "circle" as const,
+      name: "Circle",
+      description: "Radial frequency display in 360 degrees",
+      features: ["360° spectrum", "Dynamic", "Circular"],
       gradient: "from-indigo-500/20 to-purple-500/20",
       borderGradient: "from-indigo-500/50 to-purple-500/50"
     },
     {
-      variant: "dna" as const,
-      name: "DNA",
-      description: "Double helix structure with bio-inspired animation",
-      features: ["Dual helixes", "Wave motion", "Connecting bars"],
+      variant: "dots" as const,
+      name: "Dots",
+      description: "Grid of reactive dots with minimal design",
+      features: ["Minimal", "Clean", "Grid layout"],
       gradient: "from-teal-500/20 to-cyan-500/20",
       borderGradient: "from-teal-500/50 to-cyan-500/50"
     },
     {
-      variant: "radial" as const,
-      name: "Radial",
-      description: "Concentric pulsing rings with radial wave patterns",
-      features: ["Wave pulses", "Ring scaling", "Gradient colors"],
+      variant: "lines" as const,
+      name: "Lines",
+      description: "Horizontal frequency lines with gradients",
+      features: ["Layered", "Gradient", "Horizontal"],
       gradient: "from-orange-500/20 to-red-500/20",
       borderGradient: "from-orange-500/50 to-red-500/50"
     }

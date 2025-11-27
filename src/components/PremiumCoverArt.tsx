@@ -1,19 +1,18 @@
 import { Music } from "lucide-react";
-import { PremiumVisualizer } from "./PremiumVisualizer";
-import { ColorfulVisualizer } from "./ColorfulVisualizer";
+import { PerformantVisualizer } from "./PerformantVisualizer";
 
 interface PremiumCoverArtProps {
   isPlaying?: boolean;
   size?: "sm" | "md" | "lg" | "xl";
-  variant?: "orb" | "spectrum" | "particles" | "galaxy" | "dna" | "radial";
+  variant?: "bars" | "wave" | "pulse" | "circle" | "dots" | "lines";
   imageUrl?: string;
   audioElement?: HTMLAudioElement | null;
 }
 
-export const PremiumCoverArt = ({ 
-  isPlaying = false, 
+export const PremiumCoverArt = ({
+  isPlaying = false,
   size = "md",
-  variant = "orb",
+  variant = "bars",
   imageUrl,
   audioElement
 }: PremiumCoverArtProps) => {
@@ -36,7 +35,7 @@ export const PremiumCoverArt = ({
         {isPlaying && (
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center">
             <div className="w-full h-full flex items-center justify-center p-4">
-              <PremiumVisualizer isPlaying={isPlaying} variant="orb" size={size} />
+              <PerformantVisualizer isPlaying={isPlaying} variant="bars" size={size} audioElement={audioElement} />
             </div>
           </div>
         )}
@@ -74,7 +73,7 @@ export const PremiumCoverArt = ({
       {/* Main visualizer - perfectly centered */}
       <div className="absolute inset-0 flex items-center justify-center p-2">
         {isPlaying ? (
-          <ColorfulVisualizer isPlaying={isPlaying} variant={variant} size={size} audioElement={audioElement} />
+          <PerformantVisualizer isPlaying={isPlaying} variant={variant} size={size} audioElement={audioElement} />
         ) : (
           <div className="flex flex-col items-center justify-center gap-3 opacity-30">
             <Music size={size === "sm" ? 20 : size === "md" ? 32 : size === "lg" ? 64 : 96} className="text-[var(--replay-off-white)]" />

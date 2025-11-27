@@ -1,31 +1,30 @@
 import { useEffect, useState, useRef } from "react";
 
 export const useAudioAnalyzer = (audioElement?: HTMLAudioElement | null) => {
-  const [frequencyData, setFrequencyData] = useState<Uint8Array>(new Uint8Array(256));
+  const [frequencyData, setFrequencyData] = useState<Uint8Array>(new Uint8Array(128));
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyzerRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const animationFrameRef = useRef<number>();
+  const lastUpdateRef = useRef<number>(0);
 
   useEffect(() => {
     if (!audioElement) {
       // Generate more dynamic mock data for demo
       const mockInterval = setInterval(() => {
-        const mockData = new Uint8Array(256);
+        const mockData = new Uint8Array(128);
         const time = Date.now() / 200;
-        for (let i = 0; i < 256; i++) {
+        for (let i = 0; i < 128; i++) {
           // Multiple waves at different frequencies for more complex movement
-          const bassInfluence = i < 30 ? 1.5 : 1;
+          const bassInfluence = i < 15 ? 1.5 : 1;
           const wave1 = Math.sin(time + (i / 6)) * 70 * bassInfluence;
           const wave2 = Math.sin(time * 1.7 + (i / 3)) * 50;
-          const wave3 = Math.cos(time * 0.9 + (i / 5)) * 40;
-          const wave4 = Math.sin(time * 2.3 + (i / 10)) * 30;
           const randomPulse = Math.random() * 20;
-          mockData[i] = Math.max(0, Math.min(255, 90 + wave1 + wave2 + wave3 + wave4 + randomPulse));
+          mockData[i] = Math.max(0, Math.min(255, 90 + wave1 + wave2 + randomPulse));
         }
         setFrequencyData(mockData);
-      }, 33); // ~30fps for smoother animation
+      }, 50); // 20fps for mobile performance
 
       setIsAnalyzing(true);
       return () => clearInterval(mockInterval);
@@ -36,10 +35,11 @@ export const useAudioAnalyzer = (audioElement?: HTMLAudioElement | null) => {
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
         analyzerRef.current = audioContextRef.current.createAnalyser();
-        analyzerRef.current.fftSize = 512; // Higher resolution for better detail
-        analyzerRef.current.smoothingTimeConstant = 0.4; // Lower = more reactive to audio changes
-        analyzerRef.current.minDecibels = -90; // More sensitive to quiet sounds
-        analyzerRef.current.maxDecibels = -10; // Better dynamic range
+        // Reduced FFT size for better mobile performance
+        analyzerRef.current.fftSize = 256;
+        analyzerRef.current.smoothingTimeConstant = 0.6; // More smoothing for stability
+        analyzerRef.current.minDecibels = -85;
+        analyzerRef.current.maxDecibels = -15;
       }
 
       const analyzer = analyzerRef.current;
@@ -47,13 +47,25 @@ export const useAudioAnalyzer = (audioElement?: HTMLAudioElement | null) => {
       if (!analyzer || !audioContext) return;
 
       if (!sourceRef.current && audioElement) {
-        sourceRef.current = audioContext.createMediaElementSource(audioElement);
-        sourceRef.current.connect(analyzer);
-        analyzer.connect(audioContext.destination);
+        try {
+          sourceRef.current = audioContext.createMediaElementSource(audioElement);
+          sourceRef.current.connect(analyzer);
+          analyzer.connect(audioContext.destination);
+        } catch (e) {
+          // Element already has source, continue
+          console.log("Audio source already exists");
+        }
       }
       const dataArray = new Uint8Array(analyzer.frequencyBinCount);
 
-      const updateFrequencyData = () => {
+      const updateFrequencyData = (timestamp: number) => {
+        // Throttle to 30fps for mobile performance
+        if (timestamp - lastUpdateRef.current < 33) {
+          animationFrameRef.current = requestAnimationFrame(updateFrequencyData);
+          return;
+        }
+        lastUpdateRef.current = timestamp;
+
         if (analyzerRef.current) {
           analyzerRef.current.getByteFrequencyData(dataArray);
           setFrequencyData(new Uint8Array(dataArray));
@@ -61,7 +73,7 @@ export const useAudioAnalyzer = (audioElement?: HTMLAudioElement | null) => {
         animationFrameRef.current = requestAnimationFrame(updateFrequencyData);
       };
 
-      updateFrequencyData();
+      animationFrameRef.current = requestAnimationFrame(updateFrequencyData);
       setIsAnalyzing(true);
 
       return () => {

@@ -1,6 +1,6 @@
 import { X, Heart, SkipBack, Play, Pause, SkipForward, Shuffle, Repeat, Repeat1, Volume2, VolumeX, Maximize2, Minimize2 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { CanvasVisualizer } from "./CanvasVisualizer";
+import { PerformantVisualizer } from "./PerformantVisualizer";
 import { useSettings } from "../contexts/SettingsContext";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
@@ -46,8 +46,8 @@ export const VisualizerModal = ({ isOpen, onClose }: VisualizerModalProps) => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const visualizerOptions: Array<"orb" | "spectrum" | "particles" | "galaxy" | "dna" | "radial"> = [
-    "orb", "spectrum", "particles", "galaxy", "dna", "radial"
+  const visualizerOptions: Array<"bars" | "wave" | "pulse" | "circle" | "dots" | "lines"> = [
+    "bars", "wave", "pulse", "circle", "dots", "lines"
   ];
 
   // Auto-hide controls after inactivity
@@ -115,9 +115,9 @@ export const VisualizerModal = ({ isOpen, onClose }: VisualizerModalProps) => {
       {/* Full-screen Visualizer - Properly Centered */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="w-full h-full flex items-center justify-center">
-          <CanvasVisualizer
+          <PerformantVisualizer
             isPlaying={isPlaying}
-            variant={visualizerVariant}
+            variant={visualizerVariant as "bars" | "wave" | "pulse" | "circle" | "dots" | "lines"}
             size="full"
             audioElement={audioElement}
           />

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-type VisualizerVariant = "orb" | "spectrum" | "particles" | "galaxy" | "dna" | "radial";
+type VisualizerVariant = "bars" | "wave" | "pulse" | "circle" | "dots" | "lines";
 type ThemeMode = "dark" | "light";
 
 interface SettingsContextType {
@@ -17,11 +17,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     // Load from localStorage on initial mount
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("replay-visualizer");
-      if (saved && ["orb", "spectrum", "particles", "galaxy", "dna", "radial"].includes(saved)) {
+      if (saved && ["bars", "wave", "pulse", "circle", "dots", "lines"].includes(saved)) {
         return saved as VisualizerVariant;
       }
     }
-    return "orb"; // Default to orb
+    return "bars"; // Default to bars
   });
 
   const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {

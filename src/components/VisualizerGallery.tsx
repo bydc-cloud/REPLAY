@@ -1,46 +1,46 @@
 import { useState } from "react";
 import { Play, Pause, Sparkles } from "lucide-react";
-import { PremiumCoverArt } from "./PremiumCoverArt";
+import { PerformantVisualizer } from "./PerformantVisualizer";
 
 export const VisualizerGallery = () => {
   const [isPlaying, setIsPlaying] = useState(true);
 
   const visualizers = [
     {
-      variant: "orb" as const,
-      name: "Orb",
-      description: "3D rotating spectrum sphere",
-      features: "Bass reactive • 360° rotation"
+      variant: "bars" as const,
+      name: "Bars",
+      description: "Classic frequency bars",
+      features: "60fps • GPU accelerated"
     },
     {
-      variant: "spectrum" as const,
-      name: "Spectrum",
-      description: "Full rainbow frequency analyzer",
-      features: "Real-time bars • Rainbow gradient"
+      variant: "wave" as const,
+      name: "Wave",
+      description: "Flowing wave animation",
+      features: "Smooth motion • Reactive"
     },
     {
-      variant: "particles" as const,
-      name: "Particles",
-      description: "Floating particle field",
-      features: "Dynamic movement • Glowing orbs"
+      variant: "pulse" as const,
+      name: "Pulse",
+      description: "Pulsing ring visualizer",
+      features: "Bass reactive • Concentric"
     },
     {
-      variant: "galaxy" as const,
-      name: "Galaxy",
-      description: "Spiral galaxy with nebula",
-      features: "Spiral arms • Cosmic colors"
+      variant: "circle" as const,
+      name: "Circle",
+      description: "Radial frequency display",
+      features: "360° spectrum • Dynamic"
     },
     {
-      variant: "dna" as const,
-      name: "DNA",
-      description: "Double helix structure",
-      features: "Bio-inspired • Dual helixes"
+      variant: "dots" as const,
+      name: "Dots",
+      description: "Grid of reactive dots",
+      features: "Minimal • Clean"
     },
     {
-      variant: "radial" as const,
-      name: "Radial",
-      description: "Pulsing radial waves",
-      features: "Concentric rings • Wave pulses"
+      variant: "lines" as const,
+      name: "Lines",
+      description: "Horizontal frequency lines",
+      features: "Layered • Gradient"
     }
   ];
 
@@ -79,10 +79,10 @@ export const VisualizerGallery = () => {
             className="group flex flex-col bg-[#0a0a0a]/40 rounded-2xl p-6 border border-white/5 hover:border-white/20 transition-all hover:scale-105 hover:shadow-2xl"
           >
             {/* Visualizer Display */}
-            <div className="mb-5 flex items-center justify-center transform group-hover:scale-105 transition-transform">
-              <PremiumCoverArt 
-                isPlaying={isPlaying} 
-                size="lg" 
+            <div className="mb-5 flex items-center justify-center transform group-hover:scale-105 transition-transform h-32">
+              <PerformantVisualizer
+                isPlaying={isPlaying}
+                size="md"
                 variant={viz.variant}
               />
             </div>
