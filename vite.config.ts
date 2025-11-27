@@ -56,10 +56,22 @@
     server: {
       port: 3000,
       open: true,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3001',
+          changeOrigin: true
+        }
+      }
     },
     preview: {
       port: 4173,
       host: true,
       allowedHosts: ['replay-production-9240.up.railway.app'],
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3001',
+          changeOrigin: true
+        }
+      }
     },
   });
