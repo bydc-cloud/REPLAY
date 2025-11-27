@@ -19,17 +19,16 @@ console.log('Database URL:', process.env.DATABASE_URL ? 'Configured' : 'Not conf
 
 // Middleware - Allow all origins in production for now
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? true : [
-    'http://localhost:3000',
-    'http://localhost:4173',
-    'http://localhost:5173',
-    'https://replay-production-9240.up.railway.app',
-    process.env.FRONTEND_URL
-  ].filter(Boolean),
+  origin: true, // Allow all origins
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
+
+// Handle preflight requests
+app.options('*', cors());
 app.use(express.json({ limit: '50mb' }));
 
 // Database connection
