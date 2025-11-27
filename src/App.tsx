@@ -13,7 +13,7 @@ import { QueueDrawer } from "./components/QueueDrawer";
 import { SettingsView } from "./components/SettingsView";
 import { SettingsProvider, useSettings } from "./contexts/SettingsContext";
 import { GlobalSearchBar } from "./components/GlobalSearchBar";
-import { PostgresAuthProvider as AuthProvider, useAuth } from "./contexts/PostgresAuthContext";
+import { PostgresAuthProvider, useAuth } from "./contexts/PostgresAuthContext";
 import { MusicLibraryProvider } from "./contexts/MusicLibraryContext";
 import { AudioPlayerProvider } from "./contexts/AudioPlayerContext";
 import { LandingPage } from "./components/LandingPage";
@@ -234,9 +234,9 @@ function AppWithMusicLibrary() {
 export default function App() {
   return (
     <SettingsProvider>
-      <AuthProvider>
+      <PostgresAuthProvider>
         <AppWithMusicLibrary />
-      </AuthProvider>
+      </PostgresAuthProvider>
     </SettingsProvider>
   );
 }
