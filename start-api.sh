@@ -1,4 +1,2 @@
 #!/bin/bash
-cd api
-npm install
-node server.js
+cd api && node server.js
