@@ -24,19 +24,25 @@ const pool = new Pool({
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
 
-// Initialize database
+// Initialize database with complete schema
 async function initDB() {
   try {
+    // Enable UUID extension
+    await pool.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`);
+
+    // Create users table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         email VARCHAR(255) UNIQUE NOT NULL,
         username VARCHAR(255) NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
+    // Create tracks table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS tracks (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -46,17 +52,86 @@ async function initDB() {
         album VARCHAR(255) DEFAULT 'Unknown Album',
         duration FLOAT DEFAULT 0,
         file_data TEXT,
+        file_url TEXT,
         cover_url TEXT,
         play_count INTEGER DEFAULT 0,
         is_liked BOOLEAN DEFAULT false,
+        genre VARCHAR(100),
+        year INTEGER,
+        track_number INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    console.log('Database initialized');
+    // Create playlists table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS playlists (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        cover_url TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create playlist_tracks junction table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS playlist_tracks (
+        playlist_id UUID REFERENCES playlists(id) ON DELETE CASCADE,
+        track_id UUID REFERENCES tracks(id) ON DELETE CASCADE,
+        position INTEGER DEFAULT 0,
+        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (playlist_id, track_id)
+      )
+    `);
+
+    // Create indexes for better performance
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_tracks_user_id ON tracks(user_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_playlists_user_id ON playlists(user_id)`);
+
+    // Create update trigger function
+    await pool.query(`
+      CREATE OR REPLACE FUNCTION update_updated_at_column()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        NEW.updated_at = CURRENT_TIMESTAMP;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    // Create triggers
+    await pool.query(`
+      DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+      CREATE TRIGGER update_users_updated_at
+        BEFORE UPDATE ON users
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column();
+    `);
+
+    await pool.query(`
+      DROP TRIGGER IF EXISTS update_tracks_updated_at ON tracks;
+      CREATE TRIGGER update_tracks_updated_at
+        BEFORE UPDATE ON tracks
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column();
+    `);
+
+    await pool.query(`
+      DROP TRIGGER IF EXISTS update_playlists_updated_at ON playlists;
+      CREATE TRIGGER update_playlists_updated_at
+        BEFORE UPDATE ON playlists
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column();
+    `);
+
+    console.log('✅ Database initialized successfully with all tables and triggers');
   } catch (error) {
     console.error('Database initialization error:', error);
+    // Don't crash the app if some tables already exist
   }
 }
 
@@ -224,8 +299,32 @@ app.delete('/api/tracks/:id', authenticateToken, async (req, res) => {
 });
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
+app.get('/api/health', async (req, res) => {
+  try {
+    // Test database connection
+    const result = await pool.query('SELECT NOW()');
+    res.json({
+      status: 'ok',
+      database: 'connected',
+      time: result.rows[0].now
+    });
+  } catch (error) {
+    res.json({
+      status: 'error',
+      database: 'disconnected',
+      error: error.message
+    });
+  }
+});
+
+// Manual database initialization endpoint
+app.post('/api/init-db', async (req, res) => {
+  try {
+    await initDB();
+    res.json({ success: true, message: 'Database initialized successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 app.listen(port, () => {
