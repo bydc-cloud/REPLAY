@@ -13,7 +13,7 @@ import { QueueDrawer } from "./components/QueueDrawer";
 import { SettingsView } from "./components/SettingsView";
 import { SettingsProvider, useSettings } from "./contexts/SettingsContext";
 import { GlobalSearchBar } from "./components/GlobalSearchBar";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { PostgresAuthProvider as AuthProvider, useAuth } from "./contexts/PostgresAuthContext";
 import { MusicLibraryProvider } from "./contexts/MusicLibraryContext";
 import { AudioPlayerProvider } from "./contexts/AudioPlayerContext";
 import { LandingPage } from "./components/LandingPage";
@@ -123,7 +123,7 @@ function AppContent() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto pb-24 md:pb-28 relative">
+      <main className="flex-1 overflow-y-auto pb-24 md:pb-28 pt-16 md:pt-0 relative">
         {/* Desktop Header with Search */}
         <div className="hidden md:block sticky top-0 z-30 bg-gradient-to-b from-[#0a0a0a]/95 via-[#1a1a1a]/95 to-transparent backdrop-blur-xl border-b border-white/5 px-6 py-4">
           <div className="flex items-center justify-end">
@@ -132,7 +132,7 @@ function AppContent() {
         </div>
 
         {/* Mobile Header */}
-        <div className="md:hidden sticky top-0 z-30 bg-[#1a1a1a]/40 backdrop-blur-xl border-b border-white/10 shadow-lg">
+        <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[#1a1a1a]/95 backdrop-blur-xl border-b border-white/10 shadow-lg">
           <div className="px-4 py-3">
             <div className="flex items-center gap-3">
               <button

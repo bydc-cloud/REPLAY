@@ -6,7 +6,7 @@ import { SongCard } from "./SongCard";
 import { VisualizerGallery } from "./VisualizerGallery";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/PostgresAuthContext";
 
 export const HomeView = () => {
   const { user, signOut } = useAuth();

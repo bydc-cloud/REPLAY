@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Play, Eye, EyeOff, ArrowLeft, Music, Loader2 } from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/PostgresAuthContext";
 
 interface AuthPageProps {
   onBack: () => void;

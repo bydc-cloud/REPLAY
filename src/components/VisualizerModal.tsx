@@ -109,12 +109,12 @@ export const VisualizerModal = ({ isOpen, onClose }: VisualizerModalProps) => {
 
   return (
     <div
-      className="fixed inset-0 z-[200] bg-black flex flex-col cursor-none"
+      className={`fixed inset-0 z-[200] bg-black flex flex-col ${!showControls ? 'cursor-none' : 'cursor-auto'}`}
       onMouseMove={() => setShowControls(true)}
     >
-      {/* Full-screen Visualizer - Centered and Large */}
-      <div className="absolute inset-0 flex items-center justify-center p-8">
-        <div className="w-[min(90vw,90vh)] h-[min(90vw,90vh)] flex items-center justify-center">
+      {/* Full-screen Visualizer - Properly Centered */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="w-full h-full flex items-center justify-center">
           <ColorfulVisualizer
             isPlaying={isPlaying}
             variant={visualizerVariant}
