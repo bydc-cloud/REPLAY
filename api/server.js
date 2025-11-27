@@ -11,15 +11,18 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3001;
 
-// Middleware
+// Middleware - Allow all origins in production for now
 app.use(cors({
-  origin: [
+  origin: process.env.NODE_ENV === 'production' ? true : [
     'http://localhost:3000',
     'http://localhost:4173',
+    'http://localhost:5173',
     'https://replay-production-9240.up.railway.app',
     process.env.FRONTEND_URL
   ].filter(Boolean),
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '50mb' }));
 
