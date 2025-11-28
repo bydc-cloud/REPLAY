@@ -45,7 +45,7 @@ export const SearchView = () => {
   };
 
   return (
-    <div className="p-4 md:p-8">
+    <div className="p-4 md:p-8 pt-2 md:pt-8">
       {/* Search Input */}
       <div className="mb-8 max-w-2xl">
         <div className="relative">

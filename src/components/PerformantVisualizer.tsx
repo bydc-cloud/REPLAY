@@ -14,8 +14,16 @@ export const PerformantVisualizer = ({
   size = "full",
   audioElement
 }: PerformantVisualizerProps) => {
-  // Always get audio data, but only animate when playing
-  const { frequencyData } = useAudioAnalyzer(audioElement);
+  // Get audio data from real audio, or use demo mode if no audio element
+  const { frequencyData: realFrequencyData } = useAudioAnalyzer(audioElement);
+  const demoMode = !audioElement;
+  const demoTimeRef = useRef<number>(0);
+
+  // Generate demo frequency data for settings preview
+  const frequencyData = useMemo(() => {
+    if (!demoMode || !isPlaying) return realFrequencyData;
+    return null; // Will be generated in animation loop
+  }, [demoMode, isPlaying, realFrequencyData]);
   const [isReady, setIsReady] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -81,6 +89,21 @@ export const PerformantVisualizer = ({
     return oldValue + (newValue - oldValue) * factor;
   };
 
+  // Generate demo frequency data for preview mode
+  const generateDemoData = (time: number): Uint8Array => {
+    const data = new Uint8Array(64);
+    for (let i = 0; i < 64; i++) {
+      // Create a dynamic wave pattern
+      const wave1 = Math.sin(time * 2 + i * 0.2) * 0.5 + 0.5;
+      const wave2 = Math.sin(time * 1.5 + i * 0.15 + 1) * 0.3 + 0.5;
+      const wave3 = Math.sin(time * 3 + i * 0.3 + 2) * 0.2 + 0.5;
+      const bass = i < 10 ? Math.sin(time * 4) * 0.4 + 0.6 : 0.5;
+      const combined = (wave1 * 0.4 + wave2 * 0.3 + wave3 * 0.2 + bass * 0.1);
+      data[i] = Math.floor(combined * 180 + Math.random() * 30);
+    }
+    return data;
+  };
+
   // High-performance update loop - runs even when paused to show dark state
   useEffect(() => {
     if (!isReady) return;
@@ -97,11 +120,17 @@ export const PerformantVisualizer = ({
       // Only update time if playing
       if (isPlaying) {
         timeRef.current += delta / 1000;
+        demoTimeRef.current += delta / 1000;
       }
 
-      const step = frequencyData && frequencyData.length > 0 ? Math.floor(frequencyData.length / barCount) : 1;
-      const avgEnergy = isPlaying && frequencyData ? getAverageEnergy(frequencyData) : 0;
-      const bassEnergy = isPlaying && frequencyData ? getBassEnergy(frequencyData) : 0;
+      // Use demo data if in demo mode and playing, otherwise use real data
+      const activeFrequencyData = demoMode && isPlaying
+        ? generateDemoData(demoTimeRef.current)
+        : frequencyData;
+
+      const step = activeFrequencyData && activeFrequencyData.length > 0 ? Math.floor(activeFrequencyData.length / barCount) : 1;
+      const avgEnergy = isPlaying && activeFrequencyData ? getAverageEnergy(activeFrequencyData) : 0;
+      const bassEnergy = isPlaying && activeFrequencyData ? getBassEnergy(activeFrequencyData) : 0;
 
       // Rotate hue based on energy (only when playing)
       if (isPlaying) {
@@ -112,8 +141,8 @@ export const PerformantVisualizer = ({
         if (!bar) return;
 
         // Get raw value from frequency data, or 0 if paused/no data
-        const index = frequencyData && frequencyData.length > 0 ? Math.min(i * step, frequencyData.length - 1) : 0;
-        const rawValue = isPlaying && frequencyData && frequencyData.length > 0 ? frequencyData[index] / 255 : 0;
+        const index = activeFrequencyData && activeFrequencyData.length > 0 ? Math.min(i * step, activeFrequencyData.length - 1) : 0;
+        const rawValue = isPlaying && activeFrequencyData && activeFrequencyData.length > 0 ? activeFrequencyData[index] / 255 : 0;
 
         // Smooth the value - decay to 0 when paused
         const targetValue = isPlaying ? rawValue : 0;
@@ -197,7 +226,7 @@ export const PerformantVisualizer = ({
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [frequencyData, barCount, variant, isReady, size, isPlaying]);
+  }, [frequencyData, barCount, variant, isReady, size, isPlaying, demoMode]);
 
   // Enhanced Bars Visualizer
   if (variant === "bars") {

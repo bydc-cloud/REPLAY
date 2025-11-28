@@ -116,7 +116,7 @@ export const QueueView = () => {
     : -1;
 
   return (
-    <div className="p-4 md:p-8">
+    <div className="p-4 md:p-8 pt-2 md:pt-8">
       <div className="mb-6 md:mb-8">
         <h1 className="text-3xl md:text-4xl font-black text-[var(--replay-off-white)] mb-2">
           Queue

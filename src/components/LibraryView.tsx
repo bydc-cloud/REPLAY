@@ -105,17 +105,18 @@ const ProjectFolderCard = ({ folder, songCount, onClick, onDelete, onRename }: P
   return (
     <div className="group cursor-pointer relative" onClick={() => !isEditing && onClick?.()}>
       <div
-        className="relative mb-4 aspect-square rounded-xl overflow-hidden flex items-center justify-center"
-        style={{ backgroundColor: folder.color || '#3b82f6' }}
+        className="relative mb-4 aspect-square rounded-xl overflow-hidden flex items-center justify-center bg-[#1a1a1a] border border-white/10 hover:border-white/20 transition-all duration-300 hover:scale-[1.02]"
       >
-        <Folder className="w-16 h-16 text-white/90" />
+        {/* Subtle gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
+        <Folder className="w-16 h-16 text-[var(--replay-off-white)]/80" />
         {onDelete && (
           <button
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
-            className="absolute top-2 right-2 p-2 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+            className="absolute top-2 right-2 p-2 bg-black/60 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-red-500/80"
           >
             <Trash2 size={16} className="text-white" />
           </button>
@@ -273,7 +274,7 @@ export const LibraryView = () => {
     : [];
 
   return (
-    <div className="p-4 md:p-8 pb-32 min-h-full">
+    <div className="p-4 md:p-8 pt-2 md:pt-8 pb-32 min-h-full">
       {/* Hidden file input */}
       <input
         type="file"
@@ -496,10 +497,9 @@ export const LibraryView = () => {
                     </button>
                     <div className="flex items-center gap-3">
                       <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center"
-                        style={{ backgroundColor: openFolder.color || '#3b82f6' }}
+                        className="w-10 h-10 rounded-lg flex items-center justify-center bg-[#1a1a1a] border border-white/10"
                       >
-                        <Folder className="w-5 h-5 text-white" />
+                        <Folder className="w-5 h-5 text-[var(--replay-off-white)]" />
                       </div>
                       <div>
                         <h2 className="text-xl font-bold text-[var(--replay-off-white)]">{openFolder.name}</h2>

@@ -1,6 +1,6 @@
-import { Music } from "lucide-react";
 import { PerformantVisualizer } from "./PerformantVisualizer";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
+import { useState, useEffect, useRef } from "react";
 
 interface PremiumCoverArtProps {
   isPlaying?: boolean;
@@ -8,21 +8,56 @@ interface PremiumCoverArtProps {
   variant?: "bars" | "wave" | "pulse" | "circle" | "dots" | "lines" | "lyrics";
   imageUrl?: string;
   audioElement?: HTMLAudioElement | null;
+  demoMode?: boolean; // Force demo mode for settings previews
 }
 
-// Mini visualizer for small sizes - always visible, goes dark when paused
-const MiniVisualizer = ({ isPlaying }: { isPlaying: boolean }) => {
+// Mini visualizer for small sizes - supports demo mode for settings
+const MiniVisualizer = ({ isPlaying, demoMode = false }: { isPlaying: boolean; demoMode?: boolean }) => {
   const { audioLevels } = useAudioPlayer();
+  const [demoLevels, setDemoLevels] = useState<number[]>([0.3, 0.5, 0.7, 0.4, 0.6]);
+  const animationRef = useRef<number>();
+  const timeRef = useRef(0);
 
-  // Take just 5 bars for the mini view
-  const bars = [0, 8, 16, 24, 32].map(i => audioLevels[i] || 0);
+  // Animate demo levels when in demo mode and playing
+  useEffect(() => {
+    if (!demoMode || !isPlaying) {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      return;
+    }
+
+    const animate = () => {
+      timeRef.current += 0.05;
+      const newLevels = [0, 1, 2, 3, 4].map(i => {
+        const wave1 = Math.sin(timeRef.current * 3 + i * 0.8) * 0.3 + 0.5;
+        const wave2 = Math.sin(timeRef.current * 2 + i * 0.5 + 1) * 0.2 + 0.4;
+        return Math.max(0.15, Math.min(1, wave1 * 0.6 + wave2 * 0.4 + Math.random() * 0.1));
+      });
+      setDemoLevels(newLevels);
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [demoMode, isPlaying]);
+
+  // Use demo levels in demo mode, otherwise use real audio levels
+  const bars = demoMode
+    ? demoLevels
+    : [0, 8, 16, 24, 32].map(i => audioLevels[i] || 0);
 
   return (
     <div className="w-full h-full flex items-end justify-center gap-[2px] p-1.5 bg-gradient-to-br from-purple-900/50 to-pink-900/50">
       {bars.map((level, i) => (
         <div
           key={i}
-          className="flex-1 rounded-t-sm transition-all duration-300"
+          className="flex-1 rounded-t-sm"
           style={{
             height: isPlaying ? `${Math.max(15, level * 85)}%` : '15%',
             background: isPlaying
@@ -33,7 +68,7 @@ const MiniVisualizer = ({ isPlaying }: { isPlaying: boolean }) => {
                   hsl(${260 + i * 20}, 20%, 20%),
                   hsl(${280 + i * 20}, 20%, 25%))`,
             boxShadow: isPlaying && level > 0.4 ? `0 0 ${level * 6}px rgba(147, 51, 234, 0.6)` : 'none',
-            transition: 'height 0.08s ease-out, background 0.3s ease',
+            transition: demoMode ? 'none' : 'height 0.08s ease-out, background 0.3s ease',
           }}
         />
       ))}
@@ -46,8 +81,11 @@ export const PremiumCoverArt = ({
   size = "md",
   variant = "bars",
   imageUrl,
-  audioElement
+  audioElement,
+  demoMode = false
 }: PremiumCoverArtProps) => {
+  // Enable demo mode if no audioElement is provided (for settings previews)
+  const effectiveDemoMode = demoMode || !audioElement;
   const sizeClasses = {
     sm: "w-12 h-12",
     md: "w-16 h-16",
@@ -80,7 +118,7 @@ export const PremiumCoverArt = ({
   if (size === "sm" || size === "md") {
     return (
       <div className={`${sizeClasses[size]} bg-gradient-to-br from-[#0a0a12] to-[#15151f] rounded-xl overflow-hidden flex items-center justify-center relative border border-white/10 shadow-lg`}>
-        <MiniVisualizer isPlaying={isPlaying} />
+        <MiniVisualizer isPlaying={isPlaying} demoMode={effectiveDemoMode} />
       </div>
     );
   }

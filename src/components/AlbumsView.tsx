@@ -126,7 +126,7 @@ export const AlbumsView = () => {
   };
 
   return (
-    <div className="p-4 md:p-8">
+    <div className="p-4 md:p-8 pt-2 md:pt-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-6 md:mb-8">
         <div>
