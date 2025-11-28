@@ -10,6 +10,9 @@ interface KeyboardShortcutsConfig {
   onShuffle?: () => void;
   onRepeat?: () => void;
   onLike?: () => void;
+  onSeekForward?: () => void;
+  onSeekBackward?: () => void;
+  onFullscreen?: () => void;
 }
 
 export const useKeyboardShortcuts = (config: KeyboardShortcutsConfig) => {
@@ -25,17 +28,24 @@ export const useKeyboardShortcuts = (config: KeyboardShortcutsConfig) => {
 
       switch (e.key.toLowerCase()) {
         case " ": // Spacebar - Play/Pause
+        case "k": // K - Play/Pause (YouTube style)
           e.preventDefault();
           config.onPlayPause?.();
           break;
-        case "arrowright": // Right arrow - Next track
+        case "arrowright": // Right arrow
+          e.preventDefault();
           if (e.shiftKey) {
-            config.onNext?.();
+            config.onNext?.(); // Shift+Right - Next track
+          } else {
+            config.onSeekForward?.(); // Right - Seek forward 5s
           }
           break;
-        case "arrowleft": // Left arrow - Previous track
+        case "arrowleft": // Left arrow
+          e.preventDefault();
           if (e.shiftKey) {
-            config.onPrevious?.();
+            config.onPrevious?.(); // Shift+Left - Previous track
+          } else {
+            config.onSeekBackward?.(); // Left - Seek backward 5s
           }
           break;
         case "arrowup": // Up arrow - Volume up
@@ -57,6 +67,33 @@ export const useKeyboardShortcuts = (config: KeyboardShortcutsConfig) => {
           break;
         case "l": // L - Like/Unlike
           config.onLike?.();
+          break;
+        case "n": // N - Next track
+          config.onNext?.();
+          break;
+        case "p": // P - Previous track
+          config.onPrevious?.();
+          break;
+        case "j": // J - Seek backward 10s (YouTube style)
+          config.onSeekBackward?.();
+          config.onSeekBackward?.(); // Double for 10s
+          break;
+        case "f": // F - Fullscreen
+          config.onFullscreen?.();
+          break;
+        case "0":
+        case "1":
+        case "2":
+        case "3":
+        case "4":
+        case "5":
+        case "6":
+        case "7":
+        case "8":
+        case "9":
+          // Number keys - Jump to percentage of track
+          // 0 = start, 5 = 50%, 9 = 90%
+          // This is handled separately if needed
           break;
       }
     };

@@ -3,9 +3,11 @@ import { useState } from "react";
 import { PremiumCoverArt } from "./PremiumCoverArt";
 import { useSettings } from "../contexts/SettingsContext";
 
+type VisualizerVariant = "bars" | "wave" | "pulse" | "circle" | "dots" | "lines" | "lyrics";
+
 interface SettingsViewProps {
-  selectedVisualizer: "bars" | "wave" | "pulse" | "circle" | "dots" | "lines";
-  onVisualizerChange: (variant: "bars" | "wave" | "pulse" | "circle" | "dots" | "lines") => void;
+  selectedVisualizer: VisualizerVariant;
+  onVisualizerChange: (variant: VisualizerVariant) => void;
 }
 
 export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: SettingsViewProps) => {
@@ -60,6 +62,14 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
       features: ["Layered", "Gradient", "Horizontal"],
       gradient: "from-orange-500/20 to-red-500/20",
       borderGradient: "from-orange-500/50 to-red-500/50"
+    },
+    {
+      variant: "lyrics" as const,
+      name: "Lyrics",
+      description: "Apple Music-style lyrics display with transcription",
+      features: ["Karaoke mode", "Auto-scroll", "Transcription"],
+      gradient: "from-violet-500/20 to-fuchsia-500/20",
+      borderGradient: "from-violet-500/50 to-fuchsia-500/50"
     }
   ];
 

@@ -1,9 +1,11 @@
-import { X, Heart, SkipBack, Play, Pause, SkipForward, Shuffle, Repeat, Repeat1, Volume2, VolumeX, Maximize2, Minimize2 } from "lucide-react";
+import { X, Heart, SkipBack, Play, Pause, SkipForward, Shuffle, Repeat, Repeat1, Volume2, VolumeX, Maximize2, Minimize2, Type } from "lucide-react";
 import { useState, useEffect } from "react";
 import { PerformantVisualizer } from "./PerformantVisualizer";
+import { LyricsVisualizer } from "./LyricsVisualizer";
 import { useSettings } from "../contexts/SettingsContext";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
+import { useAudioAnalyzer } from "../hooks/useAudioAnalyzer";
 
 interface VisualizerModalProps {
   isOpen: boolean;
@@ -46,9 +48,12 @@ export const VisualizerModal = ({ isOpen, onClose }: VisualizerModalProps) => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const visualizerOptions: Array<"bars" | "wave" | "pulse" | "circle" | "dots" | "lines"> = [
-    "bars", "wave", "pulse", "circle", "dots", "lines"
+  const visualizerOptions: Array<"bars" | "wave" | "pulse" | "circle" | "dots" | "lines" | "lyrics"> = [
+    "bars", "wave", "pulse", "circle", "dots", "lines", "lyrics"
   ];
+
+  // Get audio levels for lyrics visualizer
+  const { audioLevels } = useAudioAnalyzer(isOpen && visualizerVariant === "lyrics" ? audioElement : null);
 
   // Auto-hide controls after inactivity
   useEffect(() => {
@@ -115,12 +120,24 @@ export const VisualizerModal = ({ isOpen, onClose }: VisualizerModalProps) => {
       {/* Full-screen Visualizer - Properly Centered */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="w-full h-full flex items-center justify-center">
-          <PerformantVisualizer
-            isPlaying={isPlaying}
-            variant={visualizerVariant as "bars" | "wave" | "pulse" | "circle" | "dots" | "lines"}
-            size="full"
-            audioElement={audioElement}
-          />
+          {visualizerVariant === "lyrics" ? (
+            <LyricsVisualizer
+              currentTime={currentTime}
+              duration={duration}
+              isPlaying={isPlaying}
+              trackTitle={currentTrack.title}
+              trackArtist={currentTrack.artist}
+              audioLevels={audioLevels}
+              onSeek={seek}
+            />
+          ) : (
+            <PerformantVisualizer
+              isPlaying={isPlaying}
+              variant={visualizerVariant as "bars" | "wave" | "pulse" | "circle" | "dots" | "lines"}
+              size="full"
+              audioElement={audioElement}
+            />
+          )}
         </div>
       </div>
 

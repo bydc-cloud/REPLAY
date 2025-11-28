@@ -18,6 +18,7 @@ import { MusicLibraryProvider } from "./contexts/MusicLibraryContext";
 import { AudioPlayerProvider } from "./contexts/AudioPlayerContext";
 import { LandingPage } from "./components/LandingPage";
 import { AuthPage } from "./components/AuthPage";
+import { DragDropOverlay } from "./components/DragDropOverlay";
 
 type AppView = "landing" | "auth" | "app" | "about";
 type AuthMode = "signin" | "signup";
@@ -220,7 +221,9 @@ function AppContent() {
 function AppWithAudioPlayer() {
   return (
     <AudioPlayerProvider>
-      <AppContent />
+      <DragDropOverlay>
+        <AppContent />
+      </DragDropOverlay>
     </AudioPlayerProvider>
   );
 }

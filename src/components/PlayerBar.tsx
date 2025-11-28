@@ -4,9 +4,10 @@ import { FullScreenPlayer } from "./FullScreenPlayer";
 import { VisualizerModal } from "./VisualizerModal";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { PremiumCoverArt } from "./PremiumCoverArt";
+import { WaveformProgress } from "./WaveformProgress";
 import { useSettings } from "../contexts/SettingsContext";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
-import { useMusicLibrary } from "../contexts/MusicLibraryContext";
+import { useMusicLibrary, getAudioUrl } from "../contexts/MusicLibraryContext";
 
 interface PlayerBarProps {
   onQueueClick?: () => void;
@@ -29,6 +30,8 @@ export const PlayerBar = ({ onQueueClick }: PlayerBarProps = {}) => {
     playNext,
     playPrevious,
     seek,
+    seekForward,
+    seekBackward,
     setVolume,
     toggleShuffle,
     cycleRepeatMode
@@ -65,7 +68,14 @@ export const PlayerBar = ({ onQueueClick }: PlayerBarProps = {}) => {
     onVolumeDown: () => setVolume(Math.max(0, volume - 0.05)),
     onMute: () => setVolume(volume > 0 ? 0 : 0.7),
     onLike: () => currentTrack && toggleLike(currentTrack.id),
+    onSeekForward: () => seekForward(5),
+    onSeekBackward: () => seekBackward(5),
+    onShuffle: toggleShuffle,
+    onRepeat: cycleRepeatMode,
   });
+
+  // Get audio URL for waveform
+  const audioUrl = currentTrack ? getAudioUrl(currentTrack) : undefined;
 
   // Swipe handlers
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -401,16 +411,17 @@ export const PlayerBar = ({ onQueueClick }: PlayerBarProps = {}) => {
               </button>
             </div>
 
-            {/* Time Display */}
-            <div className="flex items-center gap-3 w-full max-w-md">
-              <span className="text-xs text-[var(--replay-mid-grey)] tabular-nums">{formatTime(currentTime)}</span>
-              <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-[var(--replay-off-white)] to-white/80"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <span className="text-xs text-[var(--replay-mid-grey)] tabular-nums">{formatTime(duration)}</span>
+            {/* Waveform Progress */}
+            <div className="w-full max-w-lg">
+              <WaveformProgress
+                progress={progress}
+                duration={duration}
+                currentTime={currentTime}
+                onSeek={(p) => seek((p / 100) * duration)}
+                audioUrl={audioUrl}
+                isPlaying={isPlaying}
+                compact={true}
+              />
             </div>
           </div>
 

@@ -1,5 +1,7 @@
-import { Search, X, Music, Disc, User, Settings as SettingsIcon, Command } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { Search, X, Music, Disc, User, Settings as SettingsIcon, Command, Play } from "lucide-react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useMusicLibrary } from "../contexts/MusicLibraryContext";
+import { useAudioPlayer } from "../contexts/AudioPlayerContext";
 
 interface SearchResult {
   type: "song" | "album" | "artist" | "feature" | "setting";
@@ -20,37 +22,108 @@ export const GlobalSearchBar = ({ onNavigate }: GlobalSearchBarProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Mock search results - in real app, this would be dynamic
-  const allResults: SearchResult[] = [
-    // Songs
-    { type: "song", title: "Electric Dreams", subtitle: "Neon Lights", icon: <Music size={16} />, action: () => console.log("Play song") },
-    { type: "song", title: "Midnight Drive", subtitle: "Synthwave Collective", icon: <Music size={16} />, action: () => console.log("Play song") },
-    { type: "song", title: "Neon Sunset", subtitle: "Digital Horizons", icon: <Music size={16} />, action: () => console.log("Play song") },
-    
-    // Albums
-    { type: "album", title: "Retro Future", subtitle: "12 songs", icon: <Disc size={16} />, action: () => console.log("Open album") },
-    { type: "album", title: "Cyberpunk 2088", subtitle: "15 songs", icon: <Disc size={16} />, action: () => console.log("Open album") },
-    
-    // Artists
-    { type: "artist", title: "Neon Lights", subtitle: "Artist", icon: <User size={16} />, action: () => console.log("Open artist") },
-    { type: "artist", title: "Synthwave Collective", subtitle: "Artist", icon: <User size={16} />, action: () => console.log("Open artist") },
-    
-    // Features
-    { type: "feature", title: "Queue", subtitle: "View current queue", icon: <Music size={16} />, action: () => onNavigate?.("queue") },
-    { type: "feature", title: "Library", subtitle: "Browse your music", icon: <Disc size={16} />, action: () => onNavigate?.("library") },
-    
-    // Settings
-    { type: "setting", title: "Audio Visualizer", subtitle: "Change visualizer style", icon: <SettingsIcon size={16} />, action: () => onNavigate?.("settings") },
-    { type: "setting", title: "Settings", subtitle: "App preferences", icon: <SettingsIcon size={16} />, action: () => onNavigate?.("settings") },
-  ];
+  const { tracks, albums, artists } = useMusicLibrary();
+  const { setQueue } = useAudioPlayer();
 
-  // Filter results based on query
-  const filteredResults = query.trim() === "" 
-    ? [] 
-    : allResults.filter(result => 
-        result.title.toLowerCase().includes(query.toLowerCase()) ||
-        result.subtitle?.toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 8); // Limit to 8 results
+  // Generate search results from actual library data
+  const filteredResults = useMemo(() => {
+    if (query.trim() === "") return [];
+
+    const q = query.toLowerCase();
+    const results: SearchResult[] = [];
+
+    // Search tracks
+    const matchingTracks = tracks.filter(track =>
+      track.title.toLowerCase().includes(q) ||
+      track.artist.toLowerCase().includes(q) ||
+      (track.album && track.album.toLowerCase().includes(q))
+    ).slice(0, 5);
+
+    matchingTracks.forEach((track, index) => {
+      results.push({
+        type: "song",
+        title: track.title,
+        subtitle: track.artist,
+        icon: <Music size={16} />,
+        action: () => {
+          const trackIndex = tracks.findIndex(t => t.id === track.id);
+          setQueue(tracks, trackIndex);
+        }
+      });
+    });
+
+    // Search albums
+    const matchingAlbums = albums.filter(album =>
+      album.name.toLowerCase().includes(q) ||
+      album.artist.toLowerCase().includes(q)
+    ).slice(0, 3);
+
+    matchingAlbums.forEach(album => {
+      results.push({
+        type: "album",
+        title: album.name,
+        subtitle: `${album.artist} • ${album.trackCount} songs`,
+        icon: <Disc size={16} />,
+        action: () => {
+          const albumTracks = tracks.filter(t => t.album === album.name && t.artist === album.artist);
+          if (albumTracks.length > 0) {
+            setQueue(albumTracks, 0);
+          }
+        }
+      });
+    });
+
+    // Search artists
+    const matchingArtists = artists.filter(artist =>
+      artist.name.toLowerCase().includes(q)
+    ).slice(0, 3);
+
+    matchingArtists.forEach(artist => {
+      results.push({
+        type: "artist",
+        title: artist.name,
+        subtitle: `${artist.trackCount} songs`,
+        icon: <User size={16} />,
+        action: () => {
+          const artistTracks = tracks.filter(t => t.artist === artist.name);
+          if (artistTracks.length > 0) {
+            setQueue(artistTracks, 0);
+          }
+        }
+      });
+    });
+
+    // Add navigation features if matching
+    if ("queue".includes(q) || "now playing".includes(q)) {
+      results.push({
+        type: "feature",
+        title: "Queue",
+        subtitle: "View current queue",
+        icon: <Play size={16} />,
+        action: () => onNavigate?.("queue")
+      });
+    }
+    if ("library".includes(q) || "songs".includes(q) || "music".includes(q)) {
+      results.push({
+        type: "feature",
+        title: "Library",
+        subtitle: "Browse your music",
+        icon: <Disc size={16} />,
+        action: () => onNavigate?.("library")
+      });
+    }
+    if ("settings".includes(q) || "visualizer".includes(q) || "theme".includes(q)) {
+      results.push({
+        type: "setting",
+        title: "Settings",
+        subtitle: "App preferences & visualizer",
+        icon: <SettingsIcon size={16} />,
+        action: () => onNavigate?.("settings")
+      });
+    }
+
+    return results.slice(0, 10);
+  }, [query, tracks, albums, artists, setQueue, onNavigate]);
 
   // Keyboard navigation
   useEffect(() => {

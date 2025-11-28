@@ -4,7 +4,7 @@ import { PerformantVisualizer } from "./PerformantVisualizer";
 interface PremiumCoverArtProps {
   isPlaying?: boolean;
   size?: "sm" | "md" | "lg" | "xl" | "full";
-  variant?: "bars" | "wave" | "pulse" | "circle" | "dots" | "lines";
+  variant?: "bars" | "wave" | "pulse" | "circle" | "dots" | "lines" | "lyrics";
   imageUrl?: string;
   audioElement?: HTMLAudioElement | null;
 }
@@ -36,7 +36,7 @@ export const PremiumCoverArt = ({
         {isPlaying && (
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center">
             <div className="w-full h-full flex items-center justify-center p-3">
-              <PerformantVisualizer isPlaying={isPlaying} variant={variant} size={size} audioElement={audioElement} />
+              <PerformantVisualizer isPlaying={isPlaying} variant={variant === "lyrics" ? "bars" : variant} size={size} audioElement={audioElement} />
             </div>
           </div>
         )}
@@ -101,7 +101,7 @@ export const PremiumCoverArt = ({
       {/* Main visualizer - perfectly centered */}
       <div className="absolute inset-0 flex items-center justify-center p-2">
         {isPlaying ? (
-          <PerformantVisualizer isPlaying={isPlaying} variant={variant} size={size} audioElement={audioElement} />
+          <PerformantVisualizer isPlaying={isPlaying} variant={variant === "lyrics" ? "bars" : variant} size={size} audioElement={audioElement} />
         ) : (
           <div className="flex flex-col items-center justify-center gap-3 opacity-40">
             <div className="relative">

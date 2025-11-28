@@ -121,5 +121,8 @@ export const useAudioAnalyzer = (audioElement?: HTMLAudioElement | null) => {
     }
   }, [audioElement]);
 
-  return { frequencyData, isAnalyzing };
+  // Convert frequency data to normalized audio levels (0-1 range)
+  const audioLevels = Array.from(frequencyData).map(v => v / 255);
+
+  return { frequencyData, isAnalyzing, audioLevels };
 };

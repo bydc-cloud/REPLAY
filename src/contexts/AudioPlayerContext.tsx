@@ -70,6 +70,11 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     audioRef.current = new Audio();
     audioRef.current.volume = volume;
 
+    // Mobile-specific: Enable playback on user interaction
+    (audioRef.current as any).playsInline = true;
+    audioRef.current.preload = "auto";
+    (audioRef.current as any).webkitPlaysInline = true;
+
     const audio = audioRef.current;
 
     audio.addEventListener("timeupdate", () => {
@@ -88,12 +93,43 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       console.error("Audio error:", e);
     });
 
+    // Mobile: Handle play promise rejections
+    audio.addEventListener("play", () => {
+      setIsPlaying(true);
+    });
+
+    audio.addEventListener("pause", () => {
+      setIsPlaying(false);
+    });
+
+    // Mobile: Unlock audio on first user interaction
+    const unlockAudio = () => {
+      if (audio.paused) {
+        audio.play().then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+        }).catch(() => {
+          // Silent catch - audio not ready yet
+        });
+      }
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('touchend', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
+    };
+
+    document.addEventListener('touchstart', unlockAudio, { once: true });
+    document.addEventListener('touchend', unlockAudio, { once: true });
+    document.addEventListener('click', unlockAudio, { once: true });
+
     return () => {
       audio.pause();
       audio.src = "";
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('touchend', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
     };
   }, []);
 
@@ -208,16 +244,39 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
+      // Load the audio
       audioRef.current.src = audioUrl;
-      await audioRef.current.play();
 
-      setupAnalyzer();
-      if (audioContextRef.current?.state === "suspended") {
-        await audioContextRef.current.resume();
+      // Wait for the audio to be ready before playing
+      audioRef.current.load();
+
+      // Use a promise to handle mobile play restrictions
+      const playPromise = audioRef.current.play();
+
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            // Playback started successfully
+            setIsPlaying(true);
+            incrementPlayCount(track.id);
+
+            // Setup analyzer after successful play
+            setupAnalyzer();
+            if (audioContextRef.current?.state === "suspended") {
+              audioContextRef.current.resume();
+            }
+          })
+          .catch((error) => {
+            // Auto-play was prevented or other error
+            console.error("Playback failed:", error);
+
+            // On mobile, we may need user interaction - set up for retry
+            if (error.name === 'NotAllowedError') {
+              console.log('Playback requires user interaction. Tap play to start.');
+              setIsPlaying(false);
+            }
+          });
       }
-
-      setIsPlaying(true);
-      incrementPlayCount(track.id);
     } catch (e) {
       console.error("Failed to play track:", e);
     }
@@ -227,8 +286,20 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     if (track) {
       loadAndPlayTrack(track);
     } else if (audioRef.current && currentTrack) {
-      audioRef.current.play();
-      setIsPlaying(true);
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+            // Resume audio context if suspended (needed for mobile)
+            if (audioContextRef.current?.state === "suspended") {
+              audioContextRef.current.resume();
+            }
+          })
+          .catch((error) => {
+            console.error("Play failed:", error);
+          });
+      }
     }
   };
 
