@@ -29,7 +29,7 @@ export const FullScreenPlayer = ({
   onVolumeChange,
 }: FullScreenPlayerProps) => {
   const { visualizerVariant } = useSettings();
-  const { currentTrack, currentTime, duration, shuffleMode, repeatMode, toggleShuffle, cycleRepeatMode, playNext, playPrevious } = useAudioPlayer();
+  const { currentTrack, currentTime, duration, shuffleMode, repeatMode, toggleShuffle, cycleRepeatMode, playNext, playPrevious, audioElement } = useAudioPlayer();
 
   // Format time helper
   const formatTime = (seconds: number) => {
@@ -77,7 +77,7 @@ export const FullScreenPlayer = ({
                 />
               </div>
             ) : (
-              <PremiumCoverArt isPlaying={isPlaying} size="full" variant={visualizerVariant} />
+              <PremiumCoverArt isPlaying={isPlaying} size="full" variant={visualizerVariant} audioElement={audioElement} />
             )}
           </div>
         </div>
@@ -152,12 +152,12 @@ export const FullScreenPlayer = ({
           </button>
           <button
             onClick={onPlayPause}
-            className="bg-[var(--replay-off-white)]/90 hover:bg-[var(--replay-off-white)] hover:scale-105 text-[var(--replay-black)] rounded-full p-5 transition-all duration-300 shadow-lg shadow-white/20"
+            className="bg-white hover:bg-gray-100 hover:scale-105 text-black rounded-full p-5 transition-all duration-300 shadow-lg shadow-white/20"
           >
             {isPlaying ? (
-              <Pause size={28} fill="currentColor" />
+              <Pause size={28} fill="black" stroke="black" />
             ) : (
-              <Play size={28} fill="currentColor" className="ml-1" />
+              <Play size={28} fill="black" stroke="black" className="ml-1" />
             )}
           </button>
           <button
