@@ -547,6 +547,176 @@ app.delete('/api/tracks/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// ============ LYRICS/TRANSCRIPTION API ============
+
+// Get lyrics for a track
+app.get('/api/lyrics/:trackId', authMiddleware, async (req, res) => {
+  try {
+    const { trackId } = req.params;
+    const db = getPool();
+
+    const result = await db.query(
+      'SELECT * FROM lyrics WHERE track_id = $1',
+      [trackId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No lyrics found for this track' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Get lyrics error:', error.message);
+    res.status(500).json({ error: 'Failed to get lyrics' });
+  }
+});
+
+// Transcribe audio file using OpenAI Whisper
+app.post('/api/transcribe/:trackId', authMiddleware, async (req, res) => {
+  try {
+    const { trackId } = req.params;
+    const db = getPool();
+    const openaiClient = getOpenAI();
+
+    if (!openaiClient) {
+      return res.status(500).json({ error: 'Transcription service not configured. Set OPENAI_API_KEY.' });
+    }
+
+    // Check if lyrics already exist
+    const existingLyrics = await db.query(
+      'SELECT id FROM lyrics WHERE track_id = $1',
+      [trackId]
+    );
+
+    if (existingLyrics.rows.length > 0) {
+      return res.status(400).json({ error: 'Lyrics already exist for this track' });
+    }
+
+    // Get the track to find its file
+    const trackResult = await db.query(
+      'SELECT * FROM tracks WHERE id = $1 AND user_id = $2',
+      [trackId, req.userId]
+    );
+
+    if (trackResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    const track = trackResult.rows[0];
+
+    if (!track.file_key) {
+      return res.status(400).json({ error: 'Track has no audio file to transcribe' });
+    }
+
+    // Mark as pending
+    await db.query(
+      `INSERT INTO lyrics (track_id, content, transcription_status)
+       VALUES ($1, '', 'processing')
+       ON CONFLICT (track_id) DO UPDATE SET transcription_status = 'processing'`,
+      [trackId]
+    );
+
+    // Get the audio file from B2
+    const client = getS3Client();
+    if (!client) {
+      return res.status(500).json({ error: 'Storage not configured' });
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: B2_BUCKET,
+      Key: track.file_key,
+    });
+
+    const s3Response = await client.send(command);
+
+    // Convert stream to buffer
+    const chunks = [];
+    for await (const chunk of s3Response.Body) {
+      chunks.push(chunk);
+    }
+    const audioBuffer = Buffer.concat(chunks);
+
+    // Get file extension from key
+    const fileExt = track.file_key.split('.').pop() || 'mp3';
+
+    // Create a File object for OpenAI
+    const audioFile = new File([audioBuffer], `audio.${fileExt}`, {
+      type: s3Response.ContentType || 'audio/mpeg'
+    });
+
+    console.log(`Transcribing track ${trackId} (${track.title})...`);
+
+    // Call OpenAI Whisper API with verbose timestamps for word-level timing
+    const transcription = await openaiClient.audio.transcriptions.create({
+      file: audioFile,
+      model: 'whisper-1',
+      response_format: 'verbose_json',
+      timestamp_granularities: ['word', 'segment']
+    });
+
+    console.log(`Transcription complete for ${track.title}`);
+
+    // Store the lyrics with segments
+    await db.query(
+      `UPDATE lyrics SET
+        content = $1,
+        segments = $2,
+        language = $3,
+        transcription_status = 'completed',
+        updated_at = CURRENT_TIMESTAMP
+       WHERE track_id = $4`,
+      [
+        transcription.text,
+        JSON.stringify({
+          segments: transcription.segments || [],
+          words: transcription.words || []
+        }),
+        transcription.language || 'en',
+        trackId
+      ]
+    );
+
+    res.json({
+      success: true,
+      trackId,
+      text: transcription.text,
+      language: transcription.language,
+      segments: transcription.segments || [],
+      words: transcription.words || []
+    });
+
+  } catch (error) {
+    console.error('Transcription error:', error.message);
+
+    // Update status to failed
+    try {
+      const db = getPool();
+      await db.query(
+        `UPDATE lyrics SET transcription_status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE track_id = $1`,
+        [req.params.trackId]
+      );
+    } catch (e) {
+      // Ignore
+    }
+
+    res.status(500).json({ error: 'Transcription failed: ' + error.message });
+  }
+});
+
+// Delete lyrics for a track
+app.delete('/api/lyrics/:trackId', authMiddleware, async (req, res) => {
+  try {
+    const { trackId } = req.params;
+    const db = getPool();
+
+    await db.query('DELETE FROM lyrics WHERE track_id = $1', [trackId]);
+    res.json({ deleted: true });
+  } catch (error) {
+    console.error('Delete lyrics error:', error.message);
+    res.status(500).json({ error: 'Failed to delete lyrics' });
+  }
+});
+
 // ============ PLAYLISTS API ============
 
 // Get all playlists

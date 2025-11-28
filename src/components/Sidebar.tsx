@@ -68,25 +68,36 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
 
   return (
     <>
-      {/* Mobile Overlay */}
-      {isOpen && (
-        <div 
-          className="md:hidden fixed inset-0 bg-black/50 z-40"
-          onClick={onClose}
-        />
-      )}
+      {/* Mobile Overlay - GPU accelerated */}
+      <div
+        className={`md:hidden fixed inset-0 bg-black/60 z-40 will-change-[opacity] ${
+          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        style={{
+          transition: 'opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+          backfaceVisibility: 'hidden',
+        }}
+        onClick={onClose}
+      />
 
-      {/* Sidebar */}
-      <aside className={`
-        fixed md:static inset-y-0 left-0 z-50
-        w-[280px] md:w-[250px] h-screen 
-        bg-[var(--replay-elevated)]/95 backdrop-blur-xl border-r border-[var(--replay-border)]
-        flex flex-col
-        transform transition-transform duration-300 ease-in-out
-        ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-      `}>
-        {/* Logo Header */}
-        <div className="p-6 flex items-center justify-between border-b border-[var(--replay-border)]">
+      {/* Sidebar - GPU accelerated with translate3d */}
+      <aside
+        className={`
+          fixed md:static inset-y-0 left-0 z-50
+          w-[280px] md:w-[250px] h-screen
+          bg-[var(--replay-elevated)]/95 backdrop-blur-xl border-r border-[var(--replay-border)]
+          flex flex-col will-change-transform
+          md:!translate-x-0 md:!opacity-100
+          ${isOpen ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0'}
+        `}
+        style={{
+          transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease-out',
+          backfaceVisibility: 'hidden',
+          WebkitBackfaceVisibility: 'hidden',
+        }}
+      >
+        {/* Logo Header - Fixed at top */}
+        <div className="p-6 flex items-center justify-between border-b border-[var(--replay-border)] flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="relative">
               <svg
@@ -97,20 +108,20 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
                 xmlns="http://www.w3.org/2000/svg"
               >
                 {/* Glassmorphism circle background */}
-                <circle 
-                  cx="16" 
-                  cy="16" 
-                  r="15" 
+                <circle
+                  cx="16"
+                  cy="16"
+                  r="15"
                   fill="currentColor"
                   fillOpacity="0.1"
                   className="text-[var(--replay-off-white)]"
                 />
                 {/* Outer glow ring */}
-                <circle 
-                  cx="16" 
-                  cy="16" 
-                  r="14" 
-                  stroke="currentColor" 
+                <circle
+                  cx="16"
+                  cy="16"
+                  r="14"
+                  stroke="currentColor"
                   strokeWidth="1.5"
                   strokeOpacity="0.8"
                   className="text-[var(--replay-off-white)]"
@@ -127,93 +138,96 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
               REPLAY
             </h1>
           </div>
-          <button 
+          <button
             onClick={onClose}
-            className="md:hidden text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] transition-colors"
+            className="md:hidden text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] transition-colors p-1 rounded-lg hover:bg-white/10 active:scale-95"
           >
             <X size={24} />
           </button>
         </div>
 
-        {/* Primary Navigation */}
-        <nav className="pt-6">
-          <NavItem 
-            icon={<Home size={20} />} 
-            label="Home" 
-            active={activeTab === "home"} 
-            onClick={() => handleNavClick("home")}
-          />
-          <NavItem 
-            icon={<Search size={20} />} 
-            label="Search" 
-            active={activeTab === "search"}
-            onClick={() => handleNavClick("search")}
-          />
-          <NavItem 
-            icon={<Library size={20} />} 
-            label="Library" 
-            active={activeTab === "library"}
-            onClick={() => handleNavClick("library")}
-          />
-          <NavItem 
-            icon={<Heart size={20} />} 
-            label="Liked Songs" 
-            active={activeTab === "liked"}
-            onClick={() => handleNavClick("liked")}
-          />
-        </nav>
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pb-safe">
+          {/* Primary Navigation */}
+          <nav className="pt-6">
+            <NavItem
+              icon={<Home size={20} />}
+              label="Home"
+              active={activeTab === "home"}
+              onClick={() => handleNavClick("home")}
+            />
+            <NavItem
+              icon={<Search size={20} />}
+              label="Search"
+              active={activeTab === "search"}
+              onClick={() => handleNavClick("search")}
+            />
+            <NavItem
+              icon={<Library size={20} />}
+              label="Library"
+              active={activeTab === "library"}
+              onClick={() => handleNavClick("library")}
+            />
+            <NavItem
+              icon={<Heart size={20} />}
+              label="Liked Songs"
+              active={activeTab === "liked"}
+              onClick={() => handleNavClick("liked")}
+            />
+          </nav>
 
-        {/* Secondary Navigation */}
-        <nav className="pt-6 border-t border-[var(--replay-border)] mt-6">
-          <NavItem
-            icon={<Disc size={20} />}
-            label="Albums"
-            active={activeTab === "albums"}
-            onClick={() => handleNavClick("albums")}
-          />
-          <NavItem
-            icon={<ListMusic size={20} />}
-            label="Queue"
-            active={activeTab === "queue"}
-            onClick={() => handleNavClick("queue")}
-          />
-          <NavItem
-            icon={<Settings size={20} />}
-            label="Settings"
-            active={activeTab === "settings"}
-            onClick={() => handleNavClick("settings")}
-          />
-          <NavItem
-            icon={<Info size={20} />}
-            label="About REPLAY"
-            active={activeTab === "about"}
-            onClick={() => {
-              onAboutClick?.();
-              onClose?.();
-            }}
-          />
-        </nav>
+          {/* Secondary Navigation */}
+          <nav className="pt-6 border-t border-[var(--replay-border)] mt-6">
+            <NavItem
+              icon={<Disc size={20} />}
+              label="Albums"
+              active={activeTab === "albums"}
+              onClick={() => handleNavClick("albums")}
+            />
+            <NavItem
+              icon={<ListMusic size={20} />}
+              label="Queue"
+              active={activeTab === "queue"}
+              onClick={() => handleNavClick("queue")}
+            />
+            <NavItem
+              icon={<Settings size={20} />}
+              label="Settings"
+              active={activeTab === "settings"}
+              onClick={() => handleNavClick("settings")}
+            />
+            <NavItem
+              icon={<Info size={20} />}
+              label="About REPLAY"
+              active={activeTab === "about"}
+              onClick={() => {
+                onAboutClick?.();
+                onClose?.();
+              }}
+            />
+          </nav>
 
-        {/* Projects Section */}
-        <div className="pt-6 border-t border-[var(--replay-border)] mt-6 flex-1 overflow-y-auto">
-          <div className="px-6 pb-3 flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider text-[var(--replay-mid-grey)]">
-              Projects
-            </span>
-            <button className="text-[var(--replay-off-white)] hover:opacity-70 transition-opacity">
-              <Plus size={18} />
-            </button>
-          </div>
-          <div className="space-y-1">
-            {projects.map((project) => (
-              <ProjectItem key={project.name} name={project.name} songCount={project.songCount} />
-            ))}
+          {/* Projects Section */}
+          <div className="pt-6 border-t border-[var(--replay-border)] mt-6">
+            <div className="px-6 pb-3 flex items-center justify-between">
+              <span className="text-xs uppercase tracking-wider text-[var(--replay-mid-grey)]">
+                Projects
+              </span>
+              <button className="text-[var(--replay-off-white)] hover:opacity-70 transition-opacity">
+                <Plus size={18} />
+              </button>
+            </div>
+            <div className="space-y-1 pb-6">
+              {projects.map((project) => (
+                <ProjectItem key={project.name} name={project.name} songCount={project.songCount} />
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Import Button Footer */}
-        <div className="p-6 border-t border-[var(--replay-border)]">
-          <button className="w-full py-3 px-6 border border-[var(--replay-off-white)] text-[var(--replay-off-white)] hover:bg-[var(--replay-off-white)] hover:text-[var(--replay-black)] transition-all rounded-md hover-lift">
+        {/* Import Button Footer - Fixed at bottom */}
+        <div className="px-3 py-4 border-t border-[var(--replay-border)] flex-shrink-0">
+          <button className="w-full py-3 border border-[var(--replay-off-white)] text-[var(--replay-off-white)] hover:bg-[var(--replay-off-white)] hover:text-[var(--replay-black)] transition-all rounded-md hover-lift active:scale-95 font-medium">
             Import Music
           </button>
         </div>

@@ -4,6 +4,26 @@ import { useAuth } from "./PostgresAuthContext";
 // API URL from environment
 const API_URL = import.meta.env.VITE_API_URL || '';
 
+export interface LyricsSegment {
+  start: number;
+  end: number;
+  text: string;
+}
+
+export interface LyricsWord {
+  word: string;
+  start: number;
+  end: number;
+}
+
+export interface TrackLyrics {
+  content: string;
+  segments: LyricsSegment[];
+  words: LyricsWord[];
+  language: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+}
+
 export interface Track {
   id: string;
   title: string;
@@ -19,6 +39,8 @@ export interface Track {
   playCount: number;
   genre?: string;
   filePath?: string;
+  lyrics?: TrackLyrics;
+  hasLyrics?: boolean;
 }
 
 export interface Album {
@@ -79,6 +101,8 @@ interface MusicLibraryContextType {
   removeFromPlaylist: (playlistId: string, trackId: string) => Promise<void>;
   updatePlaylistName: (playlistId: string, newName: string) => Promise<void>;
   updatePlaylistCover: (playlistId: string, coverUrl: string) => Promise<void>;
+  transcribeTrack: (trackId: string) => Promise<TrackLyrics | null>;
+  getLyrics: (trackId: string) => Promise<TrackLyrics | null>;
   createProjectFolder: (name: string) => Promise<string>;
   deleteProjectFolder: (folderId: string) => Promise<void>;
   renameProjectFolder: (folderId: string, newName: string) => Promise<void>;
@@ -612,6 +636,125 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
+  // Lyrics/Transcription functions
+  const getLyrics = async (trackId: string): Promise<TrackLyrics | null> => {
+    if (!token) return null;
+
+    try {
+      const response = await fetch(`${API_URL}/api/lyrics/${trackId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const segments = data.segments ? JSON.parse(data.segments) : { segments: [], words: [] };
+
+        const lyrics: TrackLyrics = {
+          content: data.content,
+          segments: segments.segments || [],
+          words: segments.words || [],
+          language: data.language || 'en',
+          status: data.transcription_status || 'completed'
+        };
+
+        // Update track in state with lyrics
+        setTracks(prev => prev.map(track => {
+          if (track.id === trackId) {
+            return { ...track, lyrics, hasLyrics: true };
+          }
+          return track;
+        }));
+
+        return lyrics;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching lyrics:', error);
+      return null;
+    }
+  };
+
+  const transcribeTrack = async (trackId: string): Promise<TrackLyrics | null> => {
+    if (!token) return null;
+
+    try {
+      // Mark track as processing
+      setTracks(prev => prev.map(track => {
+        if (track.id === trackId) {
+          return {
+            ...track,
+            lyrics: { content: '', segments: [], words: [], language: 'en', status: 'processing' as const },
+            hasLyrics: false
+          };
+        }
+        return track;
+      }));
+
+      const response = await fetch(`${API_URL}/api/transcribe/${trackId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        const lyrics: TrackLyrics = {
+          content: data.text,
+          segments: data.segments || [],
+          words: data.words || [],
+          language: data.language || 'en',
+          status: 'completed'
+        };
+
+        // Update track in state with lyrics
+        setTracks(prev => prev.map(track => {
+          if (track.id === trackId) {
+            return { ...track, lyrics, hasLyrics: true };
+          }
+          return track;
+        }));
+
+        return lyrics;
+      } else {
+        const error = await response.json();
+        console.error('Transcription failed:', error);
+
+        // Mark as failed
+        setTracks(prev => prev.map(track => {
+          if (track.id === trackId) {
+            return {
+              ...track,
+              lyrics: { content: '', segments: [], words: [], language: 'en', status: 'failed' as const }
+            };
+          }
+          return track;
+        }));
+
+        return null;
+      }
+    } catch (error) {
+      console.error('Error transcribing track:', error);
+
+      // Mark as failed
+      setTracks(prev => prev.map(track => {
+        if (track.id === trackId) {
+          return {
+            ...track,
+            lyrics: { content: '', segments: [], words: [], language: 'en', status: 'failed' as const }
+          };
+        }
+        return track;
+      }));
+
+      return null;
+    }
+  };
+
   // Project Folder functions
   const createProjectFolder = async (name: string): Promise<string> => {
     const newFolder: ProjectFolder = {
@@ -679,6 +822,8 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       removeFromPlaylist,
       updatePlaylistName,
       updatePlaylistCover,
+      transcribeTrack,
+      getLyrics,
       createProjectFolder,
       deleteProjectFolder,
       renameProjectFolder,

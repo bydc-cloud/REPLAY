@@ -22,7 +22,10 @@ import {
   Twitter,
   Mail,
   Users,
-  Lock
+  Lock,
+  Mic,
+  Disc,
+  Wand2
 } from "lucide-react";
 
 interface LandingPageProps {
@@ -59,14 +62,21 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       description: "Drag and drop or browse to import MP3, M4A, WAV, FLAC, AAC, OGG, and more. Your music, your library."
     },
     {
-      icon: Library,
-      title: "Smart Organization",
-      description: "Automatically organize by artist, album, and genre. Create unlimited custom playlists."
+      icon: Mic,
+      title: "AI Lyrics Transcription",
+      description: "Powered by OpenAI Whisper. Automatically transcribe any song and display synced lyrics in real-time.",
+      isNew: true
     },
     {
       icon: Sparkles,
       title: "Stunning Visualizers",
-      description: "Six beautiful audio-reactive visualizers that dance to your music in real-time."
+      description: "Seven beautiful audio-reactive visualizers including an immersive lyrics mode that dances to your music."
+    },
+    {
+      icon: Disc,
+      title: "Custom Albums & Projects",
+      description: "Create your own albums with custom cover art. Perfect for organizing demos, projects, and playlists.",
+      isNew: true
     },
     {
       icon: Cloud,
@@ -76,7 +86,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
     {
       icon: Shuffle,
       title: "Smart Playback",
-      description: "Full queue control with shuffle, repeat modes, and seamless gapless playback."
+      description: "Full queue control with shuffle, repeat modes, and seamless playback. Swipe to skip on mobile."
     },
     {
       icon: Heart,
@@ -84,23 +94,19 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       description: "Heart your favorite tracks for quick access. Build your perfect collection."
     },
     {
-      icon: FolderOpen,
-      title: "Project Folders",
-      description: "Organize your tracks into project folders. Perfect for musicians working on albums or playlists."
+      icon: Wand2,
+      title: "Mini Player Mode",
+      description: "A compact, draggable player that stays on top while you work. Keep the music flowing anywhere.",
+      isNew: true
     },
     {
       icon: Lock,
       title: "Private & Secure",
       description: "Your music stays yours. We don't sell data or track listening habits. Full privacy."
-    },
-    {
-      icon: Users,
-      title: "Built for Musicians",
-      description: "Designed by musicians, for musicians. Features that actually matter for your workflow."
     }
   ];
 
-  const visualizers = ["Orb", "Spectrum", "Particles", "Galaxy", "DNA", "Radial"];
+  const visualizers = ["Bars", "Wave", "Pulse", "Circle", "Dots", "Lines", "Lyrics"];
 
   return (
     <div className="min-h-screen bg-[var(--replay-black)] overflow-x-hidden">
@@ -114,22 +120,72 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
 
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {/* Gradient orbs */}
           <div
-            className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-white/[0.03] rounded-full blur-[100px]"
-            style={{
-              transform: `translate(${Math.sin(Date.now() / 5000) * 20}px, ${Math.cos(Date.now() / 5000) * 20}px)`,
-              animation: 'pulse 8s ease-in-out infinite'
-            }}
+            className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-500/[0.08] rounded-full blur-[100px]"
+            style={{ animation: 'float 8s ease-in-out infinite' }}
           />
           <div
-            className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-white/[0.02] rounded-full blur-[80px]"
-            style={{ animation: 'pulse 10s ease-in-out infinite 2s' }}
+            className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-pink-500/[0.06] rounded-full blur-[80px]"
+            style={{ animation: 'float 10s ease-in-out infinite 2s' }}
           />
           <div
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-radial from-white/[0.02] to-transparent rounded-full"
             style={{ animation: 'pulse 12s ease-in-out infinite 4s' }}
           />
+
+          {/* Animated audio bars in hero background */}
+          <div className="absolute bottom-0 left-0 right-0 h-40 flex items-end justify-center gap-1 opacity-[0.07] px-20">
+            {Array(40).fill(0).map((_, i) => (
+              <div
+                key={i}
+                className="flex-1 bg-gradient-to-t from-purple-500 to-pink-400 rounded-t"
+                style={{
+                  height: `${15 + Math.sin(i * 0.5) * 30 + 40}%`,
+                  animation: `audioBar ${0.8 + Math.random() * 0.4}s ease-in-out infinite`,
+                  animationDelay: `${i * 50}ms`
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Floating music notes */}
+          <div className="absolute inset-0">
+            {Array(8).fill(0).map((_, i) => (
+              <div
+                key={i}
+                className="absolute text-white/10 text-2xl md:text-4xl"
+                style={{
+                  left: `${10 + i * 12}%`,
+                  animation: `floatUp ${8 + Math.random() * 4}s linear infinite`,
+                  animationDelay: `${i * 1.2}s`
+                }}
+              >
+                {i % 3 === 0 ? '♪' : i % 3 === 1 ? '♫' : '♬'}
+              </div>
+            ))}
+          </div>
         </div>
+
+        {/* CSS Animations */}
+        <style>{`
+          @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); }
+            25% { transform: translateY(-20px) translateX(10px); }
+            50% { transform: translateY(-10px) translateX(-10px); }
+            75% { transform: translateY(-30px) translateX(5px); }
+          }
+          @keyframes audioBar {
+            0%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(0.5); }
+          }
+          @keyframes floatUp {
+            0% { bottom: -20px; opacity: 0; transform: translateX(0) rotate(0deg); }
+            10% { opacity: 0.1; }
+            90% { opacity: 0.1; }
+            100% { bottom: 100%; opacity: 0; transform: translateX(20px) rotate(15deg); }
+          }
+        `}</style>
 
         {/* Header */}
         <header className="relative z-10 flex items-center justify-between px-4 py-4 md:px-8 lg:px-12 md:py-6">
@@ -263,14 +319,24 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
               return (
                 <div
                   key={index}
-                  className={`group p-5 md:p-6 lg:p-8 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-white/20 hover:bg-white/[0.05] transition-all duration-300 cursor-default ${
+                  className={`group p-5 md:p-6 lg:p-8 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-white/20 hover:bg-white/[0.05] transition-all duration-300 cursor-default relative overflow-hidden ${
                     hoveredFeature === index ? "bg-white/[0.06] border-white/25" : ""
                   }`}
                   onMouseEnter={() => setHoveredFeature(index)}
                   onMouseLeave={() => setHoveredFeature(null)}
                 >
-                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white/10 flex items-center justify-center mb-3 md:mb-4 group-hover:bg-white/15 group-hover:scale-110 transition-all duration-300">
-                    <Icon className="w-5 h-5 md:w-6 md:h-6 text-white" />
+                  {/* NEW badge for new features */}
+                  {feature.isNew && (
+                    <div className="absolute top-3 right-3 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full text-[10px] font-bold text-white uppercase tracking-wider">
+                      New
+                    </div>
+                  )}
+                  <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-all duration-300 ${
+                    feature.isNew
+                      ? "bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30"
+                      : "bg-white/10"
+                  }`}>
+                    <Icon className={`w-5 h-5 md:w-6 md:h-6 ${feature.isNew ? "text-purple-300" : "text-white"}`} />
                   </div>
                   <h3 className="text-lg md:text-xl font-bold text-white mb-2">{feature.title}</h3>
                   <p className="text-white/50 text-sm md:text-base leading-relaxed">{feature.description}</p>
@@ -293,38 +359,107 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
               Stunning Visualizers
             </h2>
             <p className="text-white/50 max-w-xl mx-auto text-sm md:text-base">
-              Six beautiful visualizations that respond to your music in real-time.
+              Seven beautiful visualizations that respond to your music in real-time, including AI-powered lyrics sync.
             </p>
           </div>
 
-          {/* Visualizer Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+          {/* Visualizer Grid - 7 visualizers in responsive grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
             {visualizers.map((name, index) => (
               <div
                 key={name}
-                className={`aspect-square rounded-xl md:rounded-2xl bg-gradient-to-br from-white/10 to-white/5 border transition-all duration-500 flex items-center justify-center relative overflow-hidden group cursor-pointer ${
+                className={`aspect-square rounded-xl md:rounded-2xl bg-gradient-to-br from-[#0a0a12] to-[#15151f] border transition-all duration-500 flex items-center justify-center relative overflow-hidden group cursor-pointer ${
                   activeVisualizer === index
-                    ? "border-white/30 ring-2 ring-white/20"
+                    ? "border-purple-500/50 ring-2 ring-purple-500/30"
                     : "border-white/10 hover:border-white/20"
-                }`}
+                } ${name === "Lyrics" ? "sm:col-span-1 lg:col-span-1" : ""}`}
                 onClick={() => setActiveVisualizer(index)}
               >
                 {/* Animated visualizer preview */}
-                <div className={`absolute inset-0 transition-opacity duration-500 ${activeVisualizer === index ? 'opacity-60' : 'opacity-30 group-hover:opacity-50'}`}>
+                <div className={`absolute inset-0 transition-opacity duration-500 ${activeVisualizer === index ? 'opacity-80' : 'opacity-40 group-hover:opacity-60'}`}>
+                  {/* Bars */}
                   {index === 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-16 h-16 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-purple-500/50 to-blue-500/50 blur-xl animate-pulse" />
-                      <div className="absolute w-8 h-8 md:w-12 md:h-12 rounded-full bg-white/30 animate-ping" style={{ animationDuration: '2s' }} />
+                    <div className="absolute bottom-0 left-0 right-0 flex items-end justify-center gap-[2px] p-3 md:p-4">
+                      {Array(10).fill(0).map((_, i) => (
+                        <div
+                          key={i}
+                          className="flex-1 rounded-t-sm animate-pulse"
+                          style={{
+                            height: `${15 + Math.random() * 60}%`,
+                            background: `linear-gradient(to top, hsl(${260 + i * 15}, 80%, 50%), hsl(${280 + i * 15}, 90%, 65%))`,
+                            animationDelay: `${i * 80}ms`,
+                            animationDuration: '0.8s'
+                          }}
+                        />
+                      ))}
                     </div>
                   )}
+                  {/* Wave */}
                   {index === 1 && (
-                    <div className="absolute bottom-0 left-0 right-0 flex items-end justify-center gap-0.5 md:gap-1 p-3 md:p-4">
+                    <div className="absolute inset-0 flex items-center justify-center gap-[2px] p-4">
                       {Array(12).fill(0).map((_, i) => (
                         <div
                           key={i}
-                          className="flex-1 bg-gradient-to-t from-green-500/60 to-cyan-500/60 rounded-t animate-pulse"
+                          className="w-1 bg-gradient-to-t from-cyan-500 to-blue-400 rounded-full animate-pulse"
                           style={{
-                            height: `${20 + Math.sin(i + Date.now() / 500) * 30 + 30}%`,
+                            height: `${20 + Math.sin(i * 0.8) * 30 + 20}%`,
+                            animationDelay: `${i * 100}ms`,
+                            animationDuration: '1.2s'
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {/* Pulse */}
+                  {index === 2 && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      {[0, 1, 2].map((ring) => (
+                        <div
+                          key={ring}
+                          className="absolute rounded-full border-2 animate-ping"
+                          style={{
+                            width: `${30 + ring * 25}%`,
+                            height: `${30 + ring * 25}%`,
+                            borderColor: `hsla(${280 + ring * 30}, 80%, 60%, ${0.6 - ring * 0.15})`,
+                            animationDuration: `${1.5 + ring * 0.5}s`,
+                            animationDelay: `${ring * 0.3}s`
+                          }}
+                        />
+                      ))}
+                      <div className="w-4 h-4 rounded-full bg-white/50 blur-sm" />
+                    </div>
+                  )}
+                  {/* Circle */}
+                  {index === 3 && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="absolute w-3/4 h-3/4 animate-spin" style={{ animationDuration: '8s' }}>
+                        {Array(12).fill(0).map((_, i) => (
+                          <div
+                            key={i}
+                            className="absolute w-2 h-2 rounded-full animate-pulse"
+                            style={{
+                              left: `${50 + 35 * Math.cos(i * Math.PI / 6)}%`,
+                              top: `${50 + 35 * Math.sin(i * Math.PI / 6)}%`,
+                              background: `hsl(${(i / 12) * 360}, 80%, 60%)`,
+                              boxShadow: `0 0 8px hsla(${(i / 12) * 360}, 80%, 60%, 0.6)`,
+                              animationDelay: `${i * 100}ms`
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <div className="w-4 h-4 rounded-full bg-white/60" />
+                    </div>
+                  )}
+                  {/* Dots */}
+                  {index === 4 && (
+                    <div className="absolute inset-0 grid grid-cols-4 gap-2 p-4">
+                      {Array(16).fill(0).map((_, i) => (
+                        <div
+                          key={i}
+                          className="rounded-full animate-pulse"
+                          style={{
+                            background: `hsl(${180 + i * 10}, 70%, 55%)`,
+                            boxShadow: `0 0 8px hsla(${180 + i * 10}, 70%, 55%, 0.5)`,
                             animationDelay: `${i * 100}ms`,
                             animationDuration: '1s'
                           }}
@@ -332,64 +467,59 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                       ))}
                     </div>
                   )}
-                  {index === 2 && (
-                    <div className="absolute inset-0">
-                      {Array(15).fill(0).map((_, i) => (
-                        <div
-                          key={i}
-                          className="absolute w-2 h-2 md:w-3 md:h-3 bg-white/50 rounded-full animate-ping"
-                          style={{
-                            left: `${15 + (i % 5) * 18}%`,
-                            top: `${15 + Math.floor(i / 5) * 25}%`,
-                            animationDelay: `${i * 200}ms`,
-                            animationDuration: '2s'
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  {index === 3 && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-full h-full animate-spin" style={{ animationDuration: '20s' }}>
-                        <div className="absolute inset-[30%] rounded-full bg-gradient-conic from-purple-500/30 via-transparent to-pink-500/30 blur-md" />
-                      </div>
-                      <div className="absolute w-8 h-8 md:w-12 md:h-12 rounded-full bg-white/40 blur-sm" />
-                    </div>
-                  )}
-                  {index === 4 && (
-                    <div className="absolute inset-0 flex flex-col justify-between py-4 md:py-6">
-                      {Array(6).fill(0).map((_, i) => (
-                        <div key={i} className="flex justify-between px-4 md:px-6">
-                          <div
-                            className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-cyan-500/60 animate-pulse"
-                            style={{ animationDelay: `${i * 150}ms` }}
-                          />
-                          <div
-                            className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-pink-500/60 animate-pulse"
-                            style={{ animationDelay: `${i * 150 + 75}ms` }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {/* Lines */}
                   {index === 5 && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      {Array(16).fill(0).map((_, i) => (
+                    <div className="absolute inset-0 flex flex-col justify-center gap-2 p-4">
+                      {Array(6).fill(0).map((_, i) => (
                         <div
                           key={i}
-                          className="absolute w-0.5 md:w-1 bg-gradient-to-t from-transparent to-orange-500/60 origin-bottom animate-pulse"
+                          className="h-1.5 rounded-full animate-pulse origin-left"
                           style={{
-                            height: `${25 + Math.random() * 20}%`,
-                            transform: `rotate(${i * 22.5}deg)`,
-                            animationDelay: `${i * 50}ms`
+                            width: `${30 + Math.random() * 50}%`,
+                            background: `linear-gradient(to right, hsl(${200 + i * 20}, 80%, 55%), transparent)`,
+                            animationDelay: `${i * 150}ms`,
+                            animationDuration: '1s'
                           }}
                         />
                       ))}
-                      <div className="w-4 h-4 md:w-6 md:h-6 rounded-full bg-white/40" />
+                    </div>
+                  )}
+                  {/* Lyrics - NEW */}
+                  {index === 6 && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center">
+                      <div className="text-white/30 text-[8px] md:text-xs mb-1 blur-[1px]">...previous line...</div>
+                      <div
+                        className="text-white font-bold text-sm md:text-base animate-pulse"
+                        style={{
+                          textShadow: '0 0 20px rgba(147, 51, 234, 0.5), 0 0 40px rgba(236, 72, 153, 0.3)'
+                        }}
+                      >
+                        Synced Lyrics
+                      </div>
+                      <div className="text-white/30 text-[8px] md:text-xs mt-1 blur-[1px]">...next line...</div>
+                      {/* Audio bars at bottom */}
+                      <div className="absolute bottom-2 left-0 right-0 flex items-end justify-center gap-[1px] px-3 h-4 opacity-50">
+                        {Array(8).fill(0).map((_, i) => (
+                          <div
+                            key={i}
+                            className="flex-1 bg-gradient-to-t from-purple-500 to-pink-400 rounded-t-sm animate-pulse"
+                            style={{
+                              height: `${20 + Math.random() * 70}%`,
+                              animationDelay: `${i * 60}ms`,
+                              animationDuration: '0.6s'
+                            }}
+                          />
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
-                <span className="relative z-10 text-white font-semibold text-sm md:text-base">{name}</span>
+                <span className="relative z-10 text-white font-semibold text-sm md:text-base flex items-center gap-1.5">
+                  {name}
+                  {name === "Lyrics" && (
+                    <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded text-[8px] font-bold uppercase">AI</span>
+                  )}
+                </span>
               </div>
             ))}
           </div>

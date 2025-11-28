@@ -1,17 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Mic, MicOff, Music2, Type, Sparkles } from "lucide-react";
-
-interface LyricLine {
-  text: string;
-  startTime: number;
-  endTime: number;
-  words?: { text: string; startTime: number; endTime: number }[];
-}
+import { Mic, MicOff, Music2, Sparkles, Loader2, AlertCircle } from "lucide-react";
+import { useMusicLibrary, TrackLyrics, LyricsSegment } from "../contexts/MusicLibraryContext";
 
 interface LyricsVisualizerProps {
   currentTime: number;
   duration: number;
   isPlaying: boolean;
+  trackId?: string;
   trackTitle?: string;
   trackArtist?: string;
   audioLevels?: number[];
@@ -22,18 +17,22 @@ export const LyricsVisualizer = ({
   currentTime,
   duration,
   isPlaying,
+  trackId,
   trackTitle = "Unknown Track",
   trackArtist = "Unknown Artist",
   audioLevels = [],
   onSeek,
 }: LyricsVisualizerProps) => {
-  const [lyrics, setLyrics] = useState<LyricLine[]>([]);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
+  const { tracks, transcribeTrack, getLyrics } = useMusicLibrary();
+  const [lyrics, setLyrics] = useState<TrackLyrics | null>(null);
   const [currentLineIndex, setCurrentLineIndex] = useState(0);
   const [displayMode, setDisplayMode] = useState<"fullscreen" | "karaoke" | "minimal">("fullscreen");
   const containerRef = useRef<HTMLDivElement>(null);
   const activeLineRef = useRef<HTMLDivElement>(null);
+
+  // Get track from context
+  const track = trackId ? tracks.find(t => t.id === trackId) : null;
+  const hasCloudFile = track?.fileKey;
 
   // Calculate average energy from audio levels for glow effects
   const averageEnergy = useMemo(() => {
@@ -41,35 +40,51 @@ export const LyricsVisualizer = ({
     return audioLevels.reduce((a, b) => a + b, 0) / audioLevels.length;
   }, [audioLevels]);
 
-  // Demo lyrics - in production this would come from transcription API
+  // Load lyrics when track changes
   useEffect(() => {
-    // Generate placeholder lyrics based on track duration
-    if (duration > 0 && lyrics.length === 0) {
-      const demoLyrics: LyricLine[] = [
-        { text: "♪ Music playing ♪", startTime: 0, endTime: duration * 0.1 },
-        { text: "Let the rhythm take control", startTime: duration * 0.1, endTime: duration * 0.2 },
-        { text: "Feel the beat within your soul", startTime: duration * 0.2, endTime: duration * 0.3 },
-        { text: "Dancing through the night", startTime: duration * 0.3, endTime: duration * 0.4 },
-        { text: "Everything feels right", startTime: duration * 0.4, endTime: duration * 0.5 },
-        { text: "The music sets us free", startTime: duration * 0.5, endTime: duration * 0.6 },
-        { text: "Just you and me", startTime: duration * 0.6, endTime: duration * 0.7 },
-        { text: "Lost in the melody", startTime: duration * 0.7, endTime: duration * 0.8 },
-        { text: "This is where we belong", startTime: duration * 0.8, endTime: duration * 0.9 },
-        { text: "♪ Instrumental ♪", startTime: duration * 0.9, endTime: duration },
-      ];
-      setLyrics(demoLyrics);
+    const loadLyrics = async () => {
+      if (!trackId) return;
+
+      // Check if lyrics are already in track object
+      if (track?.lyrics && track.lyrics.status === 'completed') {
+        setLyrics(track.lyrics);
+        return;
+      }
+
+      // Try to fetch from API
+      const fetchedLyrics = await getLyrics(trackId);
+      if (fetchedLyrics) {
+        setLyrics(fetchedLyrics);
+      }
+    };
+
+    loadLyrics();
+  }, [trackId, track?.lyrics, getLyrics]);
+
+  // Convert lyrics segments to line format
+  const lines = useMemo(() => {
+    if (!lyrics || !lyrics.segments || lyrics.segments.length === 0) {
+      return [];
     }
-  }, [duration, lyrics.length]);
+
+    return lyrics.segments.map((segment: LyricsSegment) => ({
+      text: segment.text,
+      startTime: segment.start,
+      endTime: segment.end,
+    }));
+  }, [lyrics]);
 
   // Update current line based on playback time
   useEffect(() => {
-    const lineIndex = lyrics.findIndex(
+    if (lines.length === 0) return;
+
+    const lineIndex = lines.findIndex(
       (line) => currentTime >= line.startTime && currentTime < line.endTime
     );
     if (lineIndex !== -1 && lineIndex !== currentLineIndex) {
       setCurrentLineIndex(lineIndex);
     }
-  }, [currentTime, lyrics, currentLineIndex]);
+  }, [currentTime, lines, currentLineIndex]);
 
   // Auto-scroll to active line
   useEffect(() => {
@@ -82,30 +97,30 @@ export const LyricsVisualizer = ({
   }, [currentLineIndex]);
 
   // Calculate progress within current line for karaoke effect
-  const getLineProgress = (line: LyricLine): number => {
+  const getLineProgress = (line: { startTime: number; endTime: number }): number => {
     if (currentTime < line.startTime) return 0;
     if (currentTime >= line.endTime) return 100;
     return ((currentTime - line.startTime) / (line.endTime - line.startTime)) * 100;
   };
 
-  const handleLineClick = (line: LyricLine) => {
+  const handleLineClick = (line: { startTime: number }) => {
     if (onSeek) {
       onSeek(line.startTime);
     }
   };
 
-  // Start transcription (placeholder - would integrate with speech-to-text API)
+  // Start transcription
   const startTranscription = async () => {
-    setIsTranscribing(true);
-    setTranscriptionError(null);
-
-    // Simulate transcription process
-    setTimeout(() => {
-      setIsTranscribing(false);
-      // In production, this would call a transcription API
-      // For now, we keep the demo lyrics
-    }, 2000);
+    if (!trackId) return;
+    const result = await transcribeTrack(trackId);
+    if (result) {
+      setLyrics(result);
+    }
   };
+
+  const isTranscribing = track?.lyrics?.status === 'processing';
+  const hasFailed = track?.lyrics?.status === 'failed';
+  const hasLyrics = lines.length > 0;
 
   return (
     <div className="relative w-full h-full flex flex-col overflow-hidden bg-gradient-to-b from-[var(--replay-black)] via-[var(--replay-dark-grey)] to-[var(--replay-black)]">
@@ -117,57 +132,52 @@ export const LyricsVisualizer = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Display Mode Toggle */}
-          <div className="flex bg-[var(--replay-elevated)]/60 backdrop-blur-sm rounded-lg p-1">
-            <button
-              onClick={() => setDisplayMode("fullscreen")}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                displayMode === "fullscreen"
-                  ? "bg-white/20 text-[var(--replay-off-white)]"
-                  : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)]"
-              }`}
-            >
-              Full
-            </button>
-            <button
-              onClick={() => setDisplayMode("karaoke")}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                displayMode === "karaoke"
-                  ? "bg-white/20 text-[var(--replay-off-white)]"
-                  : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)]"
-              }`}
-            >
-              Karaoke
-            </button>
-            <button
-              onClick={() => setDisplayMode("minimal")}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                displayMode === "minimal"
-                  ? "bg-white/20 text-[var(--replay-off-white)]"
-                  : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)]"
-              }`}
-            >
-              Focus
-            </button>
-          </div>
+          {/* Display Mode Toggle - Only show if we have lyrics */}
+          {hasLyrics && (
+            <div className="flex bg-[var(--replay-elevated)]/60 backdrop-blur-sm rounded-lg p-1">
+              <button
+                onClick={() => setDisplayMode("fullscreen")}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  displayMode === "fullscreen"
+                    ? "bg-white/20 text-[var(--replay-off-white)]"
+                    : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)]"
+                }`}
+              >
+                Full
+              </button>
+              <button
+                onClick={() => setDisplayMode("karaoke")}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  displayMode === "karaoke"
+                    ? "bg-white/20 text-[var(--replay-off-white)]"
+                    : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)]"
+                }`}
+              >
+                Karaoke
+              </button>
+              <button
+                onClick={() => setDisplayMode("minimal")}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                  displayMode === "minimal"
+                    ? "bg-white/20 text-[var(--replay-off-white)]"
+                    : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)]"
+                }`}
+              >
+                Focus
+              </button>
+            </div>
+          )}
 
-          {/* Transcribe Button */}
-          <button
-            onClick={startTranscription}
-            disabled={isTranscribing}
-            className={`p-2 rounded-lg transition-all ${
-              isTranscribing
-                ? "bg-purple-500/20 text-purple-400"
-                : "bg-[var(--replay-elevated)]/60 text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] hover:bg-white/10"
-            }`}
-            title="Transcribe audio"
-          >
-            {isTranscribing ? (
-              <Sparkles className="w-5 h-5 animate-pulse" />
-            ) : (
+          {/* Transcribe Button - Only show if we can transcribe */}
+          {hasCloudFile && !hasLyrics && !isTranscribing && (
+            <button
+              onClick={startTranscription}
+              className="p-2 rounded-lg bg-[var(--replay-elevated)]/60 text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] hover:bg-white/10 transition-all"
+              title="Transcribe audio"
+            >
               <Mic className="w-5 h-5" />
-            )}
-          </button>
+            </button>
+          )}
         </div>
       </div>
 
@@ -184,21 +194,56 @@ export const LyricsVisualizer = ({
           displayMode === "minimal" ? "flex items-center justify-center" : ""
         }`}
       >
-        {lyrics.length === 0 ? (
+        {isTranscribing ? (
+          // Transcribing State
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <Loader2 className="w-16 h-16 text-purple-500 mb-4 animate-spin" />
+            <p className="text-[var(--replay-off-white)] text-lg mb-2">Transcribing audio...</p>
+            <p className="text-[var(--replay-mid-grey)]/60 text-sm">
+              This may take a minute. The lyrics will appear when ready.
+            </p>
+          </div>
+        ) : hasFailed ? (
+          // Failed State
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <AlertCircle className="w-16 h-16 text-red-500/50 mb-4" />
+            <p className="text-[var(--replay-off-white)] text-lg mb-2">Transcription failed</p>
+            <p className="text-[var(--replay-mid-grey)]/60 text-sm mb-6">
+              There was an error transcribing this track. Please try again.
+            </p>
+            {hasCloudFile && (
+              <button
+                onClick={startTranscription}
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-medium hover:scale-105 transition-transform flex items-center gap-2"
+              >
+                <Mic className="w-5 h-5" />
+                Try Again
+              </button>
+            )}
+          </div>
+        ) : !hasLyrics ? (
+          // No Lyrics State
           <div className="flex flex-col items-center justify-center h-full text-center">
             <MicOff className="w-16 h-16 text-[var(--replay-mid-grey)]/50 mb-4" />
             <p className="text-[var(--replay-mid-grey)] text-lg mb-2">No lyrics available</p>
-            <p className="text-[var(--replay-mid-grey)]/60 text-sm mb-6">
-              Click the microphone to transcribe this track
-            </p>
-            <button
-              onClick={startTranscription}
-              disabled={isTranscribing}
-              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-medium hover:scale-105 transition-transform flex items-center gap-2"
-            >
-              <Mic className="w-5 h-5" />
-              {isTranscribing ? "Transcribing..." : "Transcribe Audio"}
-            </button>
+            {hasCloudFile ? (
+              <>
+                <p className="text-[var(--replay-mid-grey)]/60 text-sm mb-6">
+                  Click below to transcribe this track with AI
+                </p>
+                <button
+                  onClick={startTranscription}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl text-white font-medium hover:scale-105 transition-transform flex items-center gap-2"
+                >
+                  <Mic className="w-5 h-5" />
+                  Transcribe Audio
+                </button>
+              </>
+            ) : (
+              <p className="text-[var(--replay-mid-grey)]/60 text-sm">
+                Upload this track to the cloud to enable transcription
+              </p>
+            )}
           </div>
         ) : displayMode === "minimal" ? (
           // Minimal/Focus Mode - Only current line
@@ -214,18 +259,18 @@ export const LyricsVisualizer = ({
                 transform: `scale(${1 + averageEnergy * 0.05})`,
               }}
             >
-              {lyrics[currentLineIndex]?.text || "♪"}
+              {lines[currentLineIndex]?.text || "♪"}
             </div>
-            {lyrics[currentLineIndex + 1] && (
+            {lines[currentLineIndex + 1] && (
               <div className="mt-8 text-xl text-[var(--replay-mid-grey)]/50 transition-all duration-500">
-                {lyrics[currentLineIndex + 1].text}
+                {lines[currentLineIndex + 1].text}
               </div>
             )}
           </div>
         ) : displayMode === "karaoke" ? (
           // Karaoke Mode - Word by word highlighting
           <div className="space-y-6">
-            {lyrics.map((line, index) => {
+            {lines.map((line, index) => {
               const isActive = index === currentLineIndex;
               const isPast = index < currentLineIndex;
               const progress = getLineProgress(line);
@@ -281,7 +326,7 @@ export const LyricsVisualizer = ({
         ) : (
           // Fullscreen Mode - All lyrics scrollable
           <div className="space-y-4">
-            {lyrics.map((line, index) => {
+            {lines.map((line, index) => {
               const isActive = index === currentLineIndex;
               const isPast = index < currentLineIndex;
 
@@ -318,25 +363,6 @@ export const LyricsVisualizer = ({
         )}
       </div>
 
-      {/* Transcription Status */}
-      {isTranscribing && (
-        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[var(--replay-elevated)]/90 backdrop-blur-sm px-6 py-3 rounded-xl flex items-center gap-3 z-20">
-          <div className="flex gap-1">
-            <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-            <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-            <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-          </div>
-          <span className="text-sm text-[var(--replay-off-white)]">Transcribing audio...</span>
-        </div>
-      )}
-
-      {/* Error Message */}
-      {transcriptionError && (
-        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-red-500/20 backdrop-blur-sm px-6 py-3 rounded-xl text-red-400 text-sm z-20">
-          {transcriptionError}
-        </div>
-      )}
-
       {/* Audio Reactive Background Effect */}
       <div
         className="absolute inset-0 pointer-events-none z-0 opacity-30"
@@ -351,8 +377,28 @@ export const LyricsVisualizer = ({
         }}
       />
 
-      {/* Floating Particles Effect */}
+      {/* Audio Bars Visualizer at Bottom */}
       {isPlaying && (
+        <div className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none z-10 flex items-end justify-center gap-[2px] px-4 opacity-60">
+          {audioLevels.slice(0, 48).map((level, i) => (
+            <div
+              key={i}
+              className="flex-1 max-w-2 rounded-t-sm"
+              style={{
+                height: `${Math.max(4, level * 120)}px`,
+                background: `linear-gradient(to top,
+                  rgba(147, 51, 234, ${0.6 + level * 0.4}),
+                  rgba(236, 72, 153, ${0.4 + level * 0.4}))`,
+                boxShadow: level > 0.5 ? `0 0 ${level * 10}px rgba(147, 51, 234, 0.5)` : 'none',
+                transition: 'height 0.05s ease-out',
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Floating Particles Effect */}
+      {isPlaying && hasLyrics && (
         <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
           {Array.from({ length: 20 }).map((_, i) => (
             <div
@@ -371,6 +417,30 @@ export const LyricsVisualizer = ({
               }}
             />
           ))}
+        </div>
+      )}
+
+      {/* Pulsing Ring Effect */}
+      {isPlaying && (
+        <div className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center overflow-hidden">
+          <div
+            className="w-[600px] h-[600px] rounded-full border-2"
+            style={{
+              borderColor: `rgba(147, 51, 234, ${0.1 + averageEnergy * 0.3})`,
+              transform: `scale(${0.5 + averageEnergy * 0.5})`,
+              opacity: 0.2 + averageEnergy * 0.3,
+              transition: 'all 0.1s ease-out',
+            }}
+          />
+          <div
+            className="absolute w-[400px] h-[400px] rounded-full border-2"
+            style={{
+              borderColor: `rgba(236, 72, 153, ${0.1 + averageEnergy * 0.3})`,
+              transform: `scale(${0.6 + averageEnergy * 0.4})`,
+              opacity: 0.15 + averageEnergy * 0.25,
+              transition: 'all 0.1s ease-out',
+            }}
+          />
         </div>
       )}
 

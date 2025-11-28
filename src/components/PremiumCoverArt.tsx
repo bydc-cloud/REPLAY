@@ -1,5 +1,6 @@
 import { Music } from "lucide-react";
 import { PerformantVisualizer } from "./PerformantVisualizer";
+import { useAudioPlayer } from "../contexts/AudioPlayerContext";
 
 interface PremiumCoverArtProps {
   isPlaying?: boolean;
@@ -8,6 +9,33 @@ interface PremiumCoverArtProps {
   imageUrl?: string;
   audioElement?: HTMLAudioElement | null;
 }
+
+// Mini visualizer for small sizes
+const MiniVisualizer = ({ isPlaying }: { isPlaying: boolean }) => {
+  const { audioLevels } = useAudioPlayer();
+
+  // Take just 5 bars for the mini view
+  const bars = [0, 8, 16, 24, 32].map(i => audioLevels[i] || 0);
+
+  return (
+    <div className="w-full h-full flex items-end justify-center gap-[2px] p-1.5 bg-gradient-to-br from-purple-900/50 to-pink-900/50">
+      {bars.map((level, i) => (
+        <div
+          key={i}
+          className="flex-1 rounded-t-sm"
+          style={{
+            height: isPlaying ? `${Math.max(15, level * 85)}%` : '15%',
+            background: `linear-gradient(to top,
+              hsl(${260 + i * 20}, 80%, 50%),
+              hsl(${280 + i * 20}, 90%, 65%))`,
+            boxShadow: level > 0.4 ? `0 0 ${level * 6}px rgba(147, 51, 234, 0.6)` : 'none',
+            transition: 'height 0.08s ease-out',
+          }}
+        />
+      ))}
+    </div>
+  );
+};
 
 export const PremiumCoverArt = ({
   isPlaying = false,
@@ -44,7 +72,22 @@ export const PremiumCoverArt = ({
     );
   }
 
-  // No image - show premium visualizer
+  // For small sizes (sm, md), use the optimized MiniVisualizer
+  if (size === "sm" || size === "md") {
+    return (
+      <div className={`${sizeClasses[size]} bg-gradient-to-br from-[#0a0a12] to-[#15151f] rounded-xl overflow-hidden flex items-center justify-center relative border border-white/10 shadow-lg`}>
+        {isPlaying ? (
+          <MiniVisualizer isPlaying={isPlaying} />
+        ) : (
+          <div className="flex items-center justify-center opacity-50">
+            <Music size={size === "sm" ? 18 : 24} className="text-[var(--replay-off-white)]" />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // No image - show premium visualizer for larger sizes
   return (
     <div className={`${sizeClasses[size]} bg-gradient-to-br from-[#050508] via-[#0f0f15] to-[#050508] rounded-xl overflow-hidden flex items-center justify-center relative border border-white/10 shadow-2xl shadow-black/50`}>
       {/* Dynamic ambient background glow */}
@@ -106,21 +149,19 @@ export const PremiumCoverArt = ({
           <div className="flex flex-col items-center justify-center gap-3 opacity-40">
             <div className="relative">
               <Music
-                size={size === "sm" ? 20 : size === "md" ? 32 : size === "lg" ? 64 : (size === "xl" || size === "full") ? 96 : 64}
+                size={size === "lg" ? 64 : (size === "xl" || size === "full") ? 96 : 64}
                 className="text-[var(--replay-off-white)]"
               />
               <div className="absolute inset-0 blur-lg opacity-30">
                 <Music
-                  size={size === "sm" ? 20 : size === "md" ? 32 : size === "lg" ? 64 : (size === "xl" || size === "full") ? 96 : 64}
+                  size={size === "lg" ? 64 : (size === "xl" || size === "full") ? 96 : 64}
                   className="text-purple-400"
                 />
               </div>
             </div>
-            {size !== "sm" && size !== "md" && (
-              <div className="text-center">
-                <div className="text-xs text-[var(--replay-mid-grey)]">No Cover Art</div>
-              </div>
-            )}
+            <div className="text-center">
+              <div className="text-xs text-[var(--replay-mid-grey)]">No Cover Art</div>
+            </div>
           </div>
         )}
       </div>

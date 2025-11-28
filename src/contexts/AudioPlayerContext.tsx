@@ -64,18 +64,22 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const animationRef = useRef<number | null>(null);
+  const audioUnlockedRef = useRef<boolean>(false);
+  const pendingPlayRef = useRef<Track | null>(null);
 
   // Initialize audio element
   useEffect(() => {
-    audioRef.current = new Audio();
-    audioRef.current.volume = volume;
+    // Create audio element with mobile-friendly settings
+    const audio = new Audio();
+    audio.volume = volume;
+    audio.crossOrigin = "anonymous";
 
-    // Mobile-specific: Enable playback on user interaction
-    (audioRef.current as any).playsInline = true;
-    audioRef.current.preload = "auto";
-    (audioRef.current as any).webkitPlaysInline = true;
+    // Mobile-specific: Enable inline playback
+    audio.setAttribute('playsinline', 'true');
+    audio.setAttribute('webkit-playsinline', 'true');
+    audio.preload = "auto";
 
-    const audio = audioRef.current;
+    audioRef.current = audio;
 
     audio.addEventListener("timeupdate", () => {
       setCurrentTime(audio.currentTime);
@@ -90,10 +94,10 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     });
 
     audio.addEventListener("error", (e) => {
-      console.error("Audio error:", e);
+      console.error("Audio error:", (e.target as HTMLAudioElement)?.error);
     });
 
-    // Mobile: Handle play promise rejections
+    // Mobile: Handle play/pause state changes
     audio.addEventListener("play", () => {
       setIsPlaying(true);
     });
@@ -102,24 +106,52 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       setIsPlaying(false);
     });
 
-    // Mobile: Unlock audio on first user interaction
-    const unlockAudio = () => {
-      if (audio.paused) {
-        audio.play().then(() => {
-          audio.pause();
-          audio.currentTime = 0;
-        }).catch(() => {
-          // Silent catch - audio not ready yet
-        });
+    // Mobile: canplaythrough event for better mobile handling
+    audio.addEventListener("canplaythrough", () => {
+      console.log("Audio ready to play through");
+    });
+
+    // Mobile: Unlock audio and AudioContext on first user interaction
+    const unlockAudio = async () => {
+      if (audioUnlockedRef.current) return;
+
+      console.log("Unlocking audio for mobile...");
+
+      // Create a silent buffer and play it to unlock
+      try {
+        // Create and resume AudioContext
+        if (!audioContextRef.current) {
+          audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        }
+
+        if (audioContextRef.current.state === 'suspended') {
+          await audioContextRef.current.resume();
+          console.log("AudioContext resumed");
+        }
+
+        // Mark as unlocked
+        audioUnlockedRef.current = true;
+
+        // If there was a pending play, execute it now
+        if (pendingPlayRef.current) {
+          const track = pendingPlayRef.current;
+          pendingPlayRef.current = null;
+          loadAndPlayTrack(track);
+        }
+      } catch (e) {
+        console.log("Audio unlock error (non-fatal):", e);
       }
+
+      // Remove listeners after unlock
       document.removeEventListener('touchstart', unlockAudio);
       document.removeEventListener('touchend', unlockAudio);
       document.removeEventListener('click', unlockAudio);
     };
 
-    document.addEventListener('touchstart', unlockAudio, { once: true });
-    document.addEventListener('touchend', unlockAudio, { once: true });
-    document.addEventListener('click', unlockAudio, { once: true });
+    // Add unlock listeners with capture to ensure they fire first
+    document.addEventListener('touchstart', unlockAudio, { passive: true });
+    document.addEventListener('touchend', unlockAudio, { passive: true });
+    document.addEventListener('click', unlockAudio, { passive: true });
 
     return () => {
       audio.pause();
@@ -204,6 +236,14 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const loadAndPlayTrack = async (track: Track) => {
     if (!audioRef.current) return;
 
+    // On mobile, if audio isn't unlocked yet, store pending track and wait for user gesture
+    if (!audioUnlockedRef.current) {
+      console.log("Audio not unlocked yet, storing pending track");
+      pendingPlayRef.current = track;
+      setCurrentTrack(track);
+      return;
+    }
+
     setCurrentTrack(track);
     setIsPlaying(false);
 
@@ -217,7 +257,8 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
           const response = await fetch(`${API_URL}/api/stream/${track.id}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
-            }
+            },
+            mode: 'cors',
           });
           if (response.ok) {
             const data = await response.json();
@@ -240,15 +281,48 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (!audioUrl) {
-        console.error("Could not get audio URL for track");
+        console.error("Could not get audio URL for track:", track.title);
         return;
       }
+
+      console.log("Loading audio URL:", audioUrl.substring(0, 100) + "...");
 
       // Load the audio
       audioRef.current.src = audioUrl;
 
-      // Wait for the audio to be ready before playing
-      audioRef.current.load();
+      // Wait for audio to be loadable
+      await new Promise<void>((resolve, reject) => {
+        const audio = audioRef.current!;
+
+        const onCanPlay = () => {
+          audio.removeEventListener('canplay', onCanPlay);
+          audio.removeEventListener('error', onError);
+          resolve();
+        };
+
+        const onError = () => {
+          audio.removeEventListener('canplay', onCanPlay);
+          audio.removeEventListener('error', onError);
+          reject(new Error('Failed to load audio'));
+        };
+
+        audio.addEventListener('canplay', onCanPlay, { once: true });
+        audio.addEventListener('error', onError, { once: true });
+
+        audio.load();
+
+        // Timeout fallback
+        setTimeout(() => {
+          audio.removeEventListener('canplay', onCanPlay);
+          audio.removeEventListener('error', onError);
+          resolve(); // Try to play anyway
+        }, 5000);
+      });
+
+      // Resume AudioContext if suspended (required for mobile)
+      if (audioContextRef.current?.state === "suspended") {
+        await audioContextRef.current.resume();
+      }
 
       // Use a promise to handle mobile play restrictions
       const playPromise = audioRef.current.play();
@@ -257,22 +331,21 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         playPromise
           .then(() => {
             // Playback started successfully
+            console.log("Playback started successfully");
             setIsPlaying(true);
             incrementPlayCount(track.id);
 
             // Setup analyzer after successful play
             setupAnalyzer();
-            if (audioContextRef.current?.state === "suspended") {
-              audioContextRef.current.resume();
-            }
           })
           .catch((error) => {
             // Auto-play was prevented or other error
-            console.error("Playback failed:", error);
+            console.error("Playback failed:", error.name, error.message);
 
             // On mobile, we may need user interaction - set up for retry
             if (error.name === 'NotAllowedError') {
               console.log('Playback requires user interaction. Tap play to start.');
+              pendingPlayRef.current = track;
               setIsPlaying(false);
             }
           });
@@ -282,19 +355,31 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const play = (track?: Track) => {
+  const play = async (track?: Track) => {
+    // Check if there's a pending track from before audio was unlocked
+    if (pendingPlayRef.current && !track) {
+      track = pendingPlayRef.current;
+      pendingPlayRef.current = null;
+    }
+
     if (track) {
+      // Mark audio as unlocked since user explicitly pressed play
+      audioUnlockedRef.current = true;
       loadAndPlayTrack(track);
     } else if (audioRef.current && currentTrack) {
+      // Mark audio as unlocked since user explicitly pressed play
+      audioUnlockedRef.current = true;
+
+      // Resume AudioContext first (required for mobile)
+      if (audioContextRef.current?.state === "suspended") {
+        await audioContextRef.current.resume();
+      }
+
       const playPromise = audioRef.current.play();
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
             setIsPlaying(true);
-            // Resume audio context if suspended (needed for mobile)
-            if (audioContextRef.current?.state === "suspended") {
-              audioContextRef.current.resume();
-            }
           })
           .catch((error) => {
             console.error("Play failed:", error);
