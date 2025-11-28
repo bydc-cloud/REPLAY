@@ -11,6 +11,7 @@ export interface Track {
   album: string;
   duration: number;
   fileUrl: string;
+  fileKey?: string; // Backblaze B2 file key for cloud-synced tracks
   artworkUrl?: string;
   artworkData?: string;
   isLiked: boolean;
@@ -174,6 +175,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
           album: track.album || 'Unknown Album',
           duration: track.duration || 0,
           fileUrl: track.file_url || '',
+          fileKey: track.file_key || '', // Cloud storage key
           artworkUrl: track.cover_url,
           isLiked: track.is_liked || false,
           addedAt: new Date(track.created_at),
@@ -184,6 +186,25 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       return null;
     } catch (error) {
       console.error('Error fetching tracks from API:', error);
+      return null;
+    }
+  };
+
+  // Get streaming URL for a cloud-synced track
+  const getStreamUrl = async (trackId: string, authToken: string): Promise<string | null> => {
+    try {
+      const response = await fetch(`${API_URL}/api/stream/${trackId}`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return data.url;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting stream URL:', error);
       return null;
     }
   };
@@ -413,19 +434,81 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       const file = files[i];
 
       try {
+        // Process audio file to get metadata
         const track = await processAudioFile(file);
 
-        // Store file in browser's storage (IndexedDB would be better for larger files)
-        const reader = new FileReader();
-        const fileDataPromise = new Promise<string>((resolve) => {
-          reader.onloadend = () => resolve(reader.result as string);
-        });
-        reader.readAsDataURL(file);
-        const fileData = await fileDataPromise;
+        // Upload to cloud storage if authenticated
+        if (token) {
+          try {
+            // Upload file to Backblaze via API
+            const formData = new FormData();
+            formData.append('audio', file);
 
-        track.fileUrl = fileData;
+            const uploadResponse = await fetch(`${API_URL}/api/upload`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+              body: formData
+            });
+
+            if (uploadResponse.ok) {
+              const uploadResult = await uploadResponse.json();
+              track.fileKey = uploadResult.fileKey;
+
+              // Create track in database with file_key
+              const trackResponse = await fetch(`${API_URL}/api/tracks`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  title: track.title,
+                  artist: track.artist,
+                  album: track.album,
+                  duration: Math.round(track.duration),
+                  genre: track.genre,
+                  file_key: uploadResult.fileKey,
+                })
+              });
+
+              if (trackResponse.ok) {
+                const savedTrack = await trackResponse.json();
+                track.id = savedTrack.id; // Use server-generated ID
+                console.log(`Uploaded and saved: ${track.title}`);
+              }
+            } else {
+              console.error(`Upload failed for ${file.name}`);
+              // Fall back to local storage
+              const reader = new FileReader();
+              const fileDataPromise = new Promise<string>((resolve) => {
+                reader.onloadend = () => resolve(reader.result as string);
+              });
+              reader.readAsDataURL(file);
+              track.fileUrl = await fileDataPromise;
+            }
+          } catch (uploadError) {
+            console.error(`Error uploading ${file.name}:`, uploadError);
+            // Fall back to local storage
+            const reader = new FileReader();
+            const fileDataPromise = new Promise<string>((resolve) => {
+              reader.onloadend = () => resolve(reader.result as string);
+            });
+            reader.readAsDataURL(file);
+            track.fileUrl = await fileDataPromise;
+          }
+        } else {
+          // Not authenticated - store locally only
+          const reader = new FileReader();
+          const fileDataPromise = new Promise<string>((resolve) => {
+            reader.onloadend = () => resolve(reader.result as string);
+          });
+          reader.readAsDataURL(file);
+          track.fileUrl = await fileDataPromise;
+        }
+
         newTracks.push(track);
-
         setImportProgress(Math.round(((i + 1) / totalFiles) * 100));
       } catch (error) {
         console.error(`Error processing file ${file.name}:`, error);
@@ -435,33 +518,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     if (newTracks.length > 0) {
       // Add to local state
       setTracks(prev => [...prev, ...newTracks]);
-
-      // Sync to API if authenticated
-      if (token) {
-        try {
-          for (const track of newTracks) {
-            await fetch(`${API_URL}/api/tracks`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                title: track.title,
-                artist: track.artist,
-                album: track.album,
-                duration: Math.round(track.duration),
-                genre: track.genre,
-                // Don't send fileUrl to API - it's a data URL and too large
-                // The audio file stays local in the browser
-              })
-            });
-          }
-          console.log(`Synced ${newTracks.length} tracks to API`);
-        } catch (error) {
-          console.error('Error syncing tracks to API:', error);
-        }
-      }
+      console.log(`Imported ${newTracks.length} tracks`);
     }
 
     setIsImporting(false);

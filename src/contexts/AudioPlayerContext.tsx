@@ -1,5 +1,9 @@
 import { createContext, useContext, useState, useRef, useEffect, ReactNode, useCallback } from "react";
 import { Track, getAudioUrl, useMusicLibrary } from "./MusicLibraryContext";
+import { useAuth } from "./PostgresAuthContext";
+
+// API URL from environment
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 type RepeatMode = "off" | "all" | "one";
 type ShuffleMode = "off" | "on";
@@ -41,6 +45,7 @@ const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(und
 
 export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const { incrementPlayCount } = useMusicLibrary();
+  const { token } = useAuth();
 
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -169,11 +174,33 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     try {
       let audioUrl: string | null = null;
 
-      if (track.fileUrl.startsWith("indexeddb://")) {
-        // For future IndexedDB support
-        audioUrl = track.fileUrl;
-      } else {
-        audioUrl = getAudioUrl(track);
+      // Check if track has cloud storage (fileKey) and needs streaming URL
+      if (track.fileKey && token && (!track.fileUrl || track.fileUrl === '')) {
+        // Fetch streaming URL from API
+        try {
+          const response = await fetch(`${API_URL}/api/stream/${track.id}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            audioUrl = data.url;
+            console.log('Got streaming URL for cloud track');
+          }
+        } catch (streamError) {
+          console.error('Failed to get streaming URL:', streamError);
+        }
+      }
+
+      // Fall back to local URL if available
+      if (!audioUrl) {
+        if (track.fileUrl && track.fileUrl.startsWith("indexeddb://")) {
+          // For future IndexedDB support
+          audioUrl = track.fileUrl;
+        } else if (track.fileUrl) {
+          audioUrl = getAudioUrl(track);
+        }
       }
 
       if (!audioUrl) {
