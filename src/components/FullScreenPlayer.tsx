@@ -139,18 +139,15 @@ export const FullScreenPlayer = ({
           </button>
         </div>
 
-        {/* Progress Bar - Smooth animation */}
+        {/* Progress Bar */}
         <div className="mb-5 flex-shrink-0">
           <div className="relative py-2">
             <div
               className="absolute top-2 left-0 right-0 h-2 bg-white/10 rounded-full overflow-hidden pointer-events-none"
             >
               <div
-                className="h-full bg-[var(--replay-off-white)]"
-                style={{
-                  width: `${progress}%`,
-                  transition: 'width 0.1s linear'
-                }}
+                className="h-full bg-[var(--replay-off-white)] will-change-[width]"
+                style={{ width: `${progress}%` }}
               />
             </div>
             <input

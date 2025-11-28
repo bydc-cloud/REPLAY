@@ -66,6 +66,8 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const animationRef = useRef<number | null>(null);
   const audioUnlockedRef = useRef<boolean>(false);
   const pendingPlayRef = useRef<Track | null>(null);
+  const lastTimeUpdateRef = useRef<number>(0);
+  const wasPlayingBeforeHiddenRef = useRef<boolean>(false);
 
   // Initialize audio element
   useEffect(() => {
@@ -82,7 +84,12 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     audioRef.current = audio;
 
     audio.addEventListener("timeupdate", () => {
-      setCurrentTime(audio.currentTime);
+      // Throttle timeupdate to ~4 updates per second to reduce re-renders and glitching
+      const now = Date.now();
+      if (now - lastTimeUpdateRef.current >= 250) {
+        lastTimeUpdateRef.current = now;
+        setCurrentTime(audio.currentTime);
+      }
     });
 
     audio.addEventListener("loadedmetadata", () => {
@@ -182,7 +189,11 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
     // Handle page visibility changes (when user leaves and returns)
     const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'hidden') {
+        // Page is being hidden - remember if we were playing
+        wasPlayingBeforeHiddenRef.current = !audio.paused;
+        console.log("Page hidden, was playing:", wasPlayingBeforeHiddenRef.current);
+      } else if (document.visibilityState === 'visible') {
         console.log("Page became visible, checking audio state...");
 
         // Resume AudioContext if it got suspended while page was hidden
@@ -195,14 +206,19 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
           }
         }
 
+        // Sync the current time immediately when page becomes visible
+        if (audio && audio.duration > 0) {
+          setCurrentTime(audio.currentTime);
+          setDuration(audio.duration);
+        }
+
+        // Update isPlaying state to match actual audio state
+        setIsPlaying(!audio.paused);
+
         // On iOS, the audio element may need to be re-prepared
-        // If we were playing before, try to continue playback
-        if (audio && !audio.paused && audio.readyState >= 2) {
-          // Audio is still playing, nothing to do
-        } else if (audio && audio.currentTime > 0 && audio.paused) {
-          // Audio was playing but got paused by iOS backgrounding
-          // We'll need user interaction to resume, but we can prepare
-          console.log("Audio was interrupted, ready to resume on user interaction");
+        // If we were playing before and now paused, the user can tap to resume
+        if (wasPlayingBeforeHiddenRef.current && audio.paused && audio.currentTime > 0) {
+          console.log("Audio was interrupted by iOS, ready to resume on user tap");
         }
       }
     };

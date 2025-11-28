@@ -163,14 +163,11 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
       <div
         className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--replay-elevated)]/95 backdrop-blur-md border-t border-[var(--replay-border)] z-50 overflow-hidden"
       >
-        {/* Ultra Thin Progress Bar - Smooth with no stuttering */}
+        {/* Ultra Thin Progress Bar */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/5">
           <div
-            className="h-full bg-gradient-to-r from-[var(--replay-off-white)] to-[var(--replay-off-white)]/60"
-            style={{
-              width: `${progress}%`,
-              transition: 'width 0.1s linear'
-            }}
+            className="h-full bg-gradient-to-r from-[var(--replay-off-white)] to-[var(--replay-off-white)]/60 will-change-[width]"
+            style={{ width: `${progress}%` }}
           />
         </div>
 
@@ -304,7 +301,7 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
 
       {/* Desktop: Full Player Bar */}
       <div className="hidden md:flex fixed bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#0a0a0a]/98 via-[#1a1a1a]/98 to-[#0a0a0a]/98 backdrop-blur-2xl border-t border-white/5 z-50">
-        {/* Progress Bar - Ultra Thin Top with smooth animation */}
+        {/* Progress Bar - Ultra Thin Top */}
         <div className="absolute top-0 left-0 right-0 h-[3px] bg-white/5 group cursor-pointer hover:h-[5px] transition-[height] duration-150">
           <input
             type="range"
@@ -315,11 +312,8 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
           />
           <div
-            className="h-full bg-gradient-to-r from-[var(--replay-off-white)] to-white/80"
-            style={{
-              width: `${progress}%`,
-              transition: 'width 0.1s linear'
-            }}
+            className="h-full bg-gradient-to-r from-[var(--replay-off-white)] to-white/80 will-change-[width]"
+            style={{ width: `${progress}%` }}
           />
         </div>
 

@@ -201,9 +201,9 @@ export const AuthPage = ({ onBack, initialMode = "signup" }: AuthPageProps) => {
 
           {/* Privacy Note */}
           <p className="text-center text-white/30 text-sm mt-6">
-            Your data is stored locally in your browser.
+            Your music is securely stored in the cloud.
             <br />
-            No server, no tracking, complete privacy.
+            Access your library from any device.
           </p>
         </div>
       </div>
