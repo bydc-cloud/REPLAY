@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { ChevronDown, Heart, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, Volume2, MoreHorizontal } from "lucide-react";
 import { PremiumCoverArt } from "./PremiumCoverArt";
 import { useSettings } from "../contexts/SettingsContext";
@@ -31,6 +32,30 @@ export const FullScreenPlayer = ({
   const { visualizerVariant } = useSettings();
   const { currentTrack, currentTime, duration, shuffleMode, repeatMode, toggleShuffle, cycleRepeatMode, playNext, playPrevious, audioElement } = useAudioPlayer();
 
+  // Animation state
+  const [isVisible, setIsVisible] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  // Handle open/close animations
+  useEffect(() => {
+    if (isOpen) {
+      setIsVisible(true);
+      // Small delay to ensure the element is mounted before animating
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsAnimating(true);
+        });
+      });
+    } else {
+      setIsAnimating(false);
+      // Wait for animation to complete before hiding
+      const timer = setTimeout(() => {
+        setIsVisible(false);
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
   // Format time helper
   const formatTime = (seconds: number) => {
     if (isNaN(seconds) || !isFinite(seconds)) return "0:00";
@@ -43,10 +68,17 @@ export const FullScreenPlayer = ({
   const RepeatIcon = repeatMode === "one" ? Repeat1 : Repeat;
   const repeatActive = repeatMode !== "off";
 
-  if (!isOpen) return null;
+  if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] bg-[var(--replay-black)] md:hidden flex flex-col">
+    <div
+      className={`fixed inset-0 z-[100] bg-[var(--replay-black)] md:hidden flex flex-col will-change-transform`}
+      style={{
+        transform: isAnimating ? 'translateY(0)' : 'translateY(100%)',
+        opacity: isAnimating ? 1 : 0.5,
+        transition: 'transform 0.4s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s ease-out',
+      }}
+    >
       {/* Header - Compact */}
       <div className="flex items-center justify-between px-4 py-3 bg-[#1a1a1a]/40 backdrop-blur-xl border-b border-white/10 flex-shrink-0">
         <button onClick={onClose} className="text-[var(--replay-off-white)] p-1">
@@ -94,113 +126,119 @@ export const FullScreenPlayer = ({
           </div>
           <button
             onClick={onLike}
-            className={`ml-3 p-2 transition-colors ${
+            className={`ml-3 p-2.5 rounded-full transition-all duration-300 ease-out active:scale-90 ${
               liked
-                ? "text-[var(--replay-off-white)]"
-                : "text-[var(--replay-mid-grey)]"
+                ? "text-red-500 bg-red-500/10"
+                : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] hover:bg-white/5"
             }`}
           >
-            <Heart size={24} className={liked ? "fill-current" : ""} />
+            <Heart
+              size={24}
+              className={`transition-transform duration-300 ${liked ? "fill-current scale-110" : "scale-100"}`}
+            />
           </button>
         </div>
 
-        {/* Progress Bar - Compact */}
-        <div className="mb-4 flex-shrink-0">
-          <div className="relative">
+        {/* Progress Bar - Smooth */}
+        <div className="mb-5 flex-shrink-0">
+          <div className="relative py-2">
             <input
               type="range"
               min="0"
               max="100"
               value={progress}
               onChange={(e) => onProgressChange(Number(e.target.value))}
-              className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer
-                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
+              className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer touch-pan-y
+                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5
                 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--replay-off-white)]
-                [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-black/50
-                [&::-webkit-slider-thumb]:cursor-pointer
-                [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full
+                [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-black/40
+                [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:transition-transform
+                [&::-webkit-slider-thumb]:duration-200 [&::-webkit-slider-thumb]:active:scale-125
+                [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full
                 [&::-moz-range-thumb]:bg-[var(--replay-off-white)] [&::-moz-range-thumb]:border-0
-                [&::-moz-range-thumb]:cursor-pointer"
+                [&::-moz-range-thumb]:shadow-lg [&::-moz-range-thumb]:cursor-pointer"
               style={{
                 background: `linear-gradient(to right, var(--replay-off-white) 0%, var(--replay-off-white) ${progress}%, rgba(255, 255, 255, 0.1) ${progress}%, rgba(255, 255, 255, 0.1) 100%)`,
               }}
             />
           </div>
           <div className="flex justify-between mt-1">
-            <span className="text-xs text-[var(--replay-mid-grey)] tabular-nums">{formatTime(currentTime)}</span>
-            <span className="text-xs text-[var(--replay-mid-grey)] tabular-nums">{formatTime(duration)}</span>
+            <span className="text-xs text-[var(--replay-mid-grey)] tabular-nums font-medium">{formatTime(currentTime)}</span>
+            <span className="text-xs text-[var(--replay-mid-grey)] tabular-nums font-medium">{formatTime(duration)}</span>
           </div>
         </div>
 
         {/* Main Controls - Compact */}
-        <div className="flex items-center justify-center gap-3 mb-4 flex-shrink-0">
+        <div className="flex items-center justify-center gap-4 mb-4 flex-shrink-0">
           <button
             onClick={toggleShuffle}
-            className={`p-2 transition-colors ${
+            className={`p-3 rounded-full transition-all duration-300 ease-out active:scale-90 ${
               shuffleMode === "on"
-                ? "text-[var(--replay-off-white)]"
-                : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)]"
+                ? "text-[var(--replay-off-white)] bg-white/10"
+                : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] hover:bg-white/5"
             }`}
           >
-            <Shuffle size={22} />
+            <Shuffle size={22} className="transition-transform duration-200" />
           </button>
           <button
             onClick={playPrevious}
-            className="text-[var(--replay-off-white)] hover:opacity-70 transition-opacity p-2"
+            className="text-[var(--replay-off-white)] p-3 rounded-full transition-all duration-300 ease-out active:scale-90 hover:bg-white/5"
           >
-            <SkipBack size={28} fill="currentColor" />
+            <SkipBack size={28} fill="currentColor" className="transition-transform duration-200" />
           </button>
           <button
             onClick={onPlayPause}
-            className="bg-white hover:bg-gray-100 hover:scale-105 text-black rounded-full p-5 transition-all duration-300 shadow-lg shadow-white/20"
+            className="bg-white text-black rounded-full p-5 transition-all duration-300 ease-out active:scale-95 hover:scale-105 shadow-lg shadow-white/20 hover:shadow-white/30"
           >
             {isPlaying ? (
-              <Pause size={28} fill="black" stroke="black" />
+              <Pause size={28} fill="black" stroke="black" className="transition-transform duration-200" />
             ) : (
-              <Play size={28} fill="black" stroke="black" className="ml-1" />
+              <Play size={28} fill="black" stroke="black" className="ml-1 transition-transform duration-200" />
             )}
           </button>
           <button
             onClick={playNext}
-            className="text-[var(--replay-off-white)] hover:opacity-70 transition-opacity p-2"
+            className="text-[var(--replay-off-white)] p-3 rounded-full transition-all duration-300 ease-out active:scale-90 hover:bg-white/5"
           >
-            <SkipForward size={28} fill="currentColor" />
+            <SkipForward size={28} fill="currentColor" className="transition-transform duration-200" />
           </button>
           <button
             onClick={cycleRepeatMode}
-            className={`p-2 transition-colors ${
+            className={`p-3 rounded-full transition-all duration-300 ease-out active:scale-90 ${
               repeatActive
-                ? "text-[var(--replay-off-white)]"
-                : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)]"
+                ? "text-[var(--replay-off-white)] bg-white/10"
+                : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] hover:bg-white/5"
             }`}
           >
-            <RepeatIcon size={22} />
+            <RepeatIcon size={22} className="transition-transform duration-200" />
           </button>
         </div>
 
-        {/* Volume Control - Compact */}
-        <div className="flex items-center gap-3 bg-[#1a1a1a]/40 backdrop-blur-xl border border-white/10 rounded-xl p-3 flex-shrink-0">
-          <Volume2 size={18} className="text-[var(--replay-mid-grey)]" />
-          <div className="flex-1 relative">
+        {/* Volume Control - Smooth */}
+        <div className="flex items-center gap-4 bg-[#1a1a1a]/40 backdrop-blur-xl border border-white/10 rounded-2xl p-4 flex-shrink-0 transition-all duration-300">
+          <Volume2 size={20} className="text-[var(--replay-mid-grey)] transition-colors duration-300" />
+          <div className="flex-1 relative py-2">
             <input
               type="range"
               min="0"
               max="100"
               value={volume}
               onChange={(e) => onVolumeChange(Number(e.target.value))}
-              className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer
-                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3
+              className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer touch-pan-y
+                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5
                 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--replay-off-white)]
-                [&::-webkit-slider-thumb]:cursor-pointer
-                [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full
+                [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-black/30
+                [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:transition-transform
+                [&::-webkit-slider-thumb]:duration-200 [&::-webkit-slider-thumb]:active:scale-110
+                [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full
                 [&::-moz-range-thumb]:bg-[var(--replay-off-white)] [&::-moz-range-thumb]:border-0
-                [&::-moz-range-thumb]:cursor-pointer"
+                [&::-moz-range-thumb]:shadow-lg [&::-moz-range-thumb]:cursor-pointer"
               style={{
                 background: `linear-gradient(to right, var(--replay-off-white) 0%, var(--replay-off-white) ${volume}%, rgba(255, 255, 255, 0.1) ${volume}%, rgba(255, 255, 255, 0.1) 100%)`,
               }}
             />
           </div>
-          <span className="text-xs text-[var(--replay-mid-grey)] w-7 text-right tabular-nums">{volume}</span>
+          <span className="text-sm text-[var(--replay-off-white)] w-8 text-right tabular-nums font-medium">{volume}</span>
         </div>
       </div>
     </div>

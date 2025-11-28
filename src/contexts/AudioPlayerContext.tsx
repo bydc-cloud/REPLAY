@@ -236,13 +236,8 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const loadAndPlayTrack = async (track: Track) => {
     if (!audioRef.current) return;
 
-    // On mobile, if audio isn't unlocked yet, store pending track and wait for user gesture
-    if (!audioUnlockedRef.current) {
-      console.log("Audio not unlocked yet, storing pending track");
-      pendingPlayRef.current = track;
-      setCurrentTrack(track);
-      return;
-    }
+    // Mark as unlocked since this is being called from a user gesture (play button click)
+    audioUnlockedRef.current = true;
 
     setCurrentTrack(track);
     setIsPlaying(false);

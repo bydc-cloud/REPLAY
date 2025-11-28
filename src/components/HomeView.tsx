@@ -165,7 +165,7 @@ export const HomeView = () => {
 
       {/* Empty State */}
       {tracks.length === 0 && !isImporting && (
-        <div className="text-center py-16 mb-8">
+        <div className="text-center py-16 mb-8 px-4">
           <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-[var(--replay-elevated)] flex items-center justify-center">
             <Music className="w-12 h-12 text-[var(--replay-mid-grey)]" />
           </div>
@@ -177,7 +177,7 @@ export const HomeView = () => {
           </p>
           <button
             onClick={handleImportClick}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--replay-off-white)] text-[var(--replay-black)] font-semibold rounded-full hover:bg-white/90 transition-all"
+            className="w-full md:w-auto md:inline-flex items-center justify-center gap-2 px-6 py-4 bg-[var(--replay-off-white)] text-[var(--replay-black)] font-semibold rounded-xl md:rounded-full hover:bg-white/90 transition-all active:scale-95"
           >
             <Upload size={20} />
             Import Music
