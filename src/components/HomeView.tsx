@@ -3,7 +3,6 @@ import { useRef, useState } from "react";
 import { QuickAccessCard } from "./QuickAccessCard";
 import { AlbumCard } from "./AlbumCard";
 import { SongCard } from "./SongCard";
-import { VisualizerGallery } from "./VisualizerGallery";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
 import { useAuth } from "../contexts/PostgresAuthContext";
@@ -225,10 +224,6 @@ export const HomeView = () => {
         </section>
       )}
 
-      {/* Audio-Reactive Visualizer Gallery */}
-      <section className="mt-8 md:mt-12">
-        <VisualizerGallery />
-      </section>
     </div>
   );
 };

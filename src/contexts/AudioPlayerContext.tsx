@@ -117,7 +117,6 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
       console.log("Unlocking audio for mobile...");
 
-      // Create a silent buffer and play it to unlock
       try {
         // Create and resume AudioContext
         if (!audioContextRef.current) {
@@ -128,6 +127,32 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
           await audioContextRef.current.resume();
           console.log("AudioContext resumed");
         }
+
+        // iOS Safari requires actually playing audio to unlock
+        // Create a tiny silent audio and play it
+        const silentAudio = audio;
+
+        // Create a short silent data URI (tiny MP3)
+        const silentDataUri = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAAAAAAAAAAAAYZVPblmAAAAAAAAAAAAAAAAAAAA//tQZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//tQZB4P8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+
+        // Store original src
+        const originalSrc = silentAudio.src;
+
+        // Play silent audio to unlock
+        silentAudio.src = silentDataUri;
+        silentAudio.volume = 0.01;
+
+        try {
+          await silentAudio.play();
+          silentAudio.pause();
+          console.log("Audio unlocked successfully with silent play");
+        } catch (playError) {
+          console.log("Silent play failed (expected on some devices):", playError);
+        }
+
+        // Restore
+        silentAudio.src = originalSrc;
+        silentAudio.volume = volume;
 
         // Mark as unlocked
         audioUnlockedRef.current = true;
@@ -140,6 +165,8 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         }
       } catch (e) {
         console.log("Audio unlock error (non-fatal):", e);
+        // Still mark as unlocked so we can try to play
+        audioUnlockedRef.current = true;
       }
 
       // Remove listeners after unlock
