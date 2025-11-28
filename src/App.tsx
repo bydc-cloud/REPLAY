@@ -11,7 +11,6 @@ import { AlbumArtBackground } from "./components/AlbumArtBackground";
 import { QueueDrawer } from "./components/QueueDrawer";
 import { SettingsView } from "./components/SettingsView";
 import { SettingsProvider, useSettings } from "./contexts/SettingsContext";
-import { GlobalSearchBar } from "./components/GlobalSearchBar";
 import { PostgresAuthProvider, useAuth } from "./contexts/PostgresAuthContext";
 import { MusicLibraryProvider } from "./contexts/MusicLibraryContext";
 import { AudioPlayerProvider } from "./contexts/AudioPlayerContext";
@@ -42,18 +41,76 @@ function AppContent() {
     }
   }, [isAuthenticated, currentView]);
 
-  // Show loading state
+  // Show loading state with modern music-themed animation
   if (isLoading) {
     return (
       <div className="flex h-screen bg-[var(--replay-black)] items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M8 5v14l11-7z" />
-            </svg>
+          {/* Audio bars animation */}
+          <div className="flex items-end justify-center gap-1 h-16 mb-6">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="w-2 rounded-full"
+                style={{
+                  background: `linear-gradient(to top, hsl(${260 + i * 20}, 80%, 50%), hsl(${280 + i * 20}, 90%, 65%))`,
+                  height: '100%',
+                  animation: `audioLoading 1s ease-in-out ${i * 0.1}s infinite`,
+                  boxShadow: `0 0 10px hsla(${270 + i * 15}, 80%, 60%, 0.5)`,
+                }}
+              />
+            ))}
           </div>
-          <p className="text-white/50">Loading...</p>
+          {/* Logo */}
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <div className="relative">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 32 32"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  cx="16"
+                  cy="16"
+                  r="14"
+                  fill="url(#loading-logo-gradient)"
+                  stroke="url(#loading-logo-stroke)"
+                  strokeWidth="1.5"
+                />
+                <path
+                  d="M13 11L21 16L13 21V11Z"
+                  fill="url(#loading-play-gradient)"
+                />
+                <defs>
+                  <linearGradient id="loading-logo-gradient" x1="0" y1="0" x2="32" y2="32">
+                    <stop offset="0%" stopColor="#e8e8e8" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="#e8e8e8" stopOpacity="0.05" />
+                  </linearGradient>
+                  <linearGradient id="loading-logo-stroke" x1="0" y1="0" x2="32" y2="32">
+                    <stop offset="0%" stopColor="#e8e8e8" />
+                    <stop offset="100%" stopColor="#999999" />
+                  </linearGradient>
+                  <linearGradient id="loading-play-gradient" x1="14" y1="11.5" x2="21" y2="20.5">
+                    <stop offset="0%" stopColor="#e8e8e8" />
+                    <stop offset="100%" stopColor="#cccccc" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <span className="text-xl font-black tracking-tight text-[var(--replay-off-white)]">
+              REPLAY
+            </span>
+          </div>
+          <p className="text-white/40 text-sm">Loading your music...</p>
         </div>
+        <style>{`
+          @keyframes audioLoading {
+            0%, 100% { transform: scaleY(0.3); opacity: 0.5; }
+            50% { transform: scaleY(1); opacity: 1; }
+          }
+        `}</style>
       </div>
     );
   }
@@ -128,12 +185,6 @@ function AppContent() {
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden pb-32 md:pb-28 pt-16 md:pt-0 relative scroll-smooth" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
-        {/* Desktop Header with Search */}
-        <div className="hidden md:block sticky top-0 z-30 bg-gradient-to-b from-[#0a0a0a]/95 via-[#1a1a1a]/95 to-transparent backdrop-blur-xl border-b border-white/5 px-6 py-4">
-          <div className="flex items-center justify-end">
-            <GlobalSearchBar onNavigate={setActiveTab} />
-          </div>
-        </div>
 
         {/* Mobile Header */}
         <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[#1a1a1a]/95 backdrop-blur-xl border-b border-white/10 shadow-lg">
@@ -145,7 +196,7 @@ function AppContent() {
               >
                 <Menu size={24} />
               </button>
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-1">
                 <div className="relative">
                   <svg
                     width="24"
@@ -155,19 +206,19 @@ function AppContent() {
                     xmlns="http://www.w3.org/2000/svg"
                   >
                     {/* Glassmorphism circle background */}
-                    <circle 
-                      cx="16" 
-                      cy="16" 
-                      r="15" 
+                    <circle
+                      cx="16"
+                      cy="16"
+                      r="15"
                       fill="url(#mobile-logo-gradient)"
                       fillOpacity="0.1"
                     />
                     {/* Outer glow ring */}
-                    <circle 
-                      cx="16" 
-                      cy="16" 
-                      r="14" 
-                      stroke="url(#mobile-logo-stroke)" 
+                    <circle
+                      cx="16"
+                      cy="16"
+                      r="14"
+                      stroke="url(#mobile-logo-stroke)"
                       strokeWidth="1.5"
                       strokeOpacity="0.8"
                     />
@@ -195,10 +246,6 @@ function AppContent() {
                 <h1 className="text-lg font-black tracking-tight text-[var(--replay-off-white)]">
                   REPLAY
                 </h1>
-              </div>
-              {/* Mobile Search Bar - Inline */}
-              <div className="flex-1 min-w-0">
-                <GlobalSearchBar onNavigate={setActiveTab} />
               </div>
             </div>
           </div>

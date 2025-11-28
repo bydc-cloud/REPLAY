@@ -180,6 +180,35 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     document.addEventListener('touchend', unlockAudio, { passive: true });
     document.addEventListener('click', unlockAudio, { passive: true });
 
+    // Handle page visibility changes (when user leaves and returns)
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        console.log("Page became visible, checking audio state...");
+
+        // Resume AudioContext if it got suspended while page was hidden
+        if (audioContextRef.current?.state === 'suspended') {
+          try {
+            await audioContextRef.current.resume();
+            console.log("AudioContext resumed after visibility change");
+          } catch (e) {
+            console.log("Failed to resume AudioContext:", e);
+          }
+        }
+
+        // On iOS, the audio element may need to be re-prepared
+        // If we were playing before, try to continue playback
+        if (audio && !audio.paused && audio.readyState >= 2) {
+          // Audio is still playing, nothing to do
+        } else if (audio && audio.currentTime > 0 && audio.paused) {
+          // Audio was playing but got paused by iOS backgrounding
+          // We'll need user interaction to resume, but we can prepare
+          console.log("Audio was interrupted, ready to resume on user interaction");
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       audio.pause();
       audio.src = "";
@@ -189,6 +218,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       document.removeEventListener('touchstart', unlockAudio);
       document.removeEventListener('touchend', unlockAudio);
       document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 

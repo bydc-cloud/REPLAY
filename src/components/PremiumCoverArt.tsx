@@ -10,7 +10,7 @@ interface PremiumCoverArtProps {
   audioElement?: HTMLAudioElement | null;
 }
 
-// Mini visualizer for small sizes
+// Mini visualizer for small sizes - always visible, goes dark when paused
 const MiniVisualizer = ({ isPlaying }: { isPlaying: boolean }) => {
   const { audioLevels } = useAudioPlayer();
 
@@ -22,14 +22,18 @@ const MiniVisualizer = ({ isPlaying }: { isPlaying: boolean }) => {
       {bars.map((level, i) => (
         <div
           key={i}
-          className="flex-1 rounded-t-sm"
+          className="flex-1 rounded-t-sm transition-all duration-300"
           style={{
             height: isPlaying ? `${Math.max(15, level * 85)}%` : '15%',
-            background: `linear-gradient(to top,
-              hsl(${260 + i * 20}, 80%, 50%),
-              hsl(${280 + i * 20}, 90%, 65%))`,
-            boxShadow: level > 0.4 ? `0 0 ${level * 6}px rgba(147, 51, 234, 0.6)` : 'none',
-            transition: 'height 0.08s ease-out',
+            background: isPlaying
+              ? `linear-gradient(to top,
+                  hsl(${260 + i * 20}, 80%, 50%),
+                  hsl(${280 + i * 20}, 90%, 65%))`
+              : `linear-gradient(to top,
+                  hsl(${260 + i * 20}, 20%, 20%),
+                  hsl(${280 + i * 20}, 20%, 25%))`,
+            boxShadow: isPlaying && level > 0.4 ? `0 0 ${level * 6}px rgba(147, 51, 234, 0.6)` : 'none',
+            transition: 'height 0.08s ease-out, background 0.3s ease',
           }}
         />
       ))}
@@ -72,17 +76,11 @@ export const PremiumCoverArt = ({
     );
   }
 
-  // For small sizes (sm, md), use the optimized MiniVisualizer
+  // For small sizes (sm, md), use the optimized MiniVisualizer - always visible, goes dark when paused
   if (size === "sm" || size === "md") {
     return (
       <div className={`${sizeClasses[size]} bg-gradient-to-br from-[#0a0a12] to-[#15151f] rounded-xl overflow-hidden flex items-center justify-center relative border border-white/10 shadow-lg`}>
-        {isPlaying ? (
-          <MiniVisualizer isPlaying={isPlaying} />
-        ) : (
-          <div className="flex items-center justify-center opacity-50">
-            <Music size={size === "sm" ? 18 : 24} className="text-[var(--replay-off-white)]" />
-          </div>
-        )}
+        <MiniVisualizer isPlaying={isPlaying} />
       </div>
     );
   }
@@ -141,29 +139,9 @@ export const PremiumCoverArt = ({
         }}
       />
 
-      {/* Main visualizer - perfectly centered */}
+      {/* Main visualizer - perfectly centered, always visible (goes dark when paused) */}
       <div className="absolute inset-0 flex items-center justify-center p-2">
-        {isPlaying ? (
-          <PerformantVisualizer isPlaying={isPlaying} variant={variant === "lyrics" ? "bars" : variant} size={size} audioElement={audioElement} />
-        ) : (
-          <div className="flex flex-col items-center justify-center gap-3 opacity-40">
-            <div className="relative">
-              <Music
-                size={size === "lg" ? 64 : (size === "xl" || size === "full") ? 96 : 64}
-                className="text-[var(--replay-off-white)]"
-              />
-              <div className="absolute inset-0 blur-lg opacity-30">
-                <Music
-                  size={size === "lg" ? 64 : (size === "xl" || size === "full") ? 96 : 64}
-                  className="text-purple-400"
-                />
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-[var(--replay-mid-grey)]">No Cover Art</div>
-            </div>
-          </div>
-        )}
+        <PerformantVisualizer isPlaying={isPlaying} variant={variant === "lyrics" ? "bars" : variant} size={size} audioElement={audioElement} />
       </div>
 
       {/* Vignette effect */}

@@ -14,7 +14,8 @@ export const PerformantVisualizer = ({
   size = "full",
   audioElement
 }: PerformantVisualizerProps) => {
-  const { frequencyData } = useAudioAnalyzer(isPlaying ? audioElement : null);
+  // Always get audio data, but only animate when playing
+  const { frequencyData } = useAudioAnalyzer(audioElement);
   const [isReady, setIsReady] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -80,9 +81,9 @@ export const PerformantVisualizer = ({
     return oldValue + (newValue - oldValue) * factor;
   };
 
-  // High-performance update loop
+  // High-performance update loop - runs even when paused to show dark state
   useEffect(() => {
-    if (!frequencyData || frequencyData.length === 0 || !isReady) return;
+    if (!isReady) return;
 
     const update = (timestamp: number) => {
       // Throttle to 60fps (16.67ms between frames)
@@ -92,87 +93,99 @@ export const PerformantVisualizer = ({
       }
       const delta = timestamp - lastUpdateRef.current;
       lastUpdateRef.current = timestamp;
-      timeRef.current += delta / 1000;
 
-      const step = Math.floor(frequencyData.length / barCount);
-      const avgEnergy = getAverageEnergy(frequencyData);
-      const bassEnergy = getBassEnergy(frequencyData);
+      // Only update time if playing
+      if (isPlaying) {
+        timeRef.current += delta / 1000;
+      }
 
-      // Rotate hue based on energy
-      hueRotationRef.current += avgEnergy * 0.5;
+      const step = frequencyData && frequencyData.length > 0 ? Math.floor(frequencyData.length / barCount) : 1;
+      const avgEnergy = isPlaying && frequencyData ? getAverageEnergy(frequencyData) : 0;
+      const bassEnergy = isPlaying && frequencyData ? getBassEnergy(frequencyData) : 0;
+
+      // Rotate hue based on energy (only when playing)
+      if (isPlaying) {
+        hueRotationRef.current += avgEnergy * 0.5;
+      }
 
       barsRef.current.forEach((bar, i) => {
         if (!bar) return;
 
-        const index = Math.min(i * step, frequencyData.length - 1);
-        const rawValue = frequencyData[index] / 255;
+        // Get raw value from frequency data, or 0 if paused/no data
+        const index = frequencyData && frequencyData.length > 0 ? Math.min(i * step, frequencyData.length - 1) : 0;
+        const rawValue = isPlaying && frequencyData && frequencyData.length > 0 ? frequencyData[index] / 255 : 0;
 
-        // Smooth the value
-        smoothedDataRef.current[i] = smoothData(rawValue, smoothedDataRef.current[i] || 0, 0.4);
+        // Smooth the value - decay to 0 when paused
+        const targetValue = isPlaying ? rawValue : 0;
+        smoothedDataRef.current[i] = smoothData(targetValue, smoothedDataRef.current[i] || 0, isPlaying ? 0.4 : 0.1);
         const value = smoothedDataRef.current[i];
 
         // Dynamic hue based on position and energy
         const baseHue = (i / barCount) * 280 + hueRotationRef.current;
         const dynamicHue = baseHue + avgEnergy * 60;
-        const saturation = 70 + value * 30;
-        const lightness = 45 + value * 25;
+
+        // When paused, use darker, desaturated colors
+        const saturation = isPlaying ? (70 + value * 30) : 15;
+        const lightness = isPlaying ? (45 + value * 25) : 20;
 
         if (variant === "bars") {
-          // Enhanced bars with glow
+          // Enhanced bars with glow - minimum height when paused
           const scale = Math.max(0.05, value);
           bar.style.transform = `scaleY(${scale})`;
           bar.style.backgroundColor = `hsl(${dynamicHue % 360}, ${saturation}%, ${lightness}%)`;
-          bar.style.boxShadow = value > 0.5
+          bar.style.boxShadow = isPlaying && value > 0.5
             ? `0 0 ${20 * value}px ${10 * value}px hsla(${dynamicHue % 360}, 90%, 60%, ${value * 0.6})`
             : 'none';
-          bar.style.opacity = `${0.6 + value * 0.4}`;
+          bar.style.opacity = isPlaying ? `${0.6 + value * 0.4}` : '0.4';
         } else if (variant === "wave") {
           // Enhanced wave with flowing motion
           const wavePhase = (i / barCount) * Math.PI * 4 + timeRef.current * 3;
-          const waveHeight = Math.sin(wavePhase) * 30 * (0.3 + avgEnergy * 0.7);
+          const waveHeight = isPlaying ? Math.sin(wavePhase) * 30 * (0.3 + avgEnergy * 0.7) : 0;
           const scale = Math.max(0.15, value);
           bar.style.transform = `translateY(${waveHeight}px) scaleY(${scale})`;
           bar.style.backgroundColor = `hsl(${(dynamicHue + i * 3) % 360}, ${saturation}%, ${lightness}%)`;
-          bar.style.boxShadow = `0 0 ${15 * value}px ${5 * value}px hsla(${dynamicHue % 360}, 80%, 60%, ${value * 0.5})`;
+          bar.style.boxShadow = isPlaying ? `0 0 ${15 * value}px ${5 * value}px hsla(${dynamicHue % 360}, 80%, 60%, ${value * 0.5})` : 'none';
         } else if (variant === "pulse") {
           // Enhanced pulse with breathing effect
-          const breathe = Math.sin(timeRef.current * 2 + i * 0.5) * 0.1;
+          const breathe = isPlaying ? Math.sin(timeRef.current * 2 + i * 0.5) * 0.1 : 0;
           const scale = 0.8 + value * 0.6 + breathe + bassEnergy * 0.3;
           const ringHue = (dynamicHue + i * 60) % 360;
           bar.style.transform = `scale(${scale})`;
-          bar.style.borderColor = `hsla(${ringHue}, 80%, ${50 + value * 30}%, ${0.3 + value * 0.5})`;
-          bar.style.boxShadow = `0 0 ${40 * value}px ${15 * value}px hsla(${ringHue}, 80%, 50%, ${value * 0.4}),
-                                inset 0 0 ${20 * value}px hsla(${ringHue}, 80%, 70%, ${value * 0.2})`;
+          bar.style.borderColor = `hsla(${ringHue}, ${saturation}%, ${isPlaying ? 50 + value * 30 : 25}%, ${isPlaying ? 0.3 + value * 0.5 : 0.2})`;
+          bar.style.boxShadow = isPlaying
+            ? `0 0 ${40 * value}px ${15 * value}px hsla(${ringHue}, 80%, 50%, ${value * 0.4}),
+               inset 0 0 ${20 * value}px hsla(${ringHue}, 80%, 70%, ${value * 0.2})`
+            : 'none';
         } else if (variant === "circle") {
           // Enhanced circular with orbital motion
-          const angle = (i / barCount) * Math.PI * 2 + timeRef.current * 0.5;
+          const angle = (i / barCount) * Math.PI * 2 + (isPlaying ? timeRef.current * 0.5 : 0);
           const baseRadius = 35 + (size === "sm" || size === "md" ? 20 : 45);
-          const dynamicRadius = baseRadius + value * 50 + bassEnergy * 20;
+          const dynamicRadius = baseRadius + (isPlaying ? value * 50 + bassEnergy * 20 : 0);
           const x = Math.cos(angle) * dynamicRadius;
           const y = Math.sin(angle) * dynamicRadius;
           const particleScale = 0.3 + value * 1.2;
           const orbitHue = (dynamicHue + (i / barCount) * 120) % 360;
           bar.style.transform = `translate(${x}px, ${y}px) scale(${particleScale})`;
           bar.style.backgroundColor = `hsl(${orbitHue}, ${saturation}%, ${lightness}%)`;
-          bar.style.boxShadow = `0 0 ${20 * value}px ${8 * value}px hsla(${orbitHue}, 90%, 60%, ${value * 0.7})`;
+          bar.style.boxShadow = isPlaying ? `0 0 ${20 * value}px ${8 * value}px hsla(${orbitHue}, 90%, 60%, ${value * 0.7})` : 'none';
         } else if (variant === "dots") {
           // Enhanced dots with pulsing grid
-          const gridPulse = Math.sin(timeRef.current * 4 + (i % 5) * 0.3 + Math.floor(i / 5) * 0.3) * 0.15;
+          const gridPulse = isPlaying ? Math.sin(timeRef.current * 4 + (i % 5) * 0.3 + Math.floor(i / 5) * 0.3) * 0.15 : 0;
           const scale = 0.4 + value * 1.8 + gridPulse + bassEnergy * 0.5;
           const dotHue = (dynamicHue + i * 15) % 360;
           bar.style.transform = `scale(${Math.max(0.3, scale)})`;
           bar.style.backgroundColor = `hsl(${dotHue}, ${saturation}%, ${lightness}%)`;
-          bar.style.boxShadow = `0 0 ${25 * value}px ${12 * value}px hsla(${dotHue}, 90%, 55%, ${value * 0.6})`;
-          bar.style.opacity = `${0.5 + value * 0.5}`;
+          bar.style.boxShadow = isPlaying ? `0 0 ${25 * value}px ${12 * value}px hsla(${dotHue}, 90%, 55%, ${value * 0.6})` : 'none';
+          bar.style.opacity = isPlaying ? `${0.5 + value * 0.5}` : '0.3';
         } else if (variant === "lines") {
           // Enhanced lines with streaming effect
-          const stream = Math.sin(timeRef.current * 3 + i * 0.5) * 0.1;
+          const stream = isPlaying ? Math.sin(timeRef.current * 3 + i * 0.5) * 0.1 : 0;
           const scale = Math.max(0.08, value + stream);
           const lineHue = (dynamicHue + i * 20) % 360;
           bar.style.transform = `scaleX(${scale})`;
           bar.style.backgroundColor = `hsl(${lineHue}, ${saturation}%, ${lightness}%)`;
-          bar.style.boxShadow = `0 0 ${15 * value}px ${5 * value}px hsla(${lineHue}, 85%, 60%, ${value * 0.5})`;
-          bar.style.opacity = `${0.7 + value * 0.3}`;
+          bar.style.boxShadow = isPlaying ? `0 0 ${15 * value}px ${5 * value}px hsla(${lineHue}, 85%, 60%, ${value * 0.5})` : 'none';
+          bar.style.opacity = isPlaying ? `${0.7 + value * 0.3}` : '0.3';
         }
       });
 
@@ -184,7 +197,7 @@ export const PerformantVisualizer = ({
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [frequencyData, barCount, variant, isReady, size]);
+  }, [frequencyData, barCount, variant, isReady, size, isPlaying]);
 
   // Enhanced Bars Visualizer
   if (variant === "bars") {
