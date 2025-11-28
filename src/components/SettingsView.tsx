@@ -1,8 +1,9 @@
-import { Settings as SettingsIcon, Sparkles, Check, Sun, Moon, Palette, Keyboard, Info, Heart, Download, Upload, FileJson, CheckCircle2 } from "lucide-react";
+import { Settings as SettingsIcon, Sparkles, Check, Sun, Moon, Palette, Keyboard, Info, Heart, Download, Upload, FileJson, CheckCircle2, User, Loader2 } from "lucide-react";
 import { useState, useRef } from "react";
 import { PremiumCoverArt } from "./PremiumCoverArt";
 import { useSettings } from "../contexts/SettingsContext";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
+import { useAuth } from "../contexts/PostgresAuthContext";
 
 type VisualizerVariant = "bars" | "wave" | "pulse" | "circle" | "dots" | "lines" | "lyrics";
 
@@ -15,9 +16,29 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
   const [previewPlaying, setPreviewPlaying] = useState(true);
   const { themeMode, setThemeMode } = useSettings();
   const { tracks, playlists, projectFolders } = useMusicLibrary();
+  const { user, updateProfile, error: authError, clearError } = useAuth();
   const [exportSuccess, setExportSuccess] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const [displayName, setDisplayName] = useState(user?.name || "");
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [profileUpdateSuccess, setProfileUpdateSuccess] = useState(false);
+
+  const handleUpdateProfile = async () => {
+    if (!displayName.trim() || displayName === user?.name) return;
+
+    setIsUpdatingProfile(true);
+    clearError();
+
+    const success = await updateProfile(displayName.trim());
+
+    if (success) {
+      setProfileUpdateSuccess(true);
+      setTimeout(() => setProfileUpdateSuccess(false), 3000);
+    }
+
+    setIsUpdatingProfile(false);
+  };
 
   // Export library data as JSON
   const handleExportLibrary = () => {
@@ -161,6 +182,74 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
           Customize your Replay experience
         </p>
       </div>
+
+      {/* Profile Settings */}
+      <section className="mb-8">
+        <div className="bg-[var(--replay-elevated)]/80 backdrop-blur-xl border border-[var(--replay-border)] rounded-3xl p-6 md:p-8 shadow-2xl">
+          <div className="flex items-center gap-3 mb-6">
+            <User className="text-[var(--replay-off-white)]" size={28} />
+            <div>
+              <h2 className="text-2xl font-black text-[var(--replay-off-white)]">
+                Profile
+              </h2>
+              <p className="text-sm text-[var(--replay-mid-grey)] mt-1">
+                Manage your account settings
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {/* Display Name */}
+            <div className="p-4 bg-[var(--replay-dark-grey)]/60 backdrop-blur-sm rounded-xl border border-[var(--replay-border)]">
+              <label className="block text-sm font-semibold text-[var(--replay-off-white)] mb-2">
+                Display Name
+              </label>
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Enter your display name"
+                  className="flex-1 px-4 py-3 bg-[var(--replay-dark-grey)] border border-[var(--replay-border)] rounded-xl text-[var(--replay-off-white)] placeholder-[var(--replay-mid-grey)] focus:outline-none focus:border-[var(--replay-off-white)] transition-colors"
+                />
+                <button
+                  onClick={handleUpdateProfile}
+                  disabled={isUpdatingProfile || !displayName.trim() || displayName === user?.name}
+                  className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                    profileUpdateSuccess
+                      ? "bg-green-500 text-white"
+                      : isUpdatingProfile || !displayName.trim() || displayName === user?.name
+                      ? "bg-[var(--replay-border)] text-[var(--replay-mid-grey)] cursor-not-allowed"
+                      : "bg-[var(--replay-off-white)] text-[var(--replay-black)] hover:scale-105 active:scale-95"
+                  }`}
+                >
+                  {isUpdatingProfile ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : profileUpdateSuccess ? (
+                    <Check className="w-5 h-5" />
+                  ) : (
+                    "Save"
+                  )}
+                </button>
+              </div>
+              {authError && (
+                <p className="mt-2 text-sm text-red-400">{authError}</p>
+              )}
+              <p className="mt-2 text-xs text-[var(--replay-mid-grey)]">
+                This name will be shown in your greeting on the home page.
+              </p>
+            </div>
+
+            {/* Email (Read Only) */}
+            <div className="p-4 bg-[var(--replay-dark-grey)]/60 backdrop-blur-sm rounded-xl border border-[var(--replay-border)]">
+              <label className="block text-sm font-semibold text-[var(--replay-off-white)] mb-2">
+                Email
+              </label>
+              <p className="text-[var(--replay-mid-grey)]">{user?.email || "Not signed in"}</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Appearance Settings */}
       <section className="mb-8">

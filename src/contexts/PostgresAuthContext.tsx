@@ -14,6 +14,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string) => Promise<boolean>;
   signIn: (email: string, password: string) => Promise<boolean>;
   signOut: () => void;
+  updateProfile: (name: string) => Promise<boolean>;
   error: string | null;
   clearError: () => void;
   token: string | null;
@@ -176,6 +177,55 @@ export const PostgresAuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
   };
 
+  const updateProfile = async (name: string): Promise<boolean> => {
+    setError(null);
+
+    if (!name || name.trim().length === 0) {
+      setError("Name is required");
+      return false;
+    }
+
+    if (!token) {
+      setError("Not authenticated");
+      return false;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: name.trim() })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Failed to update profile');
+        return false;
+      }
+
+      // Update local user state
+      const updatedUser = {
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.username,
+        createdAt: new Date(data.user.created_at)
+      };
+
+      localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+      setUser(updatedUser);
+
+      return true;
+    } catch (e) {
+      console.error('Profile update error:', e);
+      setError('Network error. Please check your connection and try again.');
+      return false;
+    }
+  };
+
   const clearError = () => setError(null);
 
   return (
@@ -186,6 +236,7 @@ export const PostgresAuthProvider = ({ children }: { children: ReactNode }) => {
       signUp,
       signIn,
       signOut,
+      updateProfile,
       error,
       clearError,
       token

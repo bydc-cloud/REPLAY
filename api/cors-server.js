@@ -298,6 +298,39 @@ app.get('/api/auth/verify', (req, res) => {
   }
 });
 
+// Auth: Update Profile (name)
+app.put('/api/auth/profile', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'No token' });
+    }
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { name } = req.body;
+
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+
+    const db = getPool();
+    const result = await db.query(
+      'UPDATE users SET username = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, email, username, created_at',
+      [name.trim(), decoded.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = result.rows[0];
+    console.log('Profile updated:', user.email, '->', name);
+    res.json({ user });
+  } catch (error) {
+    console.error('Profile update error:', error.message);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
 // Auth middleware
 function authMiddleware(req, res, next) {
   try {
