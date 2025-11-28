@@ -77,10 +77,10 @@ export const MiniPlayer = ({ isOpen, onClose, onExpand }: MiniPlayerProps) => {
       onMouseDown={handleMouseDown}
     >
       <div className="relative bg-[#0a0a0a]/95 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl shadow-black/50 overflow-hidden w-[280px]">
-        {/* Progress bar at top */}
+        {/* Progress bar at top - smooth transition */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-white/10">
           <div
-            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-100"
+            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-[width] duration-200 ease-linear"
             style={{ width: `${progress}%` }}
           />
         </div>

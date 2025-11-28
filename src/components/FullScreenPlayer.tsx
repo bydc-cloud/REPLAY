@@ -139,16 +139,24 @@ export const FullScreenPlayer = ({
           </button>
         </div>
 
-        {/* Progress Bar - Smooth */}
+        {/* Progress Bar - Smooth with transition */}
         <div className="mb-5 flex-shrink-0">
           <div className="relative py-2">
+            <div
+              className="absolute top-2 left-0 right-0 h-2 bg-white/10 rounded-full overflow-hidden pointer-events-none"
+            >
+              <div
+                className="h-full bg-[var(--replay-off-white)] transition-[width] duration-200 ease-linear"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
             <input
               type="range"
               min="0"
               max="100"
               value={progress}
               onChange={(e) => onProgressChange(Number(e.target.value))}
-              className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer touch-pan-y
+              className="relative w-full h-2 bg-transparent rounded-full appearance-none cursor-pointer touch-pan-y z-10
                 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5
                 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--replay-off-white)]
                 [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-black/40
@@ -157,9 +165,6 @@ export const FullScreenPlayer = ({
                 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full
                 [&::-moz-range-thumb]:bg-[var(--replay-off-white)] [&::-moz-range-thumb]:border-0
                 [&::-moz-range-thumb]:shadow-lg [&::-moz-range-thumb]:cursor-pointer"
-              style={{
-                background: `linear-gradient(to right, var(--replay-off-white) 0%, var(--replay-off-white) ${progress}%, rgba(255, 255, 255, 0.1) ${progress}%, rgba(255, 255, 255, 0.1) 100%)`,
-              }}
             />
           </div>
           <div className="flex justify-between mt-1">
