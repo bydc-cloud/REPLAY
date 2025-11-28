@@ -1,85 +1,48 @@
-import { Search, X } from "lucide-react";
+import { Search, X, Music } from "lucide-react";
 import { useState } from "react";
 import { AlbumCard } from "./AlbumCard";
 import { SongCard } from "./SongCard";
+import { useMusicLibrary } from "../contexts/MusicLibraryContext";
+import { useAudioPlayer } from "../contexts/AudioPlayerContext";
 
 export const SearchView = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
 
-  const allAlbums = [
-    {
-      title: "Neon Nights",
-      artist: "Synthwave Collective",
-      imageUrl: "https://images.unsplash.com/photo-1703115015343-81b498a8c080?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-    },
-    {
-      title: "Retrograde",
-      artist: "Electric Dreams",
-      imageUrl: "https://images.unsplash.com/photo-1574494462457-45f409ae5039?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-    },
-    {
-      title: "Analog Stories",
-      artist: "Vinyl Hearts",
-      imageUrl: "https://images.unsplash.com/photo-1681148773017-42eaa4522384?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-    },
-    {
-      title: "Stadium Lights",
-      artist: "Pop Sensation",
-      imageUrl: "https://images.unsplash.com/photo-1510809393-728d340e4eb1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-    },
-    {
-      title: "Blue Note Session",
-      artist: "Jazz Ensemble",
-      imageUrl: "https://images.unsplash.com/photo-1710951403141-353d4e5c7cbf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-    },
-    {
-      title: "Amplified",
-      artist: "Rock Brigade",
-      imageUrl: "https://images.unsplash.com/photo-1740459057005-65f000db582f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
-    },
-  ];
-
-  const allSongs = [
-    {
-      title: "Midnight Drive",
-      artist: "Neon Lights",
-      imageUrl: "https://images.unsplash.com/photo-1703115015343-81b498a8c080?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=200",
-    },
-    {
-      title: "Synth Paradise",
-      artist: "Electric Dreams",
-      imageUrl: "https://images.unsplash.com/photo-1574494462457-45f409ae5039?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=200",
-    },
-    {
-      title: "Analog Love",
-      artist: "Vinyl Hearts",
-      imageUrl: "https://images.unsplash.com/photo-1681148773017-42eaa4522384?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=200",
-    },
-    {
-      title: "Electric Feel",
-      artist: "Pop Sensation",
-      imageUrl: "https://images.unsplash.com/photo-1510809393-728d340e4eb1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=200",
-    },
-  ];
+  const { tracks, albums } = useMusicLibrary();
+  const { setQueue } = useAudioPlayer();
 
   const filteredAlbums = searchQuery
-    ? allAlbums.filter(
+    ? albums.filter(
         (album) =>
-          album.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          album.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           album.artist.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : [];
 
   const filteredSongs = searchQuery
-    ? allSongs.filter(
-        (song) =>
-          song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          song.artist.toLowerCase().includes(searchQuery.toLowerCase())
+    ? tracks.filter(
+        (track) =>
+          track.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          track.artist.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : [];
 
   const hasResults = filteredAlbums.length > 0 || filteredSongs.length > 0;
+
+  const handlePlaySong = (trackIndex: number) => {
+    const actualIndex = tracks.findIndex(t => t.id === filteredSongs[trackIndex].id);
+    if (actualIndex >= 0) {
+      setQueue(tracks, actualIndex);
+    }
+  };
+
+  const handlePlayAlbum = (albumName: string, artistName: string) => {
+    const albumTracks = tracks.filter(t => t.album === albumName && t.artist === artistName);
+    if (albumTracks.length > 0) {
+      setQueue(albumTracks, 0);
+    }
+  };
 
   return (
     <div className="p-4 md:p-8">
@@ -120,16 +83,31 @@ export const SearchView = () => {
           <h2 className="text-2xl font-black text-[var(--replay-off-white)] mb-6">
             Browse All
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {allAlbums.map((album, index) => (
-              <AlbumCard
-                key={index}
-                title={album.title}
-                artist={album.artist}
-                imageUrl={album.imageUrl}
-              />
-            ))}
-          </div>
+          {albums.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {albums.map((album) => (
+                <AlbumCard
+                  key={album.id}
+                  title={album.name}
+                  artist={album.artist}
+                  imageUrl={album.artworkUrl}
+                  onClick={() => handlePlayAlbum(album.name, album.artist)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-20 h-20 rounded-full bg-[var(--replay-elevated)] flex items-center justify-center mb-4">
+                <Music size={32} className="text-[var(--replay-mid-grey)]" />
+              </div>
+              <h3 className="text-xl font-semibold text-[var(--replay-off-white)] mb-2">
+                No music yet
+              </h3>
+              <p className="text-[var(--replay-mid-grey)] max-w-xs">
+                Import some music to start browsing
+              </p>
+            </div>
+          )}
         </div>
       ) : (
         <div>
@@ -142,12 +120,13 @@ export const SearchView = () => {
                     Albums
                   </h2>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                    {filteredAlbums.map((album, index) => (
+                    {filteredAlbums.map((album) => (
                       <AlbumCard
-                        key={index}
-                        title={album.title}
+                        key={album.id}
+                        title={album.name}
                         artist={album.artist}
-                        imageUrl={album.imageUrl}
+                        imageUrl={album.artworkUrl}
+                        onClick={() => handlePlayAlbum(album.name, album.artist)}
                       />
                     ))}
                   </div>
@@ -161,12 +140,13 @@ export const SearchView = () => {
                     Songs
                   </h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filteredSongs.map((song, index) => (
+                    {filteredSongs.map((track, index) => (
                       <SongCard
-                        key={index}
-                        title={song.title}
-                        artist={song.artist}
-                        imageUrl={song.imageUrl}
+                        key={track.id}
+                        title={track.title}
+                        artist={track.artist}
+                        imageUrl={track.artworkUrl || track.artworkData}
+                        onClick={() => handlePlaySong(index)}
                       />
                     ))}
                   </div>
