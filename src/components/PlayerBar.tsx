@@ -1,4 +1,4 @@
-import { Heart, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, Volume2, VolumeX, ListMusic } from "lucide-react";
+import { Heart, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, Volume2, VolumeX, ListMusic, Minimize2 } from "lucide-react";
 import { useState, useRef } from "react";
 import { FullScreenPlayer } from "./FullScreenPlayer";
 import { VisualizerModal } from "./VisualizerModal";
@@ -11,9 +11,10 @@ import { useMusicLibrary, getAudioUrl } from "../contexts/MusicLibraryContext";
 
 interface PlayerBarProps {
   onQueueClick?: () => void;
+  onMiniPlayerToggle?: () => void;
 }
 
-export const PlayerBar = ({ onQueueClick }: PlayerBarProps = {}) => {
+export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps = {}) => {
   const [fullScreenOpen, setFullScreenOpen] = useState(false);
   const [visualizerModalOpen, setVisualizerModalOpen] = useState(false);
   const { visualizerVariant } = useSettings();
@@ -427,6 +428,15 @@ export const PlayerBar = ({ onQueueClick }: PlayerBarProps = {}) => {
 
           {/* Right: Volume & Queue */}
           <div className="flex items-center gap-4 w-[320px] justify-end">
+            {onMiniPlayerToggle && (
+              <button
+                onClick={onMiniPlayerToggle}
+                className="text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] transition-all p-2 rounded-full hover:bg-white/5"
+                title="Mini player"
+              >
+                <Minimize2 size={18} />
+              </button>
+            )}
             <button
               onClick={onQueueClick}
               className="text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] transition-all p-2 rounded-full hover:bg-white/5"

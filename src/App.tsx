@@ -19,6 +19,7 @@ import { AudioPlayerProvider } from "./contexts/AudioPlayerContext";
 import { LandingPage } from "./components/LandingPage";
 import { AuthPage } from "./components/AuthPage";
 import { DragDropOverlay } from "./components/DragDropOverlay";
+import { MiniPlayer } from "./components/MiniPlayer";
 
 type AppView = "landing" | "auth" | "app" | "about";
 type AuthMode = "signin" | "signup";
@@ -27,6 +28,7 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [queueDrawerOpen, setQueueDrawerOpen] = useState(false);
+  const [miniPlayerOpen, setMiniPlayerOpen] = useState(false);
   const { visualizerVariant, setVisualizerVariant } = useSettings();
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -209,10 +211,20 @@ function AppContent() {
       </main>
 
       {/* Player Bar */}
-      <PlayerBar onQueueClick={() => setQueueDrawerOpen(true)} />
+      <PlayerBar
+        onQueueClick={() => setQueueDrawerOpen(true)}
+        onMiniPlayerToggle={() => setMiniPlayerOpen(true)}
+      />
 
       {/* Queue Drawer */}
       <QueueDrawer isOpen={queueDrawerOpen} onClose={() => setQueueDrawerOpen(false)} />
+
+      {/* Mini Player */}
+      <MiniPlayer
+        isOpen={miniPlayerOpen}
+        onClose={() => setMiniPlayerOpen(false)}
+        onExpand={() => setMiniPlayerOpen(false)}
+      />
     </div>
   );
 }
