@@ -266,6 +266,137 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isPlaying, updateAudioLevels]);
 
+  // Media Session API for iOS/iPhone lock screen and hardware button controls
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+
+    // Update metadata when track changes
+    if (currentTrack) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentTrack.title || 'Unknown Title',
+        artist: currentTrack.artist || 'Unknown Artist',
+        album: currentTrack.album || 'Unknown Album',
+        artwork: currentTrack.artworkUrl || currentTrack.artworkData
+          ? [{ src: currentTrack.artworkUrl || currentTrack.artworkData || '', sizes: '512x512', type: 'image/jpeg' }]
+          : [],
+      });
+    }
+
+    // Update playback state
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+
+    // Update position state for scrubbing
+    if (audioRef.current && duration > 0) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: duration,
+          playbackRate: audioRef.current.playbackRate,
+          position: currentTime,
+        });
+      } catch (e) {
+        // Position state might not be supported on all browsers
+      }
+    }
+  }, [currentTrack, isPlaying, currentTime, duration]);
+
+  // Set up media session action handlers (only once)
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+
+    // Play action
+    navigator.mediaSession.setActionHandler('play', () => {
+      if (audioRef.current && currentTrack) {
+        audioRef.current.play();
+        setIsPlaying(true);
+      }
+    });
+
+    // Pause action
+    navigator.mediaSession.setActionHandler('pause', () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      }
+    });
+
+    // Previous track
+    navigator.mediaSession.setActionHandler('previoustrack', () => {
+      if (queue.length > 0) {
+        if (currentTime > 3) {
+          // Seek to beginning if more than 3 seconds in
+          if (audioRef.current) {
+            audioRef.current.currentTime = 0;
+          }
+        } else {
+          const prevIndex = Math.max(currentIndex - 1, 0);
+          if (prevIndex !== currentIndex) {
+            setCurrentIndex(prevIndex);
+            loadAndPlayTrack(queue[prevIndex]);
+          }
+        }
+      }
+    });
+
+    // Next track
+    navigator.mediaSession.setActionHandler('nexttrack', () => {
+      if (queue.length > 0) {
+        const nextIndex = repeatMode === "all"
+          ? (currentIndex + 1) % queue.length
+          : Math.min(currentIndex + 1, queue.length - 1);
+        if (nextIndex !== currentIndex || repeatMode === "all") {
+          setCurrentIndex(nextIndex);
+          loadAndPlayTrack(queue[nextIndex]);
+        }
+      }
+    });
+
+    // Seek backward (15 seconds)
+    navigator.mediaSession.setActionHandler('seekbackward', () => {
+      if (audioRef.current) {
+        audioRef.current.currentTime = Math.max(audioRef.current.currentTime - 15, 0);
+      }
+    });
+
+    // Seek forward (15 seconds)
+    navigator.mediaSession.setActionHandler('seekforward', () => {
+      if (audioRef.current) {
+        audioRef.current.currentTime = Math.min(audioRef.current.currentTime + 15, duration);
+      }
+    });
+
+    // Seek to specific position (scrubbing from lock screen)
+    navigator.mediaSession.setActionHandler('seekto', (details) => {
+      if (audioRef.current && details.seekTime !== undefined) {
+        audioRef.current.currentTime = details.seekTime;
+        setCurrentTime(details.seekTime);
+      }
+    });
+
+    // Stop
+    navigator.mediaSession.setActionHandler('stop', () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        setIsPlaying(false);
+        setCurrentTime(0);
+      }
+    });
+
+    return () => {
+      // Clean up action handlers
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.setActionHandler('play', null);
+        navigator.mediaSession.setActionHandler('pause', null);
+        navigator.mediaSession.setActionHandler('previoustrack', null);
+        navigator.mediaSession.setActionHandler('nexttrack', null);
+        navigator.mediaSession.setActionHandler('seekbackward', null);
+        navigator.mediaSession.setActionHandler('seekforward', null);
+        navigator.mediaSession.setActionHandler('seekto', null);
+        navigator.mediaSession.setActionHandler('stop', null);
+      }
+    };
+  }, [queue, currentIndex, repeatMode, duration, currentTime, currentTrack]);
+
   const handleTrackEnd = () => {
     switch (repeatMode) {
       case "one":

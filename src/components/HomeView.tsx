@@ -24,9 +24,9 @@ export const HomeView = () => {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return "Good Morning";
-    if (hour < 18) return "Good Afternoon";
-    return "Good Evening";
+    const firstName = user?.name?.split(" ")[0] || "";
+    const timeGreeting = hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
+    return firstName ? `${timeGreeting}, ${firstName}` : timeGreeting;
   };
 
   const handleImportClick = () => {
@@ -72,14 +72,11 @@ export const HomeView = () => {
 
       {/* Header with User Menu */}
       <div className="flex items-center justify-between mb-6 md:mb-8">
-        {/* Dynamic Greeting */}
+        {/* Dynamic Greeting with User Name */}
         <div>
-          <h1 className="text-3xl md:text-4xl font-black text-[var(--replay-off-white)]">
+          <h1 className="text-2xl md:text-4xl font-black text-[var(--replay-off-white)]">
             {getGreeting()}
           </h1>
-          {user && (
-            <p className="text-[var(--replay-mid-grey)] mt-1">{user.name}</p>
-          )}
         </div>
 
         {/* User Menu */}
