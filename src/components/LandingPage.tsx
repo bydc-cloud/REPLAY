@@ -25,7 +25,12 @@ import {
   Lock,
   Mic,
   Disc,
-  Wand2
+  Wand2,
+  Check,
+  Crown,
+  Rocket,
+  Star,
+  TrendingUp
 } from "lucide-react";
 
 interface LandingPageProps {
@@ -540,6 +545,166 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
               Built for performance. Instant playback, smooth animations, and responsive controls.
               Your music starts playing the moment you tap play.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-purple-500/[0.03] to-transparent overflow-hidden">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-10 md:mb-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 mb-4 md:mb-6">
+              <Rocket className="w-4 h-4 text-purple-400" />
+              <span className="text-xs md:text-sm font-medium text-purple-300">Early Adopter Pricing</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 md:mb-4">
+              Lock In Your Price Forever
+            </h2>
+            <p className="text-white/50 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">
+              Early supporters get the best deal. Lock in your price tier before it's gone.
+              Once you subscribe, your price never goes up.
+            </p>
+          </div>
+
+          {/* Progress Bar Section */}
+          <div className="max-w-2xl mx-auto mb-12 md:mb-16 p-5 md:p-8 rounded-2xl bg-white/[0.03] border border-white/10">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-white/60" />
+                <span className="text-sm font-medium text-white">Users Claimed</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-black text-white">23</span>
+                <span className="text-white/50">/ 50</span>
+              </div>
+            </div>
+            <div className="relative h-4 bg-white/10 rounded-full overflow-hidden mb-3">
+              <div
+                className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all duration-1000"
+                style={{ width: '46%' }}
+              />
+              <div
+                className="absolute inset-y-0 left-[46%] bg-gradient-to-r from-yellow-500 to-orange-400 rounded-full"
+                style={{ width: '54%' }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-xs text-white/50">
+              <span className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-green-500" />
+                $5/mo tier (27 left)
+              </span>
+              <span className="flex items-center gap-1">
+                <TrendingUp className="w-3 h-3" />
+                Price increases at 50 users
+              </span>
+            </div>
+          </div>
+
+          {/* Pricing Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-10">
+            {/* Tier 1 - Current */}
+            <div className="relative p-6 md:p-8 rounded-2xl bg-gradient-to-br from-green-500/10 to-emerald-500/5 border-2 border-green-500/50 overflow-hidden group">
+              <div className="absolute top-3 right-3 px-2.5 py-1 bg-green-500 rounded-full text-[10px] font-bold text-white uppercase tracking-wider animate-pulse">
+                Available Now
+              </div>
+              <div className="mb-4">
+                <span className="text-green-400 text-xs font-semibold uppercase tracking-wider">First 50 Users</span>
+                <div className="flex items-baseline gap-1 mt-1">
+                  <span className="text-4xl font-black text-white">$5</span>
+                  <span className="text-white/50">/month</span>
+                </div>
+              </div>
+              <p className="text-white/60 text-sm mb-6">
+                Lock in the lowest price forever. Only 27 spots remaining at this tier.
+              </p>
+              <ul className="space-y-3 mb-6">
+                {["Unlimited music imports", "Cloud sync across devices", "All 7 visualizers", "AI lyrics transcription", "Priority support", "Forever locked price"].map((feature, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-white/80">
+                    <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={onGetStarted}
+                className="w-full py-3 bg-green-500 hover:bg-green-400 text-white font-semibold rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Claim $5/mo Spot
+              </button>
+            </div>
+
+            {/* Tier 2 - Upcoming */}
+            <div className="relative p-6 md:p-8 rounded-2xl bg-white/[0.03] border border-white/10 overflow-hidden opacity-75">
+              <div className="absolute top-3 right-3 px-2.5 py-1 bg-yellow-500/20 border border-yellow-500/40 rounded-full text-[10px] font-medium text-yellow-400 uppercase tracking-wider">
+                Next Tier
+              </div>
+              <div className="mb-4">
+                <span className="text-yellow-400/70 text-xs font-semibold uppercase tracking-wider">Users 51-100</span>
+                <div className="flex items-baseline gap-1 mt-1">
+                  <span className="text-4xl font-black text-white/60">$8</span>
+                  <span className="text-white/40">/month</span>
+                </div>
+              </div>
+              <p className="text-white/40 text-sm mb-6">
+                Starting after the first 50 users claim their spots.
+              </p>
+              <ul className="space-y-3 mb-6">
+                {["All features included", "Cloud sync", "All visualizers", "AI lyrics", "Standard support", "Forever locked price"].map((feature, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-white/50">
+                    <Check className="w-4 h-4 text-white/30 flex-shrink-0" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              <div className="w-full py-3 bg-white/5 border border-white/10 text-white/40 font-medium rounded-xl text-center">
+                Opens at 50 Users
+              </div>
+            </div>
+
+            {/* Tier 3 - Future */}
+            <div className="relative p-6 md:p-8 rounded-2xl bg-white/[0.02] border border-white/5 overflow-hidden opacity-50">
+              <div className="absolute top-3 right-3 px-2.5 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] font-medium text-white/40 uppercase tracking-wider">
+                Future
+              </div>
+              <div className="mb-4">
+                <span className="text-white/30 text-xs font-semibold uppercase tracking-wider">Users 101-200</span>
+                <div className="flex items-baseline gap-1 mt-1">
+                  <span className="text-4xl font-black text-white/40">$12</span>
+                  <span className="text-white/30">/month</span>
+                </div>
+              </div>
+              <p className="text-white/30 text-sm mb-6">
+                Price increases as we grow. Lock in early for the best deal.
+              </p>
+              <ul className="space-y-3 mb-6">
+                {["All features included", "Cloud sync", "All visualizers", "AI lyrics", "Standard support", "Forever locked price"].map((feature, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-white/30">
+                    <Check className="w-4 h-4 text-white/20 flex-shrink-0" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              <div className="w-full py-3 bg-white/5 border border-white/5 text-white/30 font-medium rounded-xl text-center">
+                Opens at 100 Users
+              </div>
+            </div>
+          </div>
+
+          {/* Trust Badge */}
+          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8 text-sm text-white/40">
+            <div className="flex items-center gap-2">
+              <Lock className="w-4 h-4" />
+              <span>Price locked forever</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              <span>Cancel anytime</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Star className="w-4 h-4" />
+              <span>7-day free trial</span>
+            </div>
           </div>
         </div>
       </section>

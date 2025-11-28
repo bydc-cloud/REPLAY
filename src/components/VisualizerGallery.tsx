@@ -79,12 +79,14 @@ export const VisualizerGallery = () => {
             className="group flex flex-col bg-[#0a0a0a]/40 rounded-xl md:rounded-2xl p-3 md:p-6 border border-white/5 hover:border-white/20 transition-all"
           >
             {/* Visualizer Display */}
-            <div className="mb-3 md:mb-5 flex items-center justify-center h-20 md:h-32 overflow-hidden">
-              <PerformantVisualizer
-                isPlaying={isPlaying}
-                size="sm"
-                variant={viz.variant}
-              />
+            <div className="mb-3 md:mb-5 flex items-center justify-center h-24 md:h-32 relative">
+              <div className="w-full h-full">
+                <PerformantVisualizer
+                  isPlaying={isPlaying}
+                  size="full"
+                  variant={viz.variant}
+                />
+              </div>
             </div>
 
             {/* Info */}
