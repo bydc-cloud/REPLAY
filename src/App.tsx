@@ -6,7 +6,6 @@ import { HomeView } from "./components/HomeView";
 import { SearchView } from "./components/SearchView";
 import { LibraryView } from "./components/LibraryView";
 import { AlbumsView } from "./components/AlbumsView";
-import { ArtistsView } from "./components/ArtistsView";
 import { QueueView } from "./components/QueueView";
 import { AlbumArtBackground } from "./components/AlbumArtBackground";
 import { QueueDrawer } from "./components/QueueDrawer";
@@ -37,7 +36,8 @@ function AppContent() {
 
   // Handle authentication state changes
   useEffect(() => {
-    if (isAuthenticated && currentView !== "app") {
+    // Only auto-switch to app if user just logged in (not if viewing about page)
+    if (isAuthenticated && currentView !== "app" && currentView !== "about") {
       setCurrentView("app");
     }
   }, [isAuthenticated, currentView]);
@@ -98,8 +98,6 @@ function AppContent() {
         return <LibraryView />;
       case "albums":
         return <AlbumsView />;
-      case "artists":
-        return <ArtistsView />;
       case "queue":
         return <QueueView />;
       case "settings":

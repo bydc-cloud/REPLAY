@@ -1,4 +1,4 @@
-import { Home, Search, Library, Heart, Disc, Users, ListMusic, Plus, X, Folder, Settings, Info } from "lucide-react";
+import { Home, Search, Library, Heart, Disc, ListMusic, Plus, X, Folder, Settings, Info } from "lucide-react";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
 
 interface NavItemProps {
@@ -165,21 +165,15 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
 
         {/* Secondary Navigation */}
         <nav className="pt-6 border-t border-[var(--replay-border)] mt-6">
-          <NavItem 
-            icon={<Disc size={20} />} 
-            label="Albums" 
+          <NavItem
+            icon={<Disc size={20} />}
+            label="Albums"
             active={activeTab === "albums"}
             onClick={() => handleNavClick("albums")}
           />
-          <NavItem 
-            icon={<Users size={20} />} 
-            label="Artists" 
-            active={activeTab === "artists"}
-            onClick={() => handleNavClick("artists")}
-          />
-          <NavItem 
-            icon={<ListMusic size={20} />} 
-            label="Queue" 
+          <NavItem
+            icon={<ListMusic size={20} />}
+            label="Queue"
             active={activeTab === "queue"}
             onClick={() => handleNavClick("queue")}
           />

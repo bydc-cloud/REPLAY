@@ -46,6 +46,7 @@ export interface Playlist {
   createdAt: Date;
   trackIds: string[];
   imageUrl?: string;
+  coverUrl?: string;
 }
 
 export interface ProjectFolder {
@@ -72,11 +73,12 @@ interface MusicLibraryContextType {
   toggleLike: (trackId: string) => void;
   incrementPlayCount: (trackId: string) => void;
   importFiles: (files: FileList) => Promise<void>;
-  createPlaylist: (name: string, description?: string) => Promise<string>;
+  createPlaylist: (name: string, description?: string, coverUrl?: string) => Promise<string>;
   deletePlaylist: (playlistId: string) => Promise<void>;
   addToPlaylist: (playlistId: string, trackId: string) => Promise<void>;
   removeFromPlaylist: (playlistId: string, trackId: string) => Promise<void>;
   updatePlaylistName: (playlistId: string, newName: string) => Promise<void>;
+  updatePlaylistCover: (playlistId: string, coverUrl: string) => Promise<void>;
   createProjectFolder: (name: string) => Promise<string>;
   deleteProjectFolder: (folderId: string) => Promise<void>;
   renameProjectFolder: (folderId: string, newName: string) => Promise<void>;
@@ -556,13 +558,14 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     setImportProgress(0);
   };
 
-  const createPlaylist = async (name: string, description?: string): Promise<string> => {
+  const createPlaylist = async (name: string, description?: string, coverUrl?: string): Promise<string> => {
     const newPlaylist: Playlist = {
       id: `playlist-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       name,
       description,
       createdAt: new Date(),
-      trackIds: []
+      trackIds: [],
+      coverUrl
     };
 
     setPlaylists(prev => [...prev, newPlaylist]);
@@ -595,6 +598,15 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     setPlaylists(prev => prev.map(playlist => {
       if (playlist.id === playlistId) {
         return { ...playlist, name: newName };
+      }
+      return playlist;
+    }));
+  };
+
+  const updatePlaylistCover = async (playlistId: string, coverUrl: string) => {
+    setPlaylists(prev => prev.map(playlist => {
+      if (playlist.id === playlistId) {
+        return { ...playlist, coverUrl };
       }
       return playlist;
     }));
@@ -666,6 +678,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       addToPlaylist,
       removeFromPlaylist,
       updatePlaylistName,
+      updatePlaylistCover,
       createProjectFolder,
       deleteProjectFolder,
       renameProjectFolder,

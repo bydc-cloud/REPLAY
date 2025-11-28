@@ -6,8 +6,22 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import OpenAI from 'openai';
+import { Readable } from 'stream';
+import { File } from 'buffer';
 
 dotenv.config();
+
+// OpenAI Configuration for Whisper transcription
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+let openai = null;
+function getOpenAI() {
+  if (!openai && OPENAI_API_KEY) {
+    openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+    console.log('OpenAI client initialized for transcription');
+  }
+  return openai;
+}
 
 // Backblaze B2 Configuration (S3-compatible)
 const B2_KEY_ID = process.env.B2_KEY_ID;
@@ -165,6 +179,20 @@ async function initDB() {
         position INTEGER DEFAULT 0,
         added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (playlist_id, track_id)
+      )
+    `);
+
+    // Lyrics table for transcriptions
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS lyrics (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        track_id UUID REFERENCES tracks(id) ON DELETE CASCADE UNIQUE,
+        content TEXT NOT NULL,
+        segments JSONB,
+        language VARCHAR(10),
+        transcription_status VARCHAR(20) DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
