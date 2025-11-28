@@ -16,6 +16,9 @@ const B2_BUCKET = process.env.B2_BUCKET || 'replay-music';
 const B2_ENDPOINT = process.env.B2_ENDPOINT || 'https://s3.us-west-004.backblazeb2.com';
 const B2_REGION = process.env.B2_REGION || 'us-west-004';
 
+// Cloudflare Worker URL for free bandwidth (Bandwidth Alliance with B2)
+const CLOUDFLARE_CDN_URL = process.env.CLOUDFLARE_CDN_URL || '';
+
 // Initialize S3 client for Backblaze B2
 let s3Client = null;
 function getS3Client() {
@@ -325,7 +328,7 @@ app.post('/api/upload', authMiddleware, upload.single('audio'), async (req, res)
   }
 });
 
-// Get signed URL for streaming (temporary access)
+// Get streaming URL (via Cloudflare CDN for free bandwidth, or direct B2 signed URL)
 app.get('/api/stream/:trackId', authMiddleware, async (req, res) => {
   try {
     const { trackId } = req.params;
@@ -347,6 +350,15 @@ app.get('/api/stream/:trackId', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Track has no audio file' });
     }
 
+    // If Cloudflare CDN is configured, use it for free bandwidth
+    if (CLOUDFLARE_CDN_URL) {
+      // Cloudflare Worker proxies to B2 - no signed URL needed
+      const cdnUrl = `${CLOUDFLARE_CDN_URL}/${track.file_key}`;
+      console.log('Streaming via Cloudflare CDN:', cdnUrl);
+      return res.json({ url: cdnUrl, expiresIn: null, cdn: true });
+    }
+
+    // Fallback to direct B2 signed URL
     const client = getS3Client();
     if (!client) {
       return res.status(500).json({ error: 'Storage not configured' });
@@ -360,7 +372,7 @@ app.get('/api/stream/:trackId', authMiddleware, async (req, res) => {
 
     const signedUrl = await getSignedUrl(client, command, { expiresIn: 3600 });
 
-    res.json({ url: signedUrl, expiresIn: 3600 });
+    res.json({ url: signedUrl, expiresIn: 3600, cdn: false });
   } catch (error) {
     console.error('Stream error:', error.message);
     res.status(500).json({ error: 'Failed to get stream URL' });
