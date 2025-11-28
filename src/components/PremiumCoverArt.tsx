@@ -3,7 +3,7 @@ import { PerformantVisualizer } from "./PerformantVisualizer";
 
 interface PremiumCoverArtProps {
   isPlaying?: boolean;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl" | "full";
   variant?: "bars" | "wave" | "pulse" | "circle" | "dots" | "lines";
   imageUrl?: string;
   audioElement?: HTMLAudioElement | null;
@@ -20,7 +20,8 @@ export const PremiumCoverArt = ({
     sm: "w-12 h-12",
     md: "w-16 h-16",
     lg: "w-48 h-48",
-    xl: "w-full aspect-square max-w-md",
+    xl: "w-full h-full",
+    full: "w-full h-full",
   };
 
   // If image URL is provided, show the image
@@ -76,7 +77,7 @@ export const PremiumCoverArt = ({
           <PerformantVisualizer isPlaying={isPlaying} variant={variant} size={size} audioElement={audioElement} />
         ) : (
           <div className="flex flex-col items-center justify-center gap-3 opacity-30">
-            <Music size={size === "sm" ? 20 : size === "md" ? 32 : size === "lg" ? 64 : 96} className="text-[var(--replay-off-white)]" />
+            <Music size={size === "sm" ? 20 : size === "md" ? 32 : size === "lg" ? 64 : (size === "xl" || size === "full") ? 96 : 64} className="text-[var(--replay-off-white)]" />
             {size !== "sm" && (
               <div className="text-center">
                 <div className="text-xs text-[var(--replay-mid-grey)]">No Cover Art</div>

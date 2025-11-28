@@ -65,9 +65,9 @@ export const FullScreenPlayer = ({
 
       {/* Content Area - Flex layout to fit viewport */}
       <div className="flex-1 flex flex-col px-5 py-4 min-h-0">
-        {/* Album Art - Constrained to fit available space */}
+        {/* Album Art - Centered and properly sized */}
         <div className="flex-1 flex items-center justify-center min-h-0 mb-4">
-          <div className="w-full max-w-[280px] aspect-square">
+          <div className="w-full max-w-[280px] mx-auto aspect-square">
             {currentTrack?.artworkUrl || currentTrack?.artworkData ? (
               <div className="w-full h-full rounded-xl overflow-hidden shadow-2xl border border-white/10">
                 <img
@@ -77,7 +77,9 @@ export const FullScreenPlayer = ({
                 />
               </div>
             ) : (
-              <PremiumCoverArt isPlaying={isPlaying} size="lg" variant={visualizerVariant} />
+              <div className="w-full h-full">
+                <PremiumCoverArt isPlaying={isPlaying} size="xl" variant={visualizerVariant} />
+              </div>
             )}
           </div>
         </div>

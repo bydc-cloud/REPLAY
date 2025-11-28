@@ -4,8 +4,51 @@ import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
 import multer from 'multer';
 import dotenv from 'dotenv';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 dotenv.config();
+
+// Backblaze B2 Configuration (S3-compatible)
+const B2_KEY_ID = process.env.B2_KEY_ID;
+const B2_APP_KEY = process.env.B2_APP_KEY;
+const B2_BUCKET = process.env.B2_BUCKET || 'replay-music';
+const B2_ENDPOINT = process.env.B2_ENDPOINT || 'https://s3.us-west-004.backblazeb2.com';
+const B2_REGION = process.env.B2_REGION || 'us-west-004';
+
+// Initialize S3 client for Backblaze B2
+let s3Client = null;
+function getS3Client() {
+  if (!s3Client && B2_KEY_ID && B2_APP_KEY) {
+    s3Client = new S3Client({
+      endpoint: B2_ENDPOINT,
+      region: B2_REGION,
+      credentials: {
+        accessKeyId: B2_KEY_ID,
+        secretAccessKey: B2_APP_KEY,
+      },
+    });
+    console.log('Backblaze B2 client initialized');
+  }
+  return s3Client;
+}
+
+// Configure multer for file uploads (memory storage for streaming to B2)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB max file size
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept audio files only
+    const allowedTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/flac', 'audio/aac', 'audio/ogg', 'audio/m4a', 'audio/x-m4a'];
+    if (allowedTypes.includes(file.mimetype) || file.originalname.match(/\.(mp3|wav|flac|aac|ogg|m4a)$/i)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only audio files are allowed'), false);
+    }
+  },
+});
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -83,6 +126,7 @@ async function initDB() {
         album VARCHAR(255),
         duration INTEGER DEFAULT 0,
         file_url TEXT,
+        file_key TEXT,
         cover_url TEXT,
         play_count INTEGER DEFAULT 0,
         is_liked BOOLEAN DEFAULT false,
@@ -92,6 +136,11 @@ async function initDB() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Add file_key column if it doesn't exist (for existing databases)
+    await db.query(`
+      ALTER TABLE tracks ADD COLUMN IF NOT EXISTS file_key TEXT
     `);
 
     await db.query(`
@@ -233,6 +282,109 @@ function authMiddleware(req, res, next) {
   }
 }
 
+// ============ FILE UPLOAD API ============
+
+// Upload audio file to Backblaze B2
+app.post('/api/upload', authMiddleware, upload.single('audio'), async (req, res) => {
+  try {
+    const client = getS3Client();
+    if (!client) {
+      return res.status(500).json({ error: 'Storage not configured' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No audio file provided' });
+    }
+
+    const file = req.file;
+    const fileExtension = file.originalname.split('.').pop()?.toLowerCase() || 'mp3';
+    const fileName = `${req.userId}/${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExtension}`;
+
+    // Upload to Backblaze B2
+    const uploadCommand = new PutObjectCommand({
+      Bucket: B2_BUCKET,
+      Key: fileName,
+      Body: file.buffer,
+      ContentType: file.mimetype || 'audio/mpeg',
+    });
+
+    await client.send(uploadCommand);
+
+    console.log('File uploaded to B2:', fileName);
+
+    // Return the file key (not a public URL - we'll generate signed URLs for playback)
+    res.json({
+      success: true,
+      fileKey: fileName,
+      size: file.size,
+      originalName: file.originalname,
+    });
+  } catch (error) {
+    console.error('Upload error:', error.message);
+    res.status(500).json({ error: 'Failed to upload file' });
+  }
+});
+
+// Get signed URL for streaming (temporary access)
+app.get('/api/stream/:trackId', authMiddleware, async (req, res) => {
+  try {
+    const { trackId } = req.params;
+    const db = getPool();
+
+    // Get track from database
+    const result = await db.query(
+      'SELECT * FROM tracks WHERE id = $1 AND user_id = $2',
+      [trackId, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    const track = result.rows[0];
+
+    if (!track.file_key) {
+      return res.status(400).json({ error: 'Track has no audio file' });
+    }
+
+    const client = getS3Client();
+    if (!client) {
+      return res.status(500).json({ error: 'Storage not configured' });
+    }
+
+    // Generate signed URL valid for 1 hour
+    const command = new GetObjectCommand({
+      Bucket: B2_BUCKET,
+      Key: track.file_key,
+    });
+
+    const signedUrl = await getSignedUrl(client, command, { expiresIn: 3600 });
+
+    res.json({ url: signedUrl, expiresIn: 3600 });
+  } catch (error) {
+    console.error('Stream error:', error.message);
+    res.status(500).json({ error: 'Failed to get stream URL' });
+  }
+});
+
+// Delete file from B2 (called when track is deleted)
+async function deleteFileFromB2(fileKey) {
+  try {
+    const client = getS3Client();
+    if (!client || !fileKey) return;
+
+    const command = new DeleteObjectCommand({
+      Bucket: B2_BUCKET,
+      Key: fileKey,
+    });
+
+    await client.send(command);
+    console.log('File deleted from B2:', fileKey);
+  } catch (error) {
+    console.error('B2 delete error:', error.message);
+  }
+}
+
 // ============ TRACKS API ============
 
 // Get all tracks for user
@@ -253,14 +405,14 @@ app.get('/api/tracks', authMiddleware, async (req, res) => {
 // Add a track
 app.post('/api/tracks', authMiddleware, async (req, res) => {
   try {
-    const { title, artist, album, duration, file_url, cover_url, genre, year, track_number } = req.body;
+    const { title, artist, album, duration, file_url, file_key, cover_url, genre, year, track_number } = req.body;
     const db = getPool();
 
     const result = await db.query(
-      `INSERT INTO tracks (user_id, title, artist, album, duration, file_url, cover_url, genre, year, track_number)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO tracks (user_id, title, artist, album, duration, file_url, file_key, cover_url, genre, year, track_number)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
-      [req.userId, title, artist, album, duration || 0, file_url, cover_url, genre, year, track_number || 0]
+      [req.userId, title, artist, album, duration || 0, file_url, file_key, cover_url, genre, year, track_number || 0]
     );
 
     res.json(result.rows[0]);

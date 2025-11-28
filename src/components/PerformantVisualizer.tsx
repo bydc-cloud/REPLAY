@@ -22,10 +22,8 @@ export const PerformantVisualizer = ({
   const lastUpdateRef = useRef<number>(0);
 
   // Container size classes
-  const containerClass = size === "full"
+  const containerClass = size === "full" || size === "xl"
     ? "w-full h-full"
-    : size === "xl"
-    ? "w-96 h-96"
     : size === "lg"
     ? "w-64 h-64"
     : size === "md"
