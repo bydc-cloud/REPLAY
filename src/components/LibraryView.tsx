@@ -1,8 +1,8 @@
 import { useState, useRef } from "react";
-import { Music, Disc, Users, ListMusic, Plus, Upload, Loader2, Trash2 } from "lucide-react";
+import { Music, Disc, Users, ListMusic, Plus, Upload, Loader2, Trash2, FolderOpen, Folder, ChevronLeft, Edit2, Check, X } from "lucide-react";
 import { AlbumCard } from "./AlbumCard";
 import { SongCard } from "./SongCard";
-import { useMusicLibrary, Track } from "../contexts/MusicLibraryContext";
+import { useMusicLibrary, Track, ProjectFolder } from "../contexts/MusicLibraryContext";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
 
 interface ArtistCardProps {
@@ -82,10 +82,91 @@ const PlaylistCard = ({ name, songCount, imageUrl, onClick, onDelete }: Playlist
   );
 };
 
+// Project Folder Card component
+interface ProjectFolderCardProps {
+  folder: ProjectFolder;
+  songCount: number;
+  onClick?: () => void;
+  onDelete?: () => void;
+  onRename?: (newName: string) => void;
+}
+
+const ProjectFolderCard = ({ folder, songCount, onClick, onDelete, onRename }: ProjectFolderCardProps) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(folder.name);
+
+  const handleRename = () => {
+    if (editName.trim() && onRename) {
+      onRename(editName.trim());
+    }
+    setIsEditing(false);
+  };
+
+  return (
+    <div className="group cursor-pointer relative" onClick={() => !isEditing && onClick?.()}>
+      <div
+        className="relative mb-4 aspect-square rounded-xl overflow-hidden flex items-center justify-center"
+        style={{ backgroundColor: folder.color || '#3b82f6' }}
+      >
+        <Folder className="w-16 h-16 text-white/90" />
+        {onDelete && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="absolute top-2 right-2 p-2 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+          >
+            <Trash2 size={16} className="text-white" />
+          </button>
+        )}
+      </div>
+      {isEditing ? (
+        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+          <input
+            type="text"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            className="flex-1 px-2 py-1 bg-[var(--replay-elevated)] border border-[var(--replay-border)] rounded text-sm text-[var(--replay-off-white)]"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleRename();
+              if (e.key === 'Escape') setIsEditing(false);
+            }}
+          />
+          <button onClick={handleRename} className="p-1 text-green-500 hover:bg-white/10 rounded">
+            <Check size={16} />
+          </button>
+          <button onClick={() => setIsEditing(false)} className="p-1 text-red-500 hover:bg-white/10 rounded">
+            <X size={16} />
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold text-[var(--replay-off-white)] truncate flex-1">{folder.name}</h3>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsEditing(true);
+            }}
+            className="p-1 opacity-0 group-hover:opacity-100 transition-opacity text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)]"
+          >
+            <Edit2 size={14} />
+          </button>
+        </div>
+      )}
+      <p className="text-sm text-[var(--replay-mid-grey)]">{songCount} songs</p>
+    </div>
+  );
+};
+
 export const LibraryView = () => {
   const [activeTab, setActiveTab] = useState("songs");
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [showNewPlaylist, setShowNewPlaylist] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [openFolderId, setOpenFolderId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -93,16 +174,23 @@ export const LibraryView = () => {
     albums,
     artists,
     playlists,
+    projectFolders,
     importFiles,
     isImporting,
     importProgress,
     createPlaylist,
-    deletePlaylist
+    deletePlaylist,
+    createProjectFolder,
+    deleteProjectFolder,
+    renameProjectFolder,
+    addToProjectFolder,
+    removeFromProjectFolder
   } = useMusicLibrary();
 
   const { setQueue } = useAudioPlayer();
 
   const tabs = [
+    { id: "projects", label: "Projects", icon: FolderOpen },
     { id: "songs", label: "Songs", icon: Music },
     { id: "albums", label: "Albums", icon: Disc },
     { id: "artists", label: "Artists", icon: Users },
@@ -158,8 +246,34 @@ export const LibraryView = () => {
     }
   };
 
+  const handleCreateFolder = () => {
+    if (newFolderName.trim()) {
+      createProjectFolder(newFolderName.trim());
+      setNewFolderName("");
+      setShowNewFolder(false);
+    }
+  };
+
+  const handlePlayFolder = (folderId: string) => {
+    const folder = projectFolders.find(f => f.id === folderId);
+    if (folder && folder.trackIds.length > 0) {
+      const folderTracks = folder.trackIds
+        .map(id => tracks.find(t => t.id === id))
+        .filter(t => t !== undefined) as Track[];
+      if (folderTracks.length > 0) {
+        setQueue(folderTracks, 0);
+      }
+    }
+  };
+
+  // Get currently open folder
+  const openFolder = openFolderId ? projectFolders.find(f => f.id === openFolderId) : null;
+  const folderTracks = openFolder
+    ? openFolder.trackIds.map(id => tracks.find(t => t.id === id)).filter(t => t !== undefined) as Track[]
+    : [];
+
   return (
-    <div className="p-4 md:p-8">
+    <div className="p-4 md:p-8 pb-32 min-h-full">
       {/* Hidden file input */}
       <input
         type="file"
@@ -361,6 +475,157 @@ export const LibraryView = () => {
                       onDelete={() => deletePlaylist(playlist.id)}
                     />
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "projects" && (
+            <div>
+              {/* If a folder is open, show its contents */}
+              {openFolderId && openFolder ? (
+                <div>
+                  {/* Back button and folder header */}
+                  <div className="flex items-center gap-4 mb-6">
+                    <button
+                      onClick={() => setOpenFolderId(null)}
+                      className="flex items-center gap-2 px-3 py-2 bg-[var(--replay-elevated)] text-[var(--replay-mid-grey)] rounded-xl hover:text-[var(--replay-off-white)] transition-all"
+                    >
+                      <ChevronLeft size={18} />
+                      Back
+                    </button>
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: openFolder.color || '#3b82f6' }}
+                      >
+                        <Folder className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-[var(--replay-off-white)]">{openFolder.name}</h2>
+                        <p className="text-sm text-[var(--replay-mid-grey)]">{folderTracks.length} songs</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Folder tracks */}
+                  {folderTracks.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Music className="w-16 h-16 mx-auto mb-4 text-[var(--replay-mid-grey)]" />
+                      <p className="text-[var(--replay-mid-grey)]">No songs in this project</p>
+                      <p className="text-sm text-[var(--replay-mid-grey)]/60">Add songs from your library</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {folderTracks.map((track, index) => (
+                        <div key={track.id} className="relative group">
+                          <SongCard
+                            title={track.title}
+                            artist={track.artist}
+                            imageUrl={track.artworkUrl || track.artworkData}
+                            onClick={() => {
+                              setQueue(folderTracks, index);
+                            }}
+                          />
+                          <button
+                            onClick={() => removeFromProjectFolder(openFolderId, track.id)}
+                            className="absolute top-2 right-2 p-2 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/80"
+                          >
+                            <X size={14} className="text-white" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add songs section */}
+                  <div className="mt-8">
+                    <h3 className="text-lg font-semibold text-[var(--replay-off-white)] mb-4">Add Songs</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[400px] overflow-y-auto">
+                      {tracks
+                        .filter(t => !openFolder.trackIds.includes(t.id))
+                        .map((track) => (
+                          <button
+                            key={track.id}
+                            onClick={() => addToProjectFolder(openFolderId, track.id)}
+                            className="flex items-center gap-3 p-3 bg-[var(--replay-elevated)] rounded-xl hover:bg-white/10 transition-all text-left"
+                          >
+                            <div className="w-10 h-10 rounded-lg bg-[var(--replay-dark-grey)] flex items-center justify-center flex-shrink-0">
+                              <Music size={16} className="text-[var(--replay-mid-grey)]" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-[var(--replay-off-white)] truncate">{track.title}</p>
+                              <p className="text-xs text-[var(--replay-mid-grey)] truncate">{track.artist}</p>
+                            </div>
+                            <Plus size={18} className="text-[var(--replay-mid-grey)]" />
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Folder list view */
+                <div>
+                  {/* Create Folder Button */}
+                  <div className="mb-6">
+                    {showNewFolder ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newFolderName}
+                          onChange={(e) => setNewFolderName(e.target.value)}
+                          placeholder="Project name..."
+                          className="flex-1 px-4 py-2 bg-[var(--replay-elevated)] border border-[var(--replay-border)] rounded-xl text-[var(--replay-off-white)] placeholder-[var(--replay-mid-grey)] focus:outline-none focus:border-[var(--replay-off-white)]"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleCreateFolder();
+                            if (e.key === "Escape") setShowNewFolder(false);
+                          }}
+                        />
+                        <button
+                          onClick={handleCreateFolder}
+                          className="px-4 py-2 bg-[var(--replay-off-white)] text-[var(--replay-black)] font-semibold rounded-xl hover:bg-white/90 transition-all"
+                        >
+                          Create
+                        </button>
+                        <button
+                          onClick={() => setShowNewFolder(false)}
+                          className="px-4 py-2 bg-[var(--replay-elevated)] text-[var(--replay-mid-grey)] rounded-xl hover:text-[var(--replay-off-white)] transition-all"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowNewFolder(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-[var(--replay-elevated)] text-[var(--replay-mid-grey)] rounded-xl hover:text-[var(--replay-off-white)] transition-all"
+                      >
+                        <Plus size={18} />
+                        Create Project
+                      </button>
+                    )}
+                  </div>
+
+                  {projectFolders.length === 0 ? (
+                    <div className="text-center py-12">
+                      <FolderOpen className="w-16 h-16 mx-auto mb-4 text-[var(--replay-mid-grey)]" />
+                      <p className="text-[var(--replay-mid-grey)]">No projects yet</p>
+                      <p className="text-sm text-[var(--replay-mid-grey)]/60">Create a project to organize your songs</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                      {projectFolders.map((folder) => (
+                        <ProjectFolderCard
+                          key={folder.id}
+                          folder={folder}
+                          songCount={folder.trackIds.length}
+                          onClick={() => setOpenFolderId(folder.id)}
+                          onDelete={() => deleteProjectFolder(folder.id)}
+                          onRename={(newName) => renameProjectFolder(folder.id, newName)}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

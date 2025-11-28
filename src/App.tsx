@@ -110,7 +110,7 @@ function AppContent() {
   };
 
   return (
-    <div className="flex h-screen bg-[var(--replay-black)] overflow-hidden relative">
+    <div className="flex h-screen bg-[var(--replay-black)] relative">
       {/* Animated Background */}
       <AlbumArtBackground imageUrl="https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1200&h=1200&fit=crop" />
 
@@ -123,7 +123,7 @@ function AppContent() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto pb-24 md:pb-28 pt-16 md:pt-0 relative">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden pb-32 md:pb-28 pt-16 md:pt-0 relative" style={{ WebkitOverflowScrolling: 'touch' }}>
         {/* Desktop Header with Search */}
         <div className="hidden md:block sticky top-0 z-30 bg-gradient-to-b from-[#0a0a0a]/95 via-[#1a1a1a]/95 to-transparent backdrop-blur-xl border-b border-white/5 px-6 py-4">
           <div className="flex items-center justify-end">

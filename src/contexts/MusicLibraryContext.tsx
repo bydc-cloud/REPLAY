@@ -48,11 +48,20 @@ export interface Playlist {
   imageUrl?: string;
 }
 
+export interface ProjectFolder {
+  id: string;
+  name: string;
+  createdAt: Date;
+  trackIds: string[];
+  color?: string;
+}
+
 interface MusicLibraryContextType {
   tracks: Track[];
   albums: Album[];
   artists: Artist[];
   playlists: Playlist[];
+  projectFolders: ProjectFolder[];
   likedTracks: Track[];
   recentlyPlayed: Track[];
   isLoading: boolean;
@@ -68,6 +77,11 @@ interface MusicLibraryContextType {
   addToPlaylist: (playlistId: string, trackId: string) => Promise<void>;
   removeFromPlaylist: (playlistId: string, trackId: string) => Promise<void>;
   updatePlaylistName: (playlistId: string, newName: string) => Promise<void>;
+  createProjectFolder: (name: string) => Promise<string>;
+  deleteProjectFolder: (folderId: string) => Promise<void>;
+  renameProjectFolder: (folderId: string, newName: string) => Promise<void>;
+  addToProjectFolder: (folderId: string, trackId: string) => Promise<void>;
+  removeFromProjectFolder: (folderId: string, trackId: string) => Promise<void>;
 }
 
 const MusicLibraryContext = createContext<MusicLibraryContextType | undefined>(undefined);
@@ -121,7 +135,8 @@ const processAudioFile = (file: File): Promise<Track> => {
 const STORAGE_KEYS = {
   TRACKS: 'replay-tracks',
   PLAYLISTS: 'replay-playlists',
-  RECENTLY_PLAYED: 'replay-recently-played'
+  RECENTLY_PLAYED: 'replay-recently-played',
+  PROJECT_FOLDERS: 'replay-project-folders'
 };
 
 // Helper functions for localStorage
@@ -151,6 +166,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
   const { user, token } = useAuth();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [projectFolders, setProjectFolders] = useState<ProjectFolder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [importProgress, setImportProgress] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
@@ -266,6 +282,14 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
           })));
         }
 
+        const savedFolders = loadFromStorage(STORAGE_KEYS.PROJECT_FOLDERS, user?.id);
+        if (savedFolders) {
+          setProjectFolders(savedFolders.map((folder: any) => ({
+            ...folder,
+            createdAt: new Date(folder.createdAt)
+          })));
+        }
+
         // Then sync with API if we have a token
         if (token) {
           const apiTracks = await fetchTracksFromAPI(token);
@@ -334,6 +358,13 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       saveToStorage(STORAGE_KEYS.RECENTLY_PLAYED, recentlyPlayed, user.id);
     }
   }, [recentlyPlayed, user, isLoading]);
+
+  // Save project folders to localStorage when they change
+  useEffect(() => {
+    if (user && !isLoading) {
+      saveToStorage(STORAGE_KEYS.PROJECT_FOLDERS, projectFolders, user.id);
+    }
+  }, [projectFolders, user, isLoading]);
 
   // Compute derived data
   const albums: Album[] = tracks.reduce((acc, track) => {
@@ -569,12 +600,57 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
+  // Project Folder functions
+  const createProjectFolder = async (name: string): Promise<string> => {
+    const newFolder: ProjectFolder = {
+      id: `folder-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      name,
+      createdAt: new Date(),
+      trackIds: [],
+      color: ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'][Math.floor(Math.random() * 7)]
+    };
+    setProjectFolders(prev => [...prev, newFolder]);
+    return newFolder.id;
+  };
+
+  const deleteProjectFolder = async (folderId: string) => {
+    setProjectFolders(prev => prev.filter(f => f.id !== folderId));
+  };
+
+  const renameProjectFolder = async (folderId: string, newName: string) => {
+    setProjectFolders(prev => prev.map(folder => {
+      if (folder.id === folderId) {
+        return { ...folder, name: newName };
+      }
+      return folder;
+    }));
+  };
+
+  const addToProjectFolder = async (folderId: string, trackId: string) => {
+    setProjectFolders(prev => prev.map(folder => {
+      if (folder.id === folderId && !folder.trackIds.includes(trackId)) {
+        return { ...folder, trackIds: [...folder.trackIds, trackId] };
+      }
+      return folder;
+    }));
+  };
+
+  const removeFromProjectFolder = async (folderId: string, trackId: string) => {
+    setProjectFolders(prev => prev.map(folder => {
+      if (folder.id === folderId) {
+        return { ...folder, trackIds: folder.trackIds.filter(id => id !== trackId) };
+      }
+      return folder;
+    }));
+  };
+
   return (
     <MusicLibraryContext.Provider value={{
       tracks,
       albums,
       artists,
       playlists,
+      projectFolders,
       likedTracks,
       recentlyPlayed,
       isLoading,
@@ -589,7 +665,12 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       deletePlaylist,
       addToPlaylist,
       removeFromPlaylist,
-      updatePlaylistName
+      updatePlaylistName,
+      createProjectFolder,
+      deleteProjectFolder,
+      renameProjectFolder,
+      addToProjectFolder,
+      removeFromProjectFolder
     }}>
       {children}
     </MusicLibraryContext.Provider>
