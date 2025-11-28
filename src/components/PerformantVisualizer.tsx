@@ -108,12 +108,12 @@ export const PerformantVisualizer = ({
   // Render based on variant
   if (variant === "bars") {
     return (
-      <div ref={containerRef} className={`${containerClass} flex items-end justify-center gap-0.5 md:gap-1`}>
+      <div ref={containerRef} className={`${containerClass} flex items-end justify-center gap-[2px] px-2`}>
         {Array.from({ length: barCount }).map((_, i) => (
           <div
             key={i}
             ref={el => { if (el) barsRef.current[i] = el; }}
-            className="flex-1 min-h-[4px] rounded-t-sm origin-bottom"
+            className="flex-1 max-w-[12px] h-full rounded-t-sm origin-bottom"
             style={{
               backgroundColor: `hsl(${(i / barCount) * 300}, 70%, 60%)`,
               transform: 'scaleY(0.1)',
