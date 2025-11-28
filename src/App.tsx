@@ -127,7 +127,7 @@ function AppContent() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto overflow-x-hidden pb-32 md:pb-28 pt-16 md:pt-0 relative" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <main className="flex-1 overflow-y-auto overflow-x-hidden pb-32 md:pb-28 pt-16 md:pt-0 relative scroll-smooth" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
         {/* Desktop Header with Search */}
         <div className="hidden md:block sticky top-0 z-30 bg-gradient-to-b from-[#0a0a0a]/95 via-[#1a1a1a]/95 to-transparent backdrop-blur-xl border-b border-white/5 px-6 py-4">
           <div className="flex items-center justify-end">
