@@ -8,43 +8,66 @@ export const useAudioAnalyzer = (audioElement?: HTMLAudioElement | null) => {
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const animationFrameRef = useRef<number>();
   const lastUpdateRef = useRef<number>(0);
+  const mockTimeRef = useRef<number>(0);
 
   useEffect(() => {
     if (!audioElement) {
-      // Generate more dynamic mock data for demo
+      // Generate highly dynamic mock data for impressive demo visualization
       const mockInterval = setInterval(() => {
         const mockData = new Uint8Array(128);
-        const time = Date.now() / 200;
+        mockTimeRef.current += 0.05;
+        const time = mockTimeRef.current;
+
         for (let i = 0; i < 128; i++) {
-          // Multiple waves at different frequencies for more complex movement
-          const bassInfluence = i < 15 ? 1.5 : 1;
-          const wave1 = Math.sin(time + (i / 6)) * 70 * bassInfluence;
-          const wave2 = Math.sin(time * 1.7 + (i / 3)) * 50;
-          const randomPulse = Math.random() * 20;
-          mockData[i] = Math.max(0, Math.min(255, 90 + wave1 + wave2 + randomPulse));
+          // Simulate realistic frequency distribution
+          const frequencyFactor = 1 - (i / 128) * 0.6; // Higher bass, lower treble naturally
+
+          // Multiple overlapping wave patterns for organic movement
+          const bassWave = i < 20 ? Math.sin(time * 2.5) * 80 : Math.sin(time * 2.5) * 30;
+          const midWave = Math.sin(time * 3.7 + i * 0.15) * 50 * frequencyFactor;
+          const highWave = Math.sin(time * 5.3 + i * 0.08) * 30 * frequencyFactor;
+
+          // Rhythmic pulse (simulating beat)
+          const beatPulse = Math.pow(Math.sin(time * 4), 8) * 60;
+
+          // Sub-bass rumble
+          const subBass = i < 8 ? Math.sin(time * 1.5) * 40 : 0;
+
+          // Random sparkle for treble
+          const sparkle = i > 80 ? Math.random() * 30 : 0;
+
+          // Combine all waves
+          const combined = 60 + bassWave + midWave + highWave + (i < 15 ? beatPulse : beatPulse * 0.3) + subBass + sparkle;
+
+          mockData[i] = Math.max(10, Math.min(255, combined));
         }
         setFrequencyData(mockData);
-      }, 50); // 20fps for mobile performance
+      }, 25); // 40fps for smoother animation
 
       setIsAnalyzing(true);
       return () => clearInterval(mockInterval);
     }
 
-    // Real audio analysis
+    // Real audio analysis with enhanced settings
     try {
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
         analyzerRef.current = audioContextRef.current.createAnalyser();
-        // Reduced FFT size for better mobile performance
-        analyzerRef.current.fftSize = 256;
-        analyzerRef.current.smoothingTimeConstant = 0.6; // More smoothing for stability
-        analyzerRef.current.minDecibels = -85;
-        analyzerRef.current.maxDecibels = -15;
+        // Higher FFT size for more detailed frequency data
+        analyzerRef.current.fftSize = 512;
+        analyzerRef.current.smoothingTimeConstant = 0.5; // Balanced smoothing
+        analyzerRef.current.minDecibels = -90; // More sensitivity
+        analyzerRef.current.maxDecibels = -10; // Better dynamic range
       }
 
       const analyzer = analyzerRef.current;
       const audioContext = audioContextRef.current;
       if (!analyzer || !audioContext) return;
+
+      // Resume context if suspended (required by browsers)
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
 
       if (!sourceRef.current && audioElement) {
         try {
@@ -56,11 +79,12 @@ export const useAudioAnalyzer = (audioElement?: HTMLAudioElement | null) => {
           console.log("Audio source already exists");
         }
       }
+
       const dataArray = new Uint8Array(analyzer.frequencyBinCount);
 
       const updateFrequencyData = (timestamp: number) => {
-        // Throttle to 30fps for mobile performance
-        if (timestamp - lastUpdateRef.current < 33) {
+        // 60fps for smoother visualization
+        if (timestamp - lastUpdateRef.current < 16.67) {
           animationFrameRef.current = requestAnimationFrame(updateFrequencyData);
           return;
         }
@@ -68,7 +92,17 @@ export const useAudioAnalyzer = (audioElement?: HTMLAudioElement | null) => {
 
         if (analyzerRef.current) {
           analyzerRef.current.getByteFrequencyData(dataArray);
-          setFrequencyData(new Uint8Array(dataArray));
+
+          // Apply slight boost to make visualization more visible
+          const boostedData = new Uint8Array(dataArray.length);
+          for (let i = 0; i < dataArray.length; i++) {
+            // Boost lower values more than higher ones for better visibility
+            const value = dataArray[i];
+            const boost = value < 100 ? 1.3 : value < 180 ? 1.15 : 1.05;
+            boostedData[i] = Math.min(255, Math.floor(value * boost));
+          }
+
+          setFrequencyData(boostedData);
         }
         animationFrameRef.current = requestAnimationFrame(updateFrequencyData);
       };

@@ -1,4 +1,4 @@
-import { Home, Search, Library, Heart, Disc, Users, ListMusic, Plus, X, Folder, Settings } from "lucide-react";
+import { Home, Search, Library, Heart, Disc, Users, ListMusic, Plus, X, Folder, Settings, Info } from "lucide-react";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
 
 interface NavItemProps {
@@ -48,9 +48,10 @@ interface SidebarProps {
   onTabChange?: (tab: string) => void;
   isOpen?: boolean;
   onClose?: () => void;
+  onAboutClick?: () => void;
 }
 
-export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClose }: SidebarProps) => {
+export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClose, onAboutClick }: SidebarProps) => {
   // Load playlists from MusicLibrary context
   const { playlists } = useMusicLibrary();
 
@@ -182,11 +183,20 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
             active={activeTab === "queue"}
             onClick={() => handleNavClick("queue")}
           />
-          <NavItem 
-            icon={<Settings size={20} />} 
-            label="Settings" 
+          <NavItem
+            icon={<Settings size={20} />}
+            label="Settings"
             active={activeTab === "settings"}
             onClick={() => handleNavClick("settings")}
+          />
+          <NavItem
+            icon={<Info size={20} />}
+            label="About REPLAY"
+            active={activeTab === "about"}
+            onClick={() => {
+              onAboutClick?.();
+              onClose?.();
+            }}
           />
         </nav>
 

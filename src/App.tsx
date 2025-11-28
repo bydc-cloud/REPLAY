@@ -19,7 +19,7 @@ import { AudioPlayerProvider } from "./contexts/AudioPlayerContext";
 import { LandingPage } from "./components/LandingPage";
 import { AuthPage } from "./components/AuthPage";
 
-type AppView = "landing" | "auth" | "app";
+type AppView = "landing" | "auth" | "app" | "about";
 type AuthMode = "signin" | "signup";
 
 function AppContent() {
@@ -55,8 +55,8 @@ function AppContent() {
     );
   }
 
-  // Landing page for unauthenticated users
-  if (!isAuthenticated && currentView === "landing") {
+  // Landing page for unauthenticated users OR when viewing about page
+  if ((!isAuthenticated && currentView === "landing") || currentView === "about") {
     return (
       <LandingPage
         onGetStarted={() => {
@@ -67,6 +67,8 @@ function AppContent() {
           setAuthMode("signin");
           setCurrentView("auth");
         }}
+        onBackToApp={isAuthenticated ? () => setCurrentView("app") : undefined}
+        showBackButton={currentView === "about" && isAuthenticated}
       />
     );
   }
@@ -120,6 +122,7 @@ function AppContent() {
         onTabChange={setActiveTab}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        onAboutClick={() => setCurrentView("about")}
       />
 
       {/* Main Content Area */}

@@ -6,8 +6,8 @@ import {
   Sparkles,
   Upload,
   Library,
-  Radio,
   ArrowRight,
+  ArrowLeft,
   Smartphone,
   Monitor,
   Cloud,
@@ -15,15 +15,24 @@ import {
   Heart,
   ListMusic,
   Waves,
-  Zap
+  Zap,
+  FolderOpen,
+  Shield,
+  Github,
+  Twitter,
+  Mail,
+  Users,
+  Lock
 } from "lucide-react";
 
 interface LandingPageProps {
   onGetStarted: () => void;
   onSignIn: () => void;
+  onBackToApp?: () => void;
+  showBackButton?: boolean;
 }
 
-export const LandingPage = ({ onGetStarted, onSignIn }: LandingPageProps) => {
+export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButton }: LandingPageProps) => {
   const [hoveredFeature, setHoveredFeature] = useState<number | null>(null);
   const [activeVisualizer, setActiveVisualizer] = useState(0);
   const [scrollY, setScrollY] = useState(0);
@@ -47,7 +56,7 @@ export const LandingPage = ({ onGetStarted, onSignIn }: LandingPageProps) => {
     {
       icon: Upload,
       title: "Import Your Music",
-      description: "Drag and drop or browse to import MP3, M4A, WAV, FLAC, and more. Your music, your library."
+      description: "Drag and drop or browse to import MP3, M4A, WAV, FLAC, AAC, OGG, and more. Your music, your library."
     },
     {
       icon: Library,
@@ -61,18 +70,33 @@ export const LandingPage = ({ onGetStarted, onSignIn }: LandingPageProps) => {
     },
     {
       icon: Cloud,
-      title: "Sync Everywhere",
-      description: "Your library syncs across all devices. Start on desktop, continue on mobile."
+      title: "Cloud Sync",
+      description: "Your library syncs across all devices via Backblaze B2. Start on desktop, continue on mobile."
     },
     {
       icon: Shuffle,
       title: "Smart Playback",
-      description: "Full queue control with shuffle, repeat, and seamless gapless playback."
+      description: "Full queue control with shuffle, repeat modes, and seamless gapless playback."
     },
     {
       icon: Heart,
       title: "Favorites & Likes",
       description: "Heart your favorite tracks for quick access. Build your perfect collection."
+    },
+    {
+      icon: FolderOpen,
+      title: "Project Folders",
+      description: "Organize your tracks into project folders. Perfect for musicians working on albums or playlists."
+    },
+    {
+      icon: Lock,
+      title: "Private & Secure",
+      description: "Your music stays yours. We don't sell data or track listening habits. Full privacy."
+    },
+    {
+      icon: Users,
+      title: "Built for Musicians",
+      description: "Designed by musicians, for musicians. Features that actually matter for your workflow."
     }
   ];
 
@@ -110,6 +134,15 @@ export const LandingPage = ({ onGetStarted, onSignIn }: LandingPageProps) => {
         {/* Header */}
         <header className="relative z-10 flex items-center justify-between px-4 py-4 md:px-8 lg:px-12 md:py-6">
           <div className="flex items-center gap-2 md:gap-3">
+            {showBackButton && onBackToApp && (
+              <button
+                onClick={onBackToApp}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white/80 hover:text-white transition-colors mr-2 bg-white/5 hover:bg-white/10 rounded-full border border-white/10"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to App
+              </button>
+            )}
             <div className="relative">
               <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-sm flex items-center justify-center border border-white/10">
                 <Play className="w-4 h-4 md:w-5 md:h-5 text-white fill-white ml-0.5" />
@@ -118,12 +151,14 @@ export const LandingPage = ({ onGetStarted, onSignIn }: LandingPageProps) => {
             <span className="text-lg md:text-xl font-black tracking-tight text-white">REPLAY</span>
           </div>
 
-          <button
-            onClick={onSignIn}
-            className="px-4 md:px-6 py-2 text-sm font-medium text-white/80 hover:text-white transition-colors"
-          >
-            Sign In
-          </button>
+          {!showBackButton && (
+            <button
+              onClick={onSignIn}
+              className="px-4 md:px-6 py-2 text-sm font-medium text-white/80 hover:text-white transition-colors"
+            >
+              Sign In
+            </button>
+          )}
         </header>
 
         {/* Hero Content */}
@@ -379,6 +414,79 @@ export const LandingPage = ({ onGetStarted, onSignIn }: LandingPageProps) => {
         </div>
       </section>
 
+      {/* About Section */}
+      <section id="about" className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-10 md:mb-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mb-4 md:mb-6">
+              <Music className="w-4 h-4 text-white/60" />
+              <span className="text-xs md:text-sm font-medium text-white/60">About REPLAY</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 md:mb-4">
+              Music, The Way It Should Be
+            </h2>
+            <p className="text-white/50 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">
+              REPLAY was born from frustration with bloated music apps that prioritize ads over experience.
+              We built something different - a clean, fast, beautiful music player that puts your music first.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+            <div className="text-center p-6">
+              <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+                <Shield className="w-8 h-8 text-white/70" />
+              </div>
+              <h3 className="text-lg font-bold text-white mb-2">No Ads, Ever</h3>
+              <p className="text-white/50 text-sm">
+                Your music experience should be uninterrupted. No banner ads, no audio ads, no sponsored content.
+              </p>
+            </div>
+
+            <div className="text-center p-6">
+              <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+                <Lock className="w-8 h-8 text-white/70" />
+              </div>
+              <h3 className="text-lg font-bold text-white mb-2">Privacy First</h3>
+              <p className="text-white/50 text-sm">
+                We don't track what you listen to. Your data stays yours. No selling to advertisers.
+              </p>
+            </div>
+
+            <div className="text-center p-6">
+              <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+                <Zap className="w-8 h-8 text-white/70" />
+              </div>
+              <h3 className="text-lg font-bold text-white mb-2">Lightning Fast</h3>
+              <p className="text-white/50 text-sm">
+                Built with modern tech for instant load times and smooth animations on any device.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Tech Stack Section */}
+      <section className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 md:mb-4">
+            Built With Modern Tech
+          </h2>
+          <p className="text-white/50 mb-8 md:mb-10 max-w-lg mx-auto text-sm md:text-base">
+            Powered by the latest web technologies for the best possible experience.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3 md:gap-4">
+            {["React", "TypeScript", "Tailwind CSS", "Node.js", "PostgreSQL", "Backblaze B2", "Railway"].map((tech) => (
+              <span
+                key={tech}
+                className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white/70 hover:bg-white/10 hover:text-white transition-all cursor-default"
+              >
+                {tech}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12">
         <div className="max-w-4xl mx-auto text-center">
@@ -403,17 +511,66 @@ export const LandingPage = ({ onGetStarted, onSignIn }: LandingPageProps) => {
       </section>
 
       {/* Footer */}
-      <footer className="relative py-6 md:py-8 px-4 md:px-8 lg:px-12 border-t border-white/10">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 md:gap-3">
-            <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-white/10 flex items-center justify-center">
-              <Play className="w-3.5 h-3.5 md:w-4 md:h-4 text-white fill-white ml-0.5" />
+      <footer className="relative py-8 md:py-12 px-4 md:px-8 lg:px-12 border-t border-white/10">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+            {/* Brand */}
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+                  <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                </div>
+                <span className="text-xl font-black text-white">REPLAY</span>
+              </div>
+              <p className="text-white/50 text-sm max-w-md mb-4">
+                A premium music player built for musicians. Import, organize, and enjoy your music
+                with stunning visualizations and seamless cloud sync.
+              </p>
+              <div className="flex items-center gap-3">
+                <a href="https://github.com/bydc-cloud/REPLAY" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
+                  <Github className="w-5 h-5 text-white/70" />
+                </a>
+                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
+                  <Twitter className="w-5 h-5 text-white/70" />
+                </a>
+                <a href="mailto:support@replay.app" className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
+                  <Mail className="w-5 h-5 text-white/70" />
+                </a>
+              </div>
             </div>
-            <span className="text-sm font-bold text-white/50">REPLAY</span>
+
+            {/* Features */}
+            <div>
+              <h4 className="text-white font-semibold mb-4">Features</h4>
+              <ul className="space-y-2 text-sm text-white/50">
+                <li className="hover:text-white/70 transition-colors cursor-default">Music Import</li>
+                <li className="hover:text-white/70 transition-colors cursor-default">Cloud Sync</li>
+                <li className="hover:text-white/70 transition-colors cursor-default">Visualizers</li>
+                <li className="hover:text-white/70 transition-colors cursor-default">Project Folders</li>
+                <li className="hover:text-white/70 transition-colors cursor-default">Playlists</li>
+              </ul>
+            </div>
+
+            {/* Support */}
+            <div>
+              <h4 className="text-white font-semibold mb-4">Support</h4>
+              <ul className="space-y-2 text-sm text-white/50">
+                <li className="hover:text-white/70 transition-colors cursor-default">Help Center</li>
+                <li className="hover:text-white/70 transition-colors cursor-default">Privacy Policy</li>
+                <li className="hover:text-white/70 transition-colors cursor-default">Terms of Service</li>
+                <li className="hover:text-white/70 transition-colors cursor-default">Contact Us</li>
+              </ul>
+            </div>
           </div>
-          <p className="text-xs md:text-sm text-white/30 text-center md:text-right">
-            Your music, beautifully organized.
-          </p>
+
+          <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-xs text-white/30">
+              © 2024 REPLAY. All rights reserved.
+            </p>
+            <p className="text-xs text-white/30">
+              Made with love for musicians everywhere.
+            </p>
+          </div>
         </div>
       </footer>
     </div>
