@@ -1,4 +1,5 @@
 import { Home, Search, Library, Heart, Disc, Users, ListMusic, Plus, X, Folder, Settings } from "lucide-react";
+import { useMusicLibrary } from "../contexts/MusicLibraryContext";
 
 interface NavItemProps {
   icon: React.ReactNode;
@@ -50,13 +51,14 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClose }: SidebarProps) => {
-  const projects = [
-    { name: "Chill Vibes", songCount: 15 },
-    { name: "Workout Mix", songCount: 20 },
-    { name: "Focus Flow", songCount: 10 },
-    { name: "Night Drive", songCount: 12 },
-    { name: "Summer Hits", songCount: 18 },
-  ];
+  // Load playlists from MusicLibrary context
+  const { playlists } = useMusicLibrary();
+
+  // Map playlists to projects format
+  const projects = playlists.map(playlist => ({
+    name: playlist.name,
+    songCount: playlist.trackIds.length
+  }));
 
   const handleNavClick = (tab: string) => {
     onTabChange?.(tab);

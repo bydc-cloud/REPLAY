@@ -10,52 +10,60 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3001;
 
-// AGGRESSIVE CORS - Allow everything
+// Log startup immediately
+console.log('='.repeat(60));
+console.log('REPLAY API - STARTING');
+console.log('Port:', port);
+console.log('Time:', new Date().toISOString());
+console.log('='.repeat(60));
+
+// CORS - must be FIRST middleware
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} from ${origin}`);
+  // Set CORS headers on EVERY response
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400');
 
-  // Set CORS headers for ALL requests
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Max-Age', '86400');
+  // Log every request
+  console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
 
-  // Handle OPTIONS preflight
+  // Handle preflight immediately
   if (req.method === 'OPTIONS') {
-    console.log('Handling OPTIONS preflight request');
-    return res.status(204).end();
+    return res.status(200).end();
   }
 
   next();
 });
 
+// Body parser
 app.use(express.json({ limit: '50mb' }));
 
-// Database connection
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
-
-// Test database connection
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('Database connection failed:', err);
-  } else {
-    console.log('✅ Database connected at:', res.rows[0].now);
+// Database - lazy connection
+let pool = null;
+function getPool() {
+  if (!pool) {
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    });
+    pool.on('error', (err) => {
+      console.error('Database pool error:', err);
+    });
   }
-});
+  return pool;
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
 
-// Initialize database
+// Initialize database schema
 async function initDB() {
+  const db = getPool();
   try {
-    await pool.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`);
+    await db.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`);
 
-    await pool.query(`
+    await db.query(`
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         email VARCHAR(255) UNIQUE NOT NULL,
@@ -66,7 +74,7 @@ async function initDB() {
       )
     `);
 
-    await pool.query(`
+    await db.query(`
       CREATE TABLE IF NOT EXISTS tracks (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -86,7 +94,7 @@ async function initDB() {
       )
     `);
 
-    await pool.query(`
+    await db.query(`
       CREATE TABLE IF NOT EXISTS playlists (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -98,7 +106,7 @@ async function initDB() {
       )
     `);
 
-    await pool.query(`
+    await db.query(`
       CREATE TABLE IF NOT EXISTS playlist_tracks (
         playlist_id UUID REFERENCES playlists(id) ON DELETE CASCADE,
         track_id UUID REFERENCES tracks(id) ON DELETE CASCADE,
@@ -108,52 +116,38 @@ async function initDB() {
       )
     `);
 
-    console.log('✅ Database schema initialized');
+    console.log('Database schema ready');
+    return true;
   } catch (error) {
-    console.error('Database initialization error:', error);
+    console.error('Database init error:', error.message);
+    return false;
   }
 }
 
-initDB();
-
-// Root endpoint
-app.get('/', (req, res) => {
-  res.json({
-    name: 'Replay Music API',
-    status: 'running',
-    cors: 'enabled for all origins',
-    endpoints: {
-      health: '/health',
-      signup: 'POST /api/auth/signup',
-      signin: 'POST /api/auth/signin',
-      verify: 'GET /api/auth/verify'
-    }
-  });
-});
-
-// Health check
+// Health check - responds immediately, no DB needed
 app.get('/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    cors: 'enabled',
-    timestamp: new Date().toISOString(),
-    headers: req.headers
-  });
+  res.status(200).json({ status: 'ok', time: new Date().toISOString() });
 });
 
-// Auth endpoints
+// Root
+app.get('/', (req, res) => {
+  res.json({ name: 'Replay Music API', status: 'running' });
+});
+
+// Auth: Signup
 app.post('/api/auth/signup', async (req, res) => {
-  console.log('Signup request:', req.body.email);
-  const { email, password, username } = req.body;
-
-  if (!email || !password || !username) {
-    return res.status(400).json({ error: 'All fields are required' });
-  }
-
   try {
+    const { email, password, username } = req.body;
+    console.log('Signup attempt:', email);
+
+    if (!email || !password || !username) {
+      return res.status(400).json({ error: 'All fields required' });
+    }
+
+    const db = getPool();
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const result = await pool.query(
+    const result = await db.query(
       'INSERT INTO users (email, username, password_hash) VALUES ($1, $2, $3) RETURNING id, email, username, created_at',
       [email.toLowerCase(), username, passwordHash]
     );
@@ -161,59 +155,62 @@ app.post('/api/auth/signup', async (req, res) => {
     const user = result.rows[0];
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
 
+    console.log('Signup success:', email);
     res.json({ user, token });
   } catch (error) {
+    console.error('Signup error:', error.message);
     if (error.code === '23505') {
-      return res.status(400).json({ error: 'An account with this email already exists' });
+      return res.status(400).json({ error: 'Email already exists' });
     }
-    console.error('Signup error:', error);
-    res.status(500).json({ error: 'Failed to create account' });
+    res.status(500).json({ error: 'Signup failed' });
   }
 });
 
+// Auth: Signin
 app.post('/api/auth/signin', async (req, res) => {
-  console.log('Signin request:', req.body.email);
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
-  }
-
   try {
-    const result = await pool.query(
+    const { email, password } = req.body;
+    console.log('Signin attempt:', email);
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+
+    const db = getPool();
+    const result = await db.query(
       'SELECT id, email, username, password_hash, created_at FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
 
     if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const user = result.rows[0];
-    const validPassword = await bcrypt.compare(password, user.password_hash);
+    const valid = await bcrypt.compare(password, user.password_hash);
 
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+    if (!valid) {
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     delete user.password_hash;
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
 
+    console.log('Signin success:', email);
     res.json({ user, token });
   } catch (error) {
-    console.error('Signin error:', error);
-    res.status(500).json({ error: 'Failed to sign in' });
+    console.error('Signin error:', error.message);
+    res.status(500).json({ error: 'Signin failed' });
   }
 });
 
+// Auth: Verify
 app.get('/api/auth/verify', (req, res) => {
-  const token = req.headers.authorization?.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
-
   try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'No token' });
+    }
     const decoded = jwt.verify(token, JWT_SECRET);
     res.json({ valid: true, userId: decoded.id });
   } catch (error) {
@@ -221,13 +218,318 @@ app.get('/api/auth/verify', (req, res) => {
   }
 });
 
-// Start server
-app.listen(port, '0.0.0.0', () => {
+// Auth middleware
+function authMiddleware(req, res, next) {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'No token' });
+    }
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.userId = decoded.id;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+}
+
+// ============ TRACKS API ============
+
+// Get all tracks for user
+app.get('/api/tracks', authMiddleware, async (req, res) => {
+  try {
+    const db = getPool();
+    const result = await db.query(
+      'SELECT * FROM tracks WHERE user_id = $1 ORDER BY created_at DESC',
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get tracks error:', error.message);
+    res.status(500).json({ error: 'Failed to get tracks' });
+  }
+});
+
+// Add a track
+app.post('/api/tracks', authMiddleware, async (req, res) => {
+  try {
+    const { title, artist, album, duration, file_url, cover_url, genre, year, track_number } = req.body;
+    const db = getPool();
+
+    const result = await db.query(
+      `INSERT INTO tracks (user_id, title, artist, album, duration, file_url, cover_url, genre, year, track_number)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING *`,
+      [req.userId, title, artist, album, duration || 0, file_url, cover_url, genre, year, track_number || 0]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Add track error:', error.message);
+    res.status(500).json({ error: 'Failed to add track' });
+  }
+});
+
+// Bulk add tracks
+app.post('/api/tracks/bulk', authMiddleware, async (req, res) => {
+  try {
+    const { tracks } = req.body;
+    if (!Array.isArray(tracks)) {
+      return res.status(400).json({ error: 'tracks must be an array' });
+    }
+
+    const db = getPool();
+    const inserted = [];
+
+    for (const track of tracks) {
+      const { title, artist, album, duration, file_url, cover_url, genre, year, track_number } = track;
+      const result = await db.query(
+        `INSERT INTO tracks (user_id, title, artist, album, duration, file_url, cover_url, genre, year, track_number)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         RETURNING *`,
+        [req.userId, title, artist, album, duration || 0, file_url, cover_url, genre, year, track_number || 0]
+      );
+      inserted.push(result.rows[0]);
+    }
+
+    res.json({ inserted: inserted.length, tracks: inserted });
+  } catch (error) {
+    console.error('Bulk add tracks error:', error.message);
+    res.status(500).json({ error: 'Failed to add tracks' });
+  }
+});
+
+// Update a track
+app.put('/api/tracks/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, artist, album, duration, file_url, cover_url, is_liked, play_count, genre, year } = req.body;
+    const db = getPool();
+
+    const result = await db.query(
+      `UPDATE tracks SET
+        title = COALESCE($1, title),
+        artist = COALESCE($2, artist),
+        album = COALESCE($3, album),
+        duration = COALESCE($4, duration),
+        file_url = COALESCE($5, file_url),
+        cover_url = COALESCE($6, cover_url),
+        is_liked = COALESCE($7, is_liked),
+        play_count = COALESCE($8, play_count),
+        genre = COALESCE($9, genre),
+        year = COALESCE($10, year),
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = $11 AND user_id = $12
+       RETURNING *`,
+      [title, artist, album, duration, file_url, cover_url, is_liked, play_count, genre, year, id, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Update track error:', error.message);
+    res.status(500).json({ error: 'Failed to update track' });
+  }
+});
+
+// Delete a track
+app.delete('/api/tracks/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getPool();
+
+    const result = await db.query(
+      'DELETE FROM tracks WHERE id = $1 AND user_id = $2 RETURNING id',
+      [id, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+    res.json({ deleted: true, id });
+  } catch (error) {
+    console.error('Delete track error:', error.message);
+    res.status(500).json({ error: 'Failed to delete track' });
+  }
+});
+
+// ============ PLAYLISTS API ============
+
+// Get all playlists
+app.get('/api/playlists', authMiddleware, async (req, res) => {
+  try {
+    const db = getPool();
+    const result = await db.query(
+      'SELECT * FROM playlists WHERE user_id = $1 ORDER BY created_at DESC',
+      [req.userId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get playlists error:', error.message);
+    res.status(500).json({ error: 'Failed to get playlists' });
+  }
+});
+
+// Create a playlist
+app.post('/api/playlists', authMiddleware, async (req, res) => {
+  try {
+    const { name, description, cover_url } = req.body;
+    const db = getPool();
+
+    const result = await db.query(
+      `INSERT INTO playlists (user_id, name, description, cover_url)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [req.userId, name, description, cover_url]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Create playlist error:', error.message);
+    res.status(500).json({ error: 'Failed to create playlist' });
+  }
+});
+
+// Get playlist with tracks
+app.get('/api/playlists/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getPool();
+
+    const playlist = await db.query(
+      'SELECT * FROM playlists WHERE id = $1 AND user_id = $2',
+      [id, req.userId]
+    );
+
+    if (playlist.rows.length === 0) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+
+    const tracks = await db.query(
+      `SELECT t.*, pt.position FROM tracks t
+       JOIN playlist_tracks pt ON t.id = pt.track_id
+       WHERE pt.playlist_id = $1
+       ORDER BY pt.position`,
+      [id]
+    );
+
+    res.json({ ...playlist.rows[0], tracks: tracks.rows });
+  } catch (error) {
+    console.error('Get playlist error:', error.message);
+    res.status(500).json({ error: 'Failed to get playlist' });
+  }
+});
+
+// Add track to playlist
+app.post('/api/playlists/:id/tracks', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { track_id, position } = req.body;
+    const db = getPool();
+
+    // Verify playlist ownership
+    const playlist = await db.query(
+      'SELECT id FROM playlists WHERE id = $1 AND user_id = $2',
+      [id, req.userId]
+    );
+
+    if (playlist.rows.length === 0) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+
+    await db.query(
+      `INSERT INTO playlist_tracks (playlist_id, track_id, position)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (playlist_id, track_id) DO UPDATE SET position = $3`,
+      [id, track_id, position || 0]
+    );
+
+    res.json({ added: true });
+  } catch (error) {
+    console.error('Add to playlist error:', error.message);
+    res.status(500).json({ error: 'Failed to add track to playlist' });
+  }
+});
+
+// Remove track from playlist
+app.delete('/api/playlists/:id/tracks/:trackId', authMiddleware, async (req, res) => {
+  try {
+    const { id, trackId } = req.params;
+    const db = getPool();
+
+    await db.query(
+      'DELETE FROM playlist_tracks WHERE playlist_id = $1 AND track_id = $2',
+      [id, trackId]
+    );
+
+    res.json({ removed: true });
+  } catch (error) {
+    console.error('Remove from playlist error:', error.message);
+    res.status(500).json({ error: 'Failed to remove track from playlist' });
+  }
+});
+
+// Delete playlist
+app.delete('/api/playlists/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getPool();
+
+    const result = await db.query(
+      'DELETE FROM playlists WHERE id = $1 AND user_id = $2 RETURNING id',
+      [id, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+    res.json({ deleted: true, id });
+  } catch (error) {
+    console.error('Delete playlist error:', error.message);
+    res.status(500).json({ error: 'Failed to delete playlist' });
+  }
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Error:', err.message);
+  res.status(500).json({ error: 'Server error' });
+});
+
+// Start server FIRST, then init DB
+const server = app.listen(port, '0.0.0.0', () => {
   console.log('='.repeat(60));
-  console.log('🚀 REPLAY API SERVER v3 - ULTRA CORS EDITION');
+  console.log('SERVER LISTENING ON PORT', port);
   console.log('='.repeat(60));
-  console.log(`📍 Port: ${port}`);
-  console.log(`🌍 CORS: ENABLED FOR ALL ORIGINS`);
-  console.log(`📅 Started: ${new Date().toISOString()}`);
-  console.log('='.repeat(60));
+
+  // Init DB after server is listening
+  initDB().then(ok => {
+    if (ok) console.log('Database ready');
+  });
+});
+
+// Keep alive
+setInterval(() => {
+  console.log('Heartbeat:', new Date().toISOString());
+}, 30000);
+
+// Handle shutdown gracefully
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received');
+  server.close(() => process.exit(0));
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received');
+  server.close(() => process.exit(0));
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught:', err.message);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled:', err);
 });

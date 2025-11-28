@@ -136,7 +136,7 @@ function AppContent() {
           <div className="px-4 py-3">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setSidebarOpen(true)}
+                onClick={() => setSidebarOpen(!sidebarOpen)}
                 className="text-[var(--replay-off-white)] flex-shrink-0"
               >
                 <Menu size={24} />

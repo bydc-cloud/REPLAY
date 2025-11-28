@@ -1,5 +1,8 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from "react";
 import { useAuth } from "./PostgresAuthContext";
+
+// API URL from environment
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 export interface Track {
   id: string;
@@ -144,50 +147,133 @@ const loadFromStorage = (key: string, userId?: string) => {
 };
 
 export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [importProgress, setImportProgress] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
   const [recentlyPlayed, setRecentlyPlayed] = useState<Track[]>([]);
+  const syncInProgressRef = useRef(false);
 
-  // Load data from localStorage on mount and when user changes
+  // Fetch tracks from API
+  const fetchTracksFromAPI = async (authToken: string) => {
+    try {
+      const response = await fetch(`${API_URL}/api/tracks`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return data.map((track: any) => ({
+          id: track.id,
+          title: track.title,
+          artist: track.artist || 'Unknown Artist',
+          album: track.album || 'Unknown Album',
+          duration: track.duration || 0,
+          fileUrl: track.file_url || '',
+          artworkUrl: track.cover_url,
+          isLiked: track.is_liked || false,
+          addedAt: new Date(track.created_at),
+          playCount: track.play_count || 0,
+          genre: track.genre
+        }));
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching tracks from API:', error);
+      return null;
+    }
+  };
+
+  // Fetch playlists from API
+  const fetchPlaylistsFromAPI = async (authToken: string) => {
+    try {
+      const response = await fetch(`${API_URL}/api/playlists`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return data.map((playlist: any) => ({
+          id: playlist.id,
+          name: playlist.name,
+          description: playlist.description,
+          createdAt: new Date(playlist.created_at),
+          trackIds: [],
+          imageUrl: playlist.cover_url
+        }));
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching playlists from API:', error);
+      return null;
+    }
+  };
+
+  // Load data from API and localStorage on mount and when user changes
   useEffect(() => {
     const loadUserData = async () => {
       setIsLoading(true);
       try {
-        // Load tracks
+        // First load from localStorage for immediate display
         const savedTracks = loadFromStorage(STORAGE_KEYS.TRACKS, user?.id);
         if (savedTracks) {
           setTracks(savedTracks.map((track: any) => ({
             ...track,
             addedAt: new Date(track.addedAt)
           })));
-        } else {
-          setTracks([]);
         }
 
-        // Load playlists
         const savedPlaylists = loadFromStorage(STORAGE_KEYS.PLAYLISTS, user?.id);
         if (savedPlaylists) {
           setPlaylists(savedPlaylists.map((playlist: any) => ({
             ...playlist,
             createdAt: new Date(playlist.createdAt)
           })));
-        } else {
-          setPlaylists([]);
         }
 
-        // Load recently played
         const savedRecent = loadFromStorage(STORAGE_KEYS.RECENTLY_PLAYED, user?.id);
         if (savedRecent) {
           setRecentlyPlayed(savedRecent.map((track: any) => ({
             ...track,
             addedAt: new Date(track.addedAt)
           })));
-        } else {
-          setRecentlyPlayed([]);
+        }
+
+        // Then sync with API if we have a token
+        if (token) {
+          const apiTracks = await fetchTracksFromAPI(token);
+          if (apiTracks && apiTracks.length > 0) {
+            // Merge API tracks with local tracks (keep local fileUrl for playback)
+            setTracks(prev => {
+              const localMap = new Map(prev.map(t => [t.id, t]));
+              const merged = apiTracks.map((apiTrack: Track) => {
+                const localTrack = localMap.get(apiTrack.id);
+                if (localTrack) {
+                  // Keep local fileUrl but update metadata from API
+                  return { ...apiTrack, fileUrl: localTrack.fileUrl };
+                }
+                return apiTrack;
+              });
+              // Add any local tracks not in API
+              prev.forEach(localTrack => {
+                if (!merged.find((t: Track) => t.id === localTrack.id)) {
+                  merged.push(localTrack);
+                }
+              });
+              return merged;
+            });
+          }
+
+          const apiPlaylists = await fetchPlaylistsFromAPI(token);
+          if (apiPlaylists && apiPlaylists.length > 0) {
+            setPlaylists(apiPlaylists);
+          }
         }
       } catch (error) {
         console.error("Error loading music library:", error);
@@ -205,7 +291,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       setRecentlyPlayed([]);
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, token]);
 
   // Save tracks to localStorage when they change
   useEffect(() => {
@@ -347,7 +433,35 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (newTracks.length > 0) {
+      // Add to local state
       setTracks(prev => [...prev, ...newTracks]);
+
+      // Sync to API if authenticated
+      if (token) {
+        try {
+          for (const track of newTracks) {
+            await fetch(`${API_URL}/api/tracks`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                title: track.title,
+                artist: track.artist,
+                album: track.album,
+                duration: Math.round(track.duration),
+                genre: track.genre,
+                // Don't send fileUrl to API - it's a data URL and too large
+                // The audio file stays local in the browser
+              })
+            });
+          }
+          console.log(`Synced ${newTracks.length} tracks to API`);
+        } catch (error) {
+          console.error('Error syncing tracks to API:', error);
+        }
+      }
     }
 
     setIsImporting(false);
