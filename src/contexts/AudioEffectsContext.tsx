@@ -68,6 +68,10 @@ interface AudioEffectsContextType {
   // Audio chain connection
   connectToAudioElement: (audio: HTMLAudioElement) => void;
   disconnectFromAudioElement: () => void;
+
+  // Analyser for visualizations
+  analyserNode: AnalyserNode | null;
+  audioContext: AudioContext | null;
 }
 
 const AudioEffectsContext = createContext<AudioEffectsContextType | undefined>(undefined);
@@ -177,7 +181,12 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
   const compressorRef = useRef<DynamicsCompressorNode | null>(null);
   const gainRef = useRef<GainNode | null>(null);
   const stereoRef = useRef<StereoPannerNode | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
   const connectedAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // State to expose analyser for visualizations
+  const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
 
   // Save settings to localStorage
   useEffect(() => {
@@ -296,9 +305,16 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
       // Create new AudioContext
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       const ctx = audioContextRef.current;
+      setAudioContext(ctx);
 
       // Create source from audio element
       sourceRef.current = ctx.createMediaElementSource(audio);
+
+      // Create analyser for visualizations
+      analyserRef.current = ctx.createAnalyser();
+      analyserRef.current.fftSize = 256;
+      analyserRef.current.smoothingTimeConstant = 0.8;
+      setAnalyserNode(analyserRef.current);
 
       // Create EQ filters
       eqFiltersRef.current = EQ_BANDS.map(({ frequency }) => {
@@ -330,7 +346,7 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
       stereoRef.current.pan.value = 0;
 
       // Connect the chain:
-      // Source -> EQ filters (in series) -> Bass -> Compressor -> Gain -> Stereo -> Destination
+      // Source -> EQ filters (in series) -> Bass -> Compressor -> Gain -> Stereo -> Analyser -> Destination
       let lastNode: AudioNode = sourceRef.current;
 
       // Connect EQ filters in series
@@ -344,7 +360,12 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
       bassFilterRef.current.connect(compressorRef.current);
       compressorRef.current.connect(gainRef.current);
       gainRef.current.connect(stereoRef.current);
-      stereoRef.current.connect(ctx.destination);
+
+      // Connect to analyser for visualization
+      stereoRef.current.connect(analyserRef.current);
+
+      // Connect analyser to destination (output)
+      analyserRef.current.connect(ctx.destination);
 
       connectedAudioRef.current = audio;
 
@@ -352,7 +373,7 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
       applyEqSettings();
       applyEffects();
 
-      console.log("Audio effects chain connected");
+      console.log("Audio effects chain connected with analyser");
     } catch (e) {
       console.error("Failed to connect audio effects:", e);
     }
@@ -371,7 +392,10 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
     compressorRef.current = null;
     gainRef.current = null;
     stereoRef.current = null;
+    analyserRef.current = null;
     connectedAudioRef.current = null;
+    setAnalyserNode(null);
+    setAudioContext(null);
   }, []);
 
   // EQ setters
@@ -474,6 +498,8 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
         setCrossfadeDuration,
         connectToAudioElement,
         disconnectFromAudioElement,
+        analyserNode,
+        audioContext,
       }}
     >
       {children}

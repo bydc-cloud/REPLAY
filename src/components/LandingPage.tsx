@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Play,
   Music,
@@ -30,7 +30,13 @@ import {
   Crown,
   Rocket,
   Star,
-  TrendingUp
+  TrendingUp,
+  Sliders,
+  Volume2,
+  Store,
+  DollarSign,
+  BarChart3,
+  Radio
 } from "lucide-react";
 
 interface LandingPageProps {
@@ -67,6 +73,18 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       description: "Drag and drop or browse to import MP3, M4A, WAV, FLAC, AAC, OGG, and more. Your music, your library."
     },
     {
+      icon: Sliders,
+      title: "10-Band Equalizer",
+      description: "Professional-grade parametric EQ with 12 built-in presets. Fine-tune your sound from 32Hz to 16kHz.",
+      isNew: true
+    },
+    {
+      icon: Volume2,
+      title: "Audio Effects Suite",
+      description: "Bass boost, compressor, stereo enhancer, and crossfade. Studio-quality effects at your fingertips.",
+      isNew: true
+    },
+    {
       icon: Mic,
       title: "AI Lyrics Transcription",
       description: "Powered by OpenAI Whisper. Automatically transcribe any song and display synced lyrics in real-time.",
@@ -74,13 +92,19 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
     },
     {
       icon: Sparkles,
-      title: "Stunning Visualizers",
-      description: "Seven beautiful audio-reactive visualizers including an immersive lyrics mode that dances to your music."
+      title: "7 Stunning Visualizers",
+      description: "Audio-reactive bars, waves, pulses, circles, dots, lines, and immersive lyrics mode."
     },
     {
-      icon: Disc,
-      title: "Custom Albums & Projects",
-      description: "Create your own albums with custom cover art. Perfect for organizing demos, projects, and playlists.",
+      icon: Shield,
+      title: "Producer Watermarks",
+      description: "Protect your beats with custom audio tags. Set volume, interval, and overlay modes.",
+      isNew: true
+    },
+    {
+      icon: Store,
+      title: "Beat Marketplace",
+      description: "Sell your beats directly to artists. Create beat packs, set licenses, and track royalties.",
       isNew: true
     },
     {
@@ -89,25 +113,25 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       description: "Your library syncs across all devices via Backblaze B2. Start on desktop, continue on mobile."
     },
     {
-      icon: Shuffle,
-      title: "Smart Playback",
-      description: "Full queue control with shuffle, repeat modes, and seamless playback. Swipe to skip on mobile."
+      icon: Disc,
+      title: "Custom Albums",
+      description: "Create albums with custom cover art. Perfect for organizing demos, projects, and releases."
     },
     {
-      icon: Heart,
-      title: "Favorites & Likes",
-      description: "Heart your favorite tracks for quick access. Build your perfect collection."
+      icon: Shuffle,
+      title: "Smart Playback",
+      description: "Full queue control with shuffle, repeat modes, crossfade, and gapless playback."
     },
     {
       icon: Wand2,
       title: "Mini Player Mode",
-      description: "A compact, draggable player that stays on top while you work. Keep the music flowing anywhere.",
+      description: "Compact, draggable player that stays on top. Keep the music flowing anywhere.",
       isNew: true
     },
     {
       icon: Lock,
       title: "Private & Secure",
-      description: "Your music stays yours. We don't sell data or track listening habits. Full privacy."
+      description: "Your music stays yours. No ads, no tracking, full privacy. You own your data."
     }
   ];
 
@@ -123,51 +147,172 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
           style={{ transform: `translateY(${scrollY * 0.3}px)` }}
         />
 
-        {/* Animated background elements */}
+        {/* Animated background elements - Enhanced for visibility */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {/* Gradient orbs */}
+          {/* Gradient orbs - More vibrant */}
           <div
-            className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-500/[0.08] rounded-full blur-[100px]"
+            className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-purple-500/[0.15] rounded-full blur-[120px]"
             style={{ animation: 'float 8s ease-in-out infinite' }}
           />
           <div
-            className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-pink-500/[0.06] rounded-full blur-[80px]"
+            className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-pink-500/[0.12] rounded-full blur-[100px]"
             style={{ animation: 'float 10s ease-in-out infinite 2s' }}
           />
           <div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-radial from-white/[0.02] to-transparent rounded-full"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-gradient-radial from-white/[0.04] to-transparent rounded-full"
             style={{ animation: 'pulse 12s ease-in-out infinite 4s' }}
           />
+          <div
+            className="absolute top-10 right-20 w-[300px] h-[300px] bg-cyan-500/[0.08] rounded-full blur-[80px]"
+            style={{ animation: 'float 12s ease-in-out infinite 3s' }}
+          />
+          <div
+            className="absolute bottom-20 left-10 w-[350px] h-[350px] bg-indigo-500/[0.10] rounded-full blur-[90px]"
+            style={{ animation: 'float 9s ease-in-out infinite 1s' }}
+          />
 
-          {/* Animated audio bars in hero background */}
-          <div className="absolute bottom-0 left-0 right-0 h-40 flex items-end justify-center gap-1 opacity-[0.07] px-20">
-            {Array(40).fill(0).map((_, i) => (
+          {/* Animated audio bars in hero background - MORE VISIBLE */}
+          <div className="absolute bottom-0 left-0 right-0 h-64 flex items-end justify-center gap-1 opacity-[0.15] px-10">
+            {Array(60).fill(0).map((_, i) => (
               <div
                 key={i}
-                className="flex-1 bg-gradient-to-t from-purple-500 to-pink-400 rounded-t"
+                className="flex-1 rounded-t"
                 style={{
-                  height: `${15 + Math.sin(i * 0.5) * 30 + 40}%`,
-                  animation: `audioBar ${0.8 + Math.random() * 0.4}s ease-in-out infinite`,
-                  animationDelay: `${i * 50}ms`
+                  height: `${20 + Math.sin(i * 0.4) * 40 + 30}%`,
+                  background: `linear-gradient(to top, hsl(${260 + (i % 20) * 5}, 80%, 50%), hsl(${300 + (i % 15) * 3}, 85%, 60%))`,
+                  animation: `audioBar ${0.6 + Math.random() * 0.5}s ease-in-out infinite`,
+                  animationDelay: `${i * 40}ms`,
+                  boxShadow: `0 0 15px hsla(${270 + (i % 20) * 4}, 80%, 55%, 0.3)`
                 }}
               />
             ))}
           </div>
 
-          {/* Floating music notes */}
+          {/* Circular audio visualizer - Left side */}
+          <div className="absolute left-[5%] top-1/3 w-48 h-48 md:w-64 md:h-64 opacity-[0.12]">
+            <div className="relative w-full h-full animate-spin" style={{ animationDuration: '20s' }}>
+              {Array(24).fill(0).map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute left-1/2 top-1/2 origin-center"
+                  style={{
+                    transform: `rotate(${i * 15}deg) translateX(40px)`,
+                  }}
+                >
+                  <div
+                    className="w-1.5 rounded-full"
+                    style={{
+                      height: `${20 + Math.sin(i * 0.5) * 30}px`,
+                      background: `linear-gradient(to top, hsl(${260 + i * 4}, 80%, 55%), hsl(${320 - i * 2}, 85%, 65%))`,
+                      animation: `audioBar ${0.8 + (i % 3) * 0.2}s ease-in-out infinite`,
+                      animationDelay: `${i * 80}ms`,
+                      boxShadow: `0 0 10px hsla(${280 + i * 3}, 80%, 60%, 0.5)`
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Circular audio visualizer - Right side */}
+          <div className="absolute right-[5%] top-1/2 w-40 h-40 md:w-56 md:h-56 opacity-[0.10]">
+            <div className="relative w-full h-full animate-spin" style={{ animationDuration: '25s', animationDirection: 'reverse' }}>
+              {Array(20).fill(0).map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute left-1/2 top-1/2 origin-center"
+                  style={{
+                    transform: `rotate(${i * 18}deg) translateX(35px)`,
+                  }}
+                >
+                  <div
+                    className="w-1 rounded-full"
+                    style={{
+                      height: `${15 + Math.cos(i * 0.6) * 25}px`,
+                      background: `linear-gradient(to top, hsl(${200 + i * 6}, 75%, 50%), hsl(${240 + i * 4}, 80%, 60%))`,
+                      animation: `audioBar ${0.7 + (i % 4) * 0.15}s ease-in-out infinite`,
+                      animationDelay: `${i * 100}ms`,
+                      boxShadow: `0 0 8px hsla(${220 + i * 5}, 75%, 55%, 0.5)`
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Floating waveform lines */}
+          <div className="absolute top-1/4 left-0 right-0 h-20 opacity-[0.08]">
+            <svg className="w-full h-full" preserveAspectRatio="none">
+              <path
+                d="M0,40 Q50,10 100,40 T200,40 T300,40 T400,40 T500,40 T600,40 T700,40 T800,40 T900,40 T1000,40 T1100,40 T1200,40 T1300,40 T1400,40 T1500,40 T1600,40 T1700,40 T1800,40 T1900,40 T2000,40"
+                stroke="url(#waveGradient)"
+                strokeWidth="2"
+                fill="none"
+                className="animate-pulse"
+                style={{ animationDuration: '2s' }}
+              />
+              <defs>
+                <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="transparent" />
+                  <stop offset="20%" stopColor="#a855f7" />
+                  <stop offset="50%" stopColor="#ec4899" />
+                  <stop offset="80%" stopColor="#a855f7" />
+                  <stop offset="100%" stopColor="transparent" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+
+          {/* Floating music notes - More visible */}
           <div className="absolute inset-0">
+            {Array(15).fill(0).map((_, i) => (
+              <div
+                key={i}
+                className="absolute text-3xl md:text-5xl"
+                style={{
+                  left: `${5 + i * 7}%`,
+                  color: `hsla(${260 + i * 8}, 70%, 60%, 0.15)`,
+                  textShadow: `0 0 20px hsla(${270 + i * 6}, 80%, 60%, 0.3)`,
+                  animation: `floatUp ${10 + Math.random() * 6}s linear infinite`,
+                  animationDelay: `${i * 0.8}s`
+                }}
+              >
+                {i % 4 === 0 ? '♪' : i % 4 === 1 ? '♫' : i % 4 === 2 ? '♬' : '♩'}
+              </div>
+            ))}
+          </div>
+
+          {/* Pulsing rings */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            {[0, 1, 2, 3].map((ring) => (
+              <div
+                key={ring}
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border"
+                style={{
+                  width: `${300 + ring * 150}px`,
+                  height: `${300 + ring * 150}px`,
+                  borderColor: `hsla(${270 + ring * 15}, 70%, 50%, ${0.08 - ring * 0.015})`,
+                  animation: `pulseRing ${4 + ring}s ease-out infinite`,
+                  animationDelay: `${ring * 0.8}s`
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Floating EQ bars pattern - top right */}
+          <div className="absolute top-20 right-[15%] flex items-end gap-1 h-20 opacity-[0.12]">
             {Array(8).fill(0).map((_, i) => (
               <div
                 key={i}
-                className="absolute text-white/10 text-2xl md:text-4xl"
+                className="w-2 rounded-full"
                 style={{
-                  left: `${10 + i * 12}%`,
-                  animation: `floatUp ${8 + Math.random() * 4}s linear infinite`,
-                  animationDelay: `${i * 1.2}s`
+                  height: `${30 + Math.sin(i * 0.8) * 40}%`,
+                  background: `linear-gradient(to top, #8b5cf6, #d946ef)`,
+                  animation: `audioBar ${0.5 + i * 0.1}s ease-in-out infinite`,
+                  animationDelay: `${i * 100}ms`,
+                  boxShadow: '0 0 15px rgba(139, 92, 246, 0.4)'
                 }}
-              >
-                {i % 3 === 0 ? '♪' : i % 3 === 1 ? '♫' : '♬'}
-              </div>
+              />
             ))}
           </div>
         </div>
@@ -181,14 +326,23 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             75% { transform: translateY(-30px) translateX(5px); }
           }
           @keyframes audioBar {
-            0%, 100% { transform: scaleY(1); }
-            50% { transform: scaleY(0.5); }
+            0%, 100% { transform: scaleY(1); opacity: 1; }
+            50% { transform: scaleY(0.4); opacity: 0.7; }
           }
           @keyframes floatUp {
-            0% { bottom: -20px; opacity: 0; transform: translateX(0) rotate(0deg); }
-            10% { opacity: 0.1; }
-            90% { opacity: 0.1; }
-            100% { bottom: 100%; opacity: 0; transform: translateX(20px) rotate(15deg); }
+            0% { bottom: -50px; opacity: 0; transform: translateX(0) rotate(0deg); }
+            10% { opacity: 0.15; }
+            85% { opacity: 0.15; }
+            100% { bottom: 110%; opacity: 0; transform: translateX(30px) rotate(20deg); }
+          }
+          @keyframes pulseRing {
+            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.1; }
+            50% { opacity: 0.05; }
+            100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; }
+          }
+          @keyframes waveMove {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
           }
         `}</style>
 
@@ -238,8 +392,8 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             </h1>
 
             <p className="text-base md:text-lg lg:text-xl text-white/50 mb-8 md:mb-10 max-w-2xl mx-auto leading-relaxed px-4">
-              A premium music player built for musicians. Import, organize,
-              and enjoy your music with stunning real-time visualizations.
+              The premium music player for producers & musicians. Professional 10-band EQ,
+              studio effects, AI lyrics, beat marketplace, and 7 stunning visualizers.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center px-4">
@@ -619,7 +773,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                 Lock in the lowest price forever. Only 27 spots remaining at this tier.
               </p>
               <ul className="space-y-3 mb-6">
-                {["Unlimited music imports", "Cloud sync across devices", "All 7 visualizers", "AI lyrics transcription", "Priority support", "Forever locked price"].map((feature, i) => (
+                {["Unlimited music imports", "10-band EQ + Audio Effects", "All 7 visualizers", "AI lyrics transcription", "Beat Marketplace access", "Producer watermarks", "Forever locked price"].map((feature, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm text-white/80">
                     <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
                     {feature}
@@ -838,11 +992,11 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             <div>
               <h4 className="text-white font-semibold mb-4">Features</h4>
               <ul className="space-y-2 text-sm text-white/50">
-                <li className="hover:text-white/70 transition-colors cursor-default">Music Import</li>
-                <li className="hover:text-white/70 transition-colors cursor-default">Cloud Sync</li>
-                <li className="hover:text-white/70 transition-colors cursor-default">Visualizers</li>
-                <li className="hover:text-white/70 transition-colors cursor-default">Project Folders</li>
-                <li className="hover:text-white/70 transition-colors cursor-default">Playlists</li>
+                <li className="hover:text-white/70 transition-colors cursor-default">10-Band Equalizer</li>
+                <li className="hover:text-white/70 transition-colors cursor-default">Audio Effects Suite</li>
+                <li className="hover:text-white/70 transition-colors cursor-default">7 Visualizers</li>
+                <li className="hover:text-white/70 transition-colors cursor-default">Beat Marketplace</li>
+                <li className="hover:text-white/70 transition-colors cursor-default">AI Lyrics</li>
               </ul>
             </div>
 

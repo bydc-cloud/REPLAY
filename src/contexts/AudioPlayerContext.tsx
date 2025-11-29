@@ -240,21 +240,11 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  // Setup audio analyzer for visualization
+  // Setup audio analyzer for visualization - REMOVED
+  // Audio routing is now handled by AudioEffectsContext to avoid duplicate MediaElementAudioSourceNode
   const setupAnalyzer = useCallback(() => {
-    if (!audioRef.current || audioContextRef.current) return;
-
-    try {
-      audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      analyserRef.current.fftSize = 128;
-
-      sourceRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
-      sourceRef.current.connect(analyserRef.current);
-      analyserRef.current.connect(audioContextRef.current.destination);
-    } catch (e) {
-      console.error("Failed to setup audio analyzer:", e);
-    }
+    // No-op: AudioEffectsContext now handles the audio routing and provides analyserNode
+    console.log("Audio analyzer setup delegated to AudioEffectsContext");
   }, []);
 
   // Update audio levels for visualization
