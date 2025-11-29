@@ -253,7 +253,7 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
                 e.stopPropagation();
                 togglePlayPause();
               }}
-              className="bg-gradient-to-br from-[var(--replay-off-white)] to-[var(--replay-off-white)]/80 hover:from-[var(--replay-off-white)] hover:to-[var(--replay-off-white)] text-[var(--replay-black)] rounded-xl p-3 transition-all duration-300 hover:scale-105 active:scale-95 shadow-2xl shadow-[var(--replay-off-white)]/30 ring-2 ring-[var(--replay-off-white)]/20"
+              className="bg-[var(--replay-off-white)] hover:bg-white text-[var(--replay-black)] rounded-full p-3 transition-all duration-200 active:scale-95"
             >
               {isPlaying ? (
                 <Pause size={24} fill="currentColor" />

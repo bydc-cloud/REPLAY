@@ -1,6 +1,4 @@
 import { PerformantVisualizer } from "./PerformantVisualizer";
-import { useAudioPlayer } from "../contexts/AudioPlayerContext";
-import { useState, useEffect, useRef } from "react";
 
 interface PremiumCoverArtProps {
   isPlaying?: boolean;
@@ -11,67 +9,29 @@ interface PremiumCoverArtProps {
   demoMode?: boolean; // Force demo mode for settings previews
 }
 
-// Mini visualizer for small sizes - supports demo mode for settings
-const MiniVisualizer = ({ isPlaying, demoMode = false }: { isPlaying: boolean; demoMode?: boolean }) => {
-  const { audioLevels } = useAudioPlayer();
-  const [demoLevels, setDemoLevels] = useState<number[]>([0.3, 0.5, 0.7, 0.4, 0.6]);
-  const animationRef = useRef<number>();
-  const timeRef = useRef(0);
-
-  // Animate demo levels when in demo mode and playing
-  useEffect(() => {
-    if (!demoMode || !isPlaying) {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-      return;
-    }
-
-    const animate = () => {
-      timeRef.current += 0.05;
-      const newLevels = [0, 1, 2, 3, 4].map(i => {
-        const wave1 = Math.sin(timeRef.current * 3 + i * 0.8) * 0.3 + 0.5;
-        const wave2 = Math.sin(timeRef.current * 2 + i * 0.5 + 1) * 0.2 + 0.4;
-        return Math.max(0.15, Math.min(1, wave1 * 0.6 + wave2 * 0.4 + Math.random() * 0.1));
-      });
-      setDemoLevels(newLevels);
-      animationRef.current = requestAnimationFrame(animate);
-    };
-
-    animationRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [demoMode, isPlaying]);
-
-  // Use demo levels in demo mode, otherwise use real audio levels
-  const bars = demoMode
-    ? demoLevels
-    : [0, 8, 16, 24, 32].map(i => audioLevels[i] || 0);
-
+// Mini visualizer for small sizes - uses CSS animation like the loading screen
+const MiniVisualizer = ({ isPlaying }: { isPlaying: boolean; demoMode?: boolean }) => {
   return (
-    <div className="w-full h-full flex items-end justify-center gap-[2px] p-1.5 bg-gradient-to-br from-purple-900/50 to-pink-900/50">
-      {bars.map((level, i) => (
+    <div className="w-full h-full flex items-end justify-center gap-[3px] p-2 bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a]">
+      {[0, 1, 2, 3, 4].map((i) => (
         <div
           key={i}
-          className="flex-1 rounded-t-sm"
+          className="w-1.5 rounded-full"
           style={{
-            height: isPlaying ? `${Math.max(15, level * 85)}%` : '15%',
-            background: isPlaying
-              ? `linear-gradient(to top,
-                  hsl(${260 + i * 20}, 80%, 50%),
-                  hsl(${280 + i * 20}, 90%, 65%))`
-              : `linear-gradient(to top,
-                  hsl(${260 + i * 20}, 20%, 20%),
-                  hsl(${280 + i * 20}, 20%, 25%))`,
-            boxShadow: isPlaying && level > 0.4 ? `0 0 ${level * 6}px rgba(147, 51, 234, 0.6)` : 'none',
-            transition: demoMode ? 'none' : 'height 0.08s ease-out, background 0.3s ease',
+            background: `linear-gradient(to top, hsl(${260 + i * 20}, 80%, 50%), hsl(${280 + i * 20}, 90%, 65%))`,
+            height: isPlaying ? '100%' : '20%',
+            animation: isPlaying ? `audioLoading 1s ease-in-out ${i * 0.1}s infinite` : 'none',
+            boxShadow: isPlaying ? `0 0 8px hsla(${270 + i * 15}, 80%, 60%, 0.5)` : 'none',
+            transition: 'height 0.3s ease, box-shadow 0.3s ease',
           }}
         />
       ))}
+      <style>{`
+        @keyframes audioLoading {
+          0%, 100% { transform: scaleY(0.3); opacity: 0.6; }
+          50% { transform: scaleY(1); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 };

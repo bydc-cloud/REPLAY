@@ -97,8 +97,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Body parser
-app.use(express.json({ limit: '50mb' }));
+// Body parser - increased limit for base64 audio data
+app.use(express.json({ limit: '150mb' }));
 
 // Database - lazy connection
 let pool = null;
@@ -144,6 +144,7 @@ async function initDB() {
         duration INTEGER DEFAULT 0,
         file_url TEXT,
         file_key TEXT,
+        file_data TEXT,
         cover_url TEXT,
         play_count INTEGER DEFAULT 0,
         is_liked BOOLEAN DEFAULT false,
@@ -158,6 +159,11 @@ async function initDB() {
     // Add file_key column if it doesn't exist (for existing databases)
     await db.query(`
       ALTER TABLE tracks ADD COLUMN IF NOT EXISTS file_key TEXT
+    `);
+
+    // Add file_data column if it doesn't exist (for base64 audio storage)
+    await db.query(`
+      ALTER TABLE tracks ADD COLUMN IF NOT EXISTS file_data TEXT
     `);
 
     await db.query(`
@@ -478,16 +484,17 @@ app.get('/api/tracks', authMiddleware, async (req, res) => {
 // Add a track
 app.post('/api/tracks', authMiddleware, async (req, res) => {
   try {
-    const { title, artist, album, duration, file_url, file_key, cover_url, genre, year, track_number } = req.body;
+    const { title, artist, album, duration, file_url, file_key, file_data, cover_url, genre, year, track_number } = req.body;
     const db = getPool();
 
     const result = await db.query(
-      `INSERT INTO tracks (user_id, title, artist, album, duration, file_url, file_key, cover_url, genre, year, track_number)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO tracks (user_id, title, artist, album, duration, file_url, file_key, file_data, cover_url, genre, year, track_number)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
-      [req.userId, title, artist, album, duration || 0, file_url, file_key, cover_url, genre, year, track_number || 0]
+      [req.userId, title, artist, album, duration || 0, file_url, file_key, file_data, cover_url, genre, year, track_number || 0]
     );
 
+    console.log('Track saved:', title, '- has file_data:', !!file_data);
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Add track error:', error.message);
