@@ -148,13 +148,13 @@ function AppContent() {
   const renderView = () => {
     switch (activeTab) {
       case "home":
-        return <HomeView />;
+        return <HomeView onTabChange={setActiveTab} />;
       case "search":
         return <SearchView />;
       case "library":
         return <LibraryView />;
       case "liked":
-        return <LibraryView />;
+        return <LibraryView showLikedOnly={true} />;
       case "albums":
         return <AlbumsView />;
       case "queue":

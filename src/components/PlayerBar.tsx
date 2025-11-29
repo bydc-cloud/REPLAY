@@ -27,6 +27,7 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
     volume,
     repeatMode,
     shuffleMode,
+    audioElement,
     togglePlayPause,
     playNext,
     playPrevious,
@@ -193,7 +194,7 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <PremiumCoverArt isPlaying={isPlaying} size="sm" variant={visualizerVariant} />
+                <PremiumCoverArt isPlaying={isPlaying} size="sm" variant={visualizerVariant} audioElement={audioElement} />
               )}
             </div>
 

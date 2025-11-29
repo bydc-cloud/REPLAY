@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Music, Disc, Users, ListMusic, Plus, Upload, Loader2, Trash2, FolderOpen, Folder, ChevronLeft, Edit2, Check, X } from "lucide-react";
+import { Music, Disc, Users, ListMusic, Plus, Upload, Loader2, Trash2, FolderOpen, Folder, ChevronLeft, Edit2, Check, X, Heart } from "lucide-react";
 import { AlbumCard } from "./AlbumCard";
 import { SongCard } from "./SongCard";
 import { useMusicLibrary, Track, ProjectFolder } from "../contexts/MusicLibraryContext";
@@ -161,7 +161,11 @@ const ProjectFolderCard = ({ folder, songCount, onClick, onDelete, onRename }: P
   );
 };
 
-export const LibraryView = () => {
+interface LibraryViewProps {
+  showLikedOnly?: boolean;
+}
+
+export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
   const [activeTab, setActiveTab] = useState("songs");
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [showNewPlaylist, setShowNewPlaylist] = useState(false);
@@ -176,6 +180,7 @@ export const LibraryView = () => {
     artists,
     playlists,
     projectFolders,
+    likedTracks,
     importFiles,
     isImporting,
     importProgress,
@@ -190,6 +195,9 @@ export const LibraryView = () => {
   } = useMusicLibrary();
 
   const { setQueue } = useAudioPlayer();
+
+  // Filter tracks based on showLikedOnly prop
+  const displayTracks = showLikedOnly ? likedTracks : tracks;
 
   const tabs = [
     { id: "projects", label: "Projects", icon: FolderOpen },
@@ -211,7 +219,7 @@ export const LibraryView = () => {
   };
 
   const handlePlayTrack = (index: number) => {
-    setQueue(tracks, index);
+    setQueue(displayTracks, index);
   };
 
   const handlePlayAlbum = (albumName: string, artistName: string) => {
@@ -288,7 +296,7 @@ export const LibraryView = () => {
 
       <div className="flex items-center justify-between mb-6 md:mb-8">
         <h1 className="text-3xl md:text-4xl font-black text-[var(--replay-off-white)]">
-          Your Library
+          {showLikedOnly ? "Liked Songs" : "Your Library"}
         </h1>
 
         <button
@@ -380,7 +388,8 @@ export const LibraryView = () => {
         </div>
       )}
 
-      {/* Tabs */}
+      {/* Tabs - hide when showing liked songs only */}
+      {!showLikedOnly && (
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -400,35 +409,44 @@ export const LibraryView = () => {
           );
         })}
       </div>
+      )}
 
       {/* Empty State */}
-      {tracks.length === 0 && !isImporting && (
+      {displayTracks.length === 0 && !isImporting && (
         <div className="text-center py-16">
           <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-[var(--replay-elevated)] flex items-center justify-center">
-            <Music className="w-12 h-12 text-[var(--replay-mid-grey)]" />
+            {showLikedOnly ? (
+              <Heart className="w-12 h-12 text-[var(--replay-mid-grey)]" />
+            ) : (
+              <Music className="w-12 h-12 text-[var(--replay-mid-grey)]" />
+            )}
           </div>
           <h2 className="text-2xl font-black text-[var(--replay-off-white)] mb-2">
-            Your library is empty
+            {showLikedOnly ? "No liked songs yet" : "Your library is empty"}
           </h2>
           <p className="text-[var(--replay-mid-grey)] mb-6 max-w-md mx-auto">
-            Import your music files to get started. We support MP3, M4A, WAV, FLAC, and more.
+            {showLikedOnly
+              ? "Like songs to add them to your collection."
+              : "Import your music files to get started. We support MP3, M4A, WAV, FLAC, and more."}
           </p>
-          <button
-            onClick={handleImportClick}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--replay-off-white)] text-[var(--replay-black)] font-semibold rounded-full hover:bg-white/90 transition-all"
-          >
-            <Upload size={20} />
-            Import Music
-          </button>
+          {!showLikedOnly && (
+            <button
+              onClick={handleImportClick}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--replay-off-white)] text-[var(--replay-black)] font-semibold rounded-full hover:bg-white/90 transition-all"
+            >
+              <Upload size={20} />
+              Import Music
+            </button>
+          )}
         </div>
       )}
 
       {/* Content */}
-      {tracks.length > 0 && (
+      {displayTracks.length > 0 && (
         <div>
-          {activeTab === "songs" && (
+          {(showLikedOnly || activeTab === "songs") && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {tracks.map((track, index) => (
+              {displayTracks.map((track, index) => (
                 <SongCard
                   key={track.id}
                   title={track.title}

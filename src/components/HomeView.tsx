@@ -7,7 +7,11 @@ import { useMusicLibrary } from "../contexts/MusicLibraryContext";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
 import { useAuth } from "../contexts/PostgresAuthContext";
 
-export const HomeView = () => {
+interface HomeViewProps {
+  onTabChange?: (tab: string) => void;
+}
+
+export const HomeView = ({ onTabChange }: HomeViewProps) => {
   const { user, signOut } = useAuth();
   const {
     tracks,
@@ -144,19 +148,20 @@ export const HomeView = () => {
           icon={Heart}
           title="Liked Songs"
           description={`${likedTracks.length} songs`}
+          onClick={() => onTabChange?.("liked")}
         />
         <QuickAccessCard
           icon={Music}
           title="All Songs"
           description={`${tracks.length} songs`}
+          onClick={() => onTabChange?.("library")}
         />
-        <button onClick={handleImportClick} className="w-full text-left">
-          <QuickAccessCard
-            icon={isImporting ? Loader2 : Upload}
-            title="Import Music"
-            description={isImporting ? "Importing..." : "Add new tracks"}
-          />
-        </button>
+        <QuickAccessCard
+          icon={isImporting ? Loader2 : Upload}
+          title="Import Music"
+          description={isImporting ? "Importing..." : "Add new tracks"}
+          onClick={handleImportClick}
+        />
       </div>
 
       {/* Empty State */}

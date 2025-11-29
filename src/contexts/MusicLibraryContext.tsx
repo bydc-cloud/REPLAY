@@ -231,8 +231,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
           artist: track.artist || 'Unknown Artist',
           album: track.album || 'Unknown Album',
           duration: track.duration || 0,
-          fileUrl: track.file_url || '',
-          fileKey: track.file_key || '', // Cloud storage key
+          fileUrl: track.file_data || track.file_url || '', // Use file_data (base64) from API
           artworkUrl: track.cover_url,
           isLiked: track.is_liked || false,
           addedAt: new Date(track.created_at),
@@ -547,41 +546,27 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
         i === index ? { ...item, progress: 30 } : item
       ));
 
-      // Upload to cloud storage if authenticated
+      // Convert file to base64 for storage
+      const reader = new FileReader();
+      const fileDataPromise = new Promise<string>((resolve) => {
+        reader.onloadend = () => resolve(reader.result as string);
+      });
+      reader.readAsDataURL(file);
+
+      setImportQueue(prev => prev.map((item, i) =>
+        i === index ? { ...item, status: 'uploading' as const, progress: 50 } : item
+      ));
+
+      const fileData = await fileDataPromise;
+      track.fileUrl = fileData;
+
+      setImportQueue(prev => prev.map((item, i) =>
+        i === index ? { ...item, progress: 70 } : item
+      ));
+
+      // Save to API if authenticated
       if (token) {
         try {
-          // Upload file to Backblaze via API with retry logic
-          const formData = new FormData();
-          formData.append('audio', file);
-
-          setImportQueue(prev => prev.map((item, i) =>
-            i === index ? { ...item, status: 'uploading' as const, progress: 50 } : item
-          ));
-
-          const uploadResult = await retryWithBackoff(async () => {
-            const uploadResponse = await fetch(`${API_URL}/api/upload`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-              },
-              body: formData
-            });
-
-            if (!uploadResponse.ok) {
-              const errorText = await uploadResponse.text();
-              throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`);
-            }
-
-            return uploadResponse.json();
-          }, 3, 1000);
-
-          setImportQueue(prev => prev.map((item, i) =>
-            i === index ? { ...item, progress: 70 } : item
-          ));
-
-          track.fileKey = uploadResult.fileKey;
-
-          // Create track in database with file_key - also with retry
           const savedTrack = await retryWithBackoff(async () => {
             const trackResponse = await fetch(`${API_URL}/api/tracks`, {
               method: 'POST',
@@ -595,7 +580,8 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
                 album: track.album,
                 duration: Math.round(track.duration),
                 genre: track.genre,
-                file_key: uploadResult.fileKey,
+                file_data: fileData,
+                cover_url: track.artworkUrl || null
               })
             });
 
@@ -608,19 +594,12 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
           }, 3, 1000);
 
           track.id = savedTrack.id; // Use server-generated ID
-          console.log(`Uploaded and saved: ${track.title}`);
-        } catch (uploadError) {
-          console.error(`Error uploading ${file.name}:`, uploadError);
-          throw uploadError;
+          console.log(`Saved to cloud: ${track.title}`);
+        } catch (saveError) {
+          console.error(`Error saving ${file.name}:`, saveError);
+          // Still allow local playback even if cloud save fails
+          showToast(`Saved locally: "${track.title}" (cloud sync failed)`, 'warning');
         }
-      } else {
-        // Not authenticated - store locally only (base64)
-        const reader = new FileReader();
-        const fileDataPromise = new Promise<string>((resolve) => {
-          reader.onloadend = () => resolve(reader.result as string);
-        });
-        reader.readAsDataURL(file);
-        track.fileUrl = await fileDataPromise;
       }
 
       // Mark as completed

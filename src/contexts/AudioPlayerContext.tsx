@@ -451,34 +451,13 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     try {
       let audioUrl: string | null = null;
 
-      // Check if track has cloud storage (fileKey) and needs streaming URL
-      if (track.fileKey && token && (!track.fileUrl || track.fileUrl === '')) {
-        // Fetch streaming URL from API
-        try {
-          const response = await fetch(`${API_URL}/api/stream/${track.id}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-            mode: 'cors',
-          });
-          if (response.ok) {
-            const data = await response.json();
-            audioUrl = data.url;
-            console.log('Got streaming URL for cloud track');
-          }
-        } catch (streamError) {
-          console.error('Failed to get streaming URL:', streamError);
-        }
-      }
-
-      // Fall back to local URL if available
-      if (!audioUrl) {
-        if (track.fileUrl && track.fileUrl.startsWith("indexeddb://")) {
-          // For future IndexedDB support
-          audioUrl = track.fileUrl;
-        } else if (track.fileUrl) {
-          audioUrl = getAudioUrl(track);
-        }
+      // Try to get audio URL from available sources
+      // Priority: fileUrl (object URL or base64) > fileData (from API)
+      if (track.fileUrl && track.fileUrl.length > 0) {
+        audioUrl = track.fileUrl;
+      } else if ((track as any).fileData && (track as any).fileData.length > 0) {
+        // Track has base64 audio data from API
+        audioUrl = (track as any).fileData;
       }
 
       if (!audioUrl) {

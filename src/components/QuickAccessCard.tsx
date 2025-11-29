@@ -4,11 +4,15 @@ interface QuickAccessCardProps {
   icon: LucideIcon;
   title: string;
   description?: string;
+  onClick?: () => void;
 }
 
-export const QuickAccessCard = ({ icon: Icon, title, description }: QuickAccessCardProps) => {
+export const QuickAccessCard = ({ icon: Icon, title, description, onClick }: QuickAccessCardProps) => {
   return (
-    <div className="w-full bg-[var(--replay-elevated)] p-5 md:p-6 rounded-xl border border-[var(--replay-border)] hover:border-[var(--replay-off-white)] transition-all hover-lift group flex flex-col items-center text-center">
+    <div
+      className="w-full bg-[var(--replay-elevated)] p-5 md:p-6 rounded-xl border border-[var(--replay-border)] hover:border-[var(--replay-off-white)] transition-all hover-lift group flex flex-col items-center text-center cursor-pointer"
+      onClick={onClick}
+    >
       <div className="bg-[var(--replay-dark-grey)] p-3 md:p-4 rounded-lg group-hover:bg-[var(--replay-border)] transition-colors">
         <Icon size={24} className="text-[var(--replay-off-white)] md:w-7 md:h-7" />
       </div>
