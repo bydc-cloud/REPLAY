@@ -134,49 +134,50 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
           style={{ transform: `translateY(${scrollY * 0.3}px)` }}
         />
 
-        {/* Animated background elements - Enhanced for visibility */}
+        {/* Animated background elements - Optimized for mobile */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {/* Gradient orbs - More vibrant */}
+          {/* Gradient orbs - Smaller on mobile */}
           <div
-            className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-purple-500/[0.15] rounded-full blur-[120px]"
+            className="absolute top-1/4 left-1/4 w-[250px] md:w-[600px] h-[250px] md:h-[600px] bg-purple-500/[0.12] md:bg-purple-500/[0.15] rounded-full blur-[60px] md:blur-[120px]"
             style={{ animation: 'float 8s ease-in-out infinite' }}
           />
           <div
-            className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-pink-500/[0.12] rounded-full blur-[100px]"
+            className="absolute bottom-1/4 right-1/4 w-[200px] md:w-[500px] h-[200px] md:h-[500px] bg-pink-500/[0.10] md:bg-pink-500/[0.12] rounded-full blur-[50px] md:blur-[100px]"
             style={{ animation: 'float 10s ease-in-out infinite 2s' }}
           />
           <div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-gradient-radial from-white/[0.04] to-transparent rounded-full"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] md:w-[700px] h-[300px] md:h-[700px] bg-gradient-radial from-white/[0.03] md:from-white/[0.04] to-transparent rounded-full"
             style={{ animation: 'pulse 12s ease-in-out infinite 4s' }}
           />
+          {/* Hide smaller orbs on mobile for performance */}
           <div
-            className="absolute top-10 right-20 w-[300px] h-[300px] bg-cyan-500/[0.08] rounded-full blur-[80px]"
+            className="hidden md:block absolute top-10 right-20 w-[300px] h-[300px] bg-cyan-500/[0.08] rounded-full blur-[80px]"
             style={{ animation: 'float 12s ease-in-out infinite 3s' }}
           />
           <div
-            className="absolute bottom-20 left-10 w-[350px] h-[350px] bg-indigo-500/[0.10] rounded-full blur-[90px]"
+            className="hidden md:block absolute bottom-20 left-10 w-[350px] h-[350px] bg-indigo-500/[0.10] rounded-full blur-[90px]"
             style={{ animation: 'float 9s ease-in-out infinite 1s' }}
           />
 
-          {/* Animated audio bars in hero background - MORE VISIBLE */}
-          <div className="absolute bottom-0 left-0 right-0 h-64 flex items-end justify-center gap-1 opacity-[0.15] px-10">
-            {Array(60).fill(0).map((_, i) => (
+          {/* Animated audio bars in hero background - Fewer on mobile for performance */}
+          <div className="absolute bottom-0 left-0 right-0 h-32 md:h-64 flex items-end justify-center gap-[2px] md:gap-1 opacity-[0.12] md:opacity-[0.15] px-4 md:px-10">
+            {Array(30).fill(0).map((_, i) => (
               <div
                 key={i}
-                className="flex-1 rounded-t"
+                className="flex-1 rounded-t max-w-2 md:max-w-none"
                 style={{
                   height: `${20 + Math.sin(i * 0.4) * 40 + 30}%`,
                   background: `linear-gradient(to top, hsl(${260 + (i % 20) * 5}, 80%, 50%), hsl(${300 + (i % 15) * 3}, 85%, 60%))`,
                   animation: `audioBar ${0.6 + Math.random() * 0.5}s ease-in-out infinite`,
                   animationDelay: `${i * 40}ms`,
-                  boxShadow: `0 0 15px hsla(${270 + (i % 20) * 4}, 80%, 55%, 0.3)`
+                  boxShadow: `0 0 10px hsla(${270 + (i % 20) * 4}, 80%, 55%, 0.2)`
                 }}
               />
             ))}
           </div>
 
-          {/* Circular audio visualizer - Left side */}
-          <div className="absolute left-[5%] top-1/3 w-48 h-48 md:w-64 md:h-64 opacity-[0.12]">
+          {/* Circular audio visualizer - Left side - Hidden on mobile */}
+          <div className="hidden md:block absolute left-[5%] top-1/3 w-48 h-48 md:w-64 md:h-64 opacity-[0.12]">
             <div className="relative w-full h-full animate-spin" style={{ animationDuration: '20s' }}>
               {Array(24).fill(0).map((_, i) => (
                 <div
@@ -201,8 +202,8 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             </div>
           </div>
 
-          {/* Circular audio visualizer - Right side */}
-          <div className="absolute right-[5%] top-1/2 w-40 h-40 md:w-56 md:h-56 opacity-[0.10]">
+          {/* Circular audio visualizer - Right side - Hidden on mobile */}
+          <div className="hidden md:block absolute right-[5%] top-1/2 w-40 h-40 md:w-56 md:h-56 opacity-[0.10]">
             <div className="relative w-full h-full animate-spin" style={{ animationDuration: '25s', animationDirection: 'reverse' }}>
               {Array(20).fill(0).map((_, i) => (
                 <div
@@ -227,8 +228,8 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             </div>
           </div>
 
-          {/* Floating waveform lines */}
-          <div className="absolute top-1/4 left-0 right-0 h-20 opacity-[0.08]">
+          {/* Floating waveform lines - Hidden on mobile */}
+          <div className="hidden md:block absolute top-1/4 left-0 right-0 h-20 opacity-[0.08]">
             <svg className="w-full h-full" preserveAspectRatio="none">
               <path
                 d="M0,40 Q50,10 100,40 T200,40 T300,40 T400,40 T500,40 T600,40 T700,40 T800,40 T900,40 T1000,40 T1100,40 T1200,40 T1300,40 T1400,40 T1500,40 T1600,40 T1700,40 T1800,40 T1900,40 T2000,40"
@@ -251,12 +252,25 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
           </div>
 
 
-          {/* Pulsing rings */}
+          {/* Pulsing rings - Smaller on mobile, fewer rings */}
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            {[0, 1].map((ring) => (
+              <div
+                key={ring}
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border md:hidden"
+                style={{
+                  width: `${150 + ring * 80}px`,
+                  height: `${150 + ring * 80}px`,
+                  borderColor: `hsla(${270 + ring * 15}, 70%, 50%, ${0.06 - ring * 0.02})`,
+                  animation: `pulseRing ${4 + ring}s ease-out infinite`,
+                  animationDelay: `${ring * 0.8}s`
+                }}
+              />
+            ))}
             {[0, 1, 2, 3].map((ring) => (
               <div
                 key={ring}
-                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border"
+                className="hidden md:block absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border"
                 style={{
                   width: `${300 + ring * 150}px`,
                   height: `${300 + ring * 150}px`,
@@ -268,8 +282,8 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             ))}
           </div>
 
-          {/* Floating EQ bars pattern - top right */}
-          <div className="absolute top-20 right-[15%] flex items-end gap-1 h-20 opacity-[0.12]">
+          {/* Floating EQ bars pattern - top right - Hidden on mobile */}
+          <div className="hidden md:flex absolute top-20 right-[15%] items-end gap-1 h-20 opacity-[0.12]">
             {Array(8).fill(0).map((_, i) => (
               <div
                 key={i}
@@ -286,7 +300,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
           </div>
         </div>
 
-        {/* CSS Animations */}
+        {/* CSS Animations - With reduced motion support */}
         <style>{`
           @keyframes float {
             0%, 100% { transform: translateY(0) translateX(0); }
@@ -306,6 +320,14 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
           @keyframes waveMove {
             0% { transform: translateX(0); }
             100% { transform: translateX(-50%); }
+          }
+          /* Reduce animations for users who prefer reduced motion */
+          @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+              animation-duration: 0.01ms !important;
+              animation-iteration-count: 1 !important;
+              transition-duration: 0.01ms !important;
+            }
           }
         `}</style>
 

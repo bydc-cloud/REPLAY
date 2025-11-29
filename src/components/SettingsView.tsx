@@ -1,4 +1,4 @@
-import { Settings as SettingsIcon, Sparkles, Check, Sun, Moon, Palette, Keyboard, Info, Heart, Download, Upload, FileJson, CheckCircle2, User, Loader2, Code2, Zap } from "lucide-react";
+import { Settings as SettingsIcon, Sparkles, Check, Sun, Moon, Palette, Keyboard, Info, Heart, Download, Upload, FileJson, CheckCircle2, User, Loader2, Code2, Zap, Trash2 } from "lucide-react";
 import { useState, useRef } from "react";
 import { PremiumCoverArt } from "./PremiumCoverArt";
 import { useSettings } from "../contexts/SettingsContext";
@@ -15,7 +15,7 @@ interface SettingsViewProps {
 export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: SettingsViewProps) => {
   const [previewPlaying, setPreviewPlaying] = useState(true);
   const { themeMode, setThemeMode, developerMode, setDeveloperMode } = useSettings();
-  const { tracks, playlists, projectFolders } = useMusicLibrary();
+  const { tracks, playlists, projectFolders, cleanupTracksWithoutAudio } = useMusicLibrary();
   const { user, updateProfile, error: authError, clearError } = useAuth();
   const [exportSuccess, setExportSuccess] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
@@ -23,6 +23,8 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
   const [displayName, setDisplayName] = useState(user?.name || "");
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [profileUpdateSuccess, setProfileUpdateSuccess] = useState(false);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState<{ deleted: number; tracks: string[] } | null>(null);
 
   const handleUpdateProfile = async () => {
     if (!displayName.trim() || displayName === user?.name) return;
@@ -38,6 +40,20 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
     }
 
     setIsUpdatingProfile(false);
+  };
+
+  // Cleanup tracks without audio data
+  const handleCleanupTracks = async () => {
+    setIsCleaningUp(true);
+    setCleanupResult(null);
+    try {
+      const result = await cleanupTracksWithoutAudio();
+      setCleanupResult(result);
+      setTimeout(() => setCleanupResult(null), 5000);
+    } catch (error) {
+      console.error('Cleanup failed:', error);
+    }
+    setIsCleaningUp(false);
   };
 
   // Export library data as JSON
@@ -681,6 +697,39 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
               Export your library to create a backup of your playlists, play counts, and liked songs.
               Import a backup file to restore your library on a new device or after reinstalling.
             </p>
+          </div>
+
+          {/* Cleanup Section */}
+          <div className="mt-4">
+            <button
+              onClick={handleCleanupTracks}
+              disabled={isCleaningUp}
+              className="w-full flex items-center gap-4 p-4 bg-red-500/10 rounded-xl border border-red-500/30 hover:border-red-500/50 transition-all hover:bg-red-500/20 disabled:opacity-50"
+            >
+              {isCleaningUp ? (
+                <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
+                  <Loader2 className="text-red-400 animate-spin" size={24} />
+                </div>
+              ) : cleanupResult ? (
+                <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
+                  <CheckCircle2 className="text-green-500" size={24} />
+                </div>
+              ) : (
+                <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
+                  <Trash2 className="text-red-400" size={24} />
+                </div>
+              )}
+              <div className="text-left">
+                <h3 className="text-sm font-semibold text-[var(--replay-off-white)]">
+                  {isCleaningUp ? "Cleaning up..." : cleanupResult ? `Removed ${cleanupResult.deleted} tracks` : "Clean Up Broken Tracks"}
+                </h3>
+                <p className="text-xs text-[var(--replay-mid-grey)]">
+                  {cleanupResult
+                    ? cleanupResult.deleted > 0 ? cleanupResult.tracks.join(", ") : "No broken tracks found"
+                    : "Remove tracks without audio data that need re-importing"}
+                </p>
+              </div>
+            </button>
           </div>
         </div>
       </section>

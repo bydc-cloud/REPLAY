@@ -117,6 +117,7 @@ interface MusicLibraryContextType {
   updatePlaylistCover: (playlistId: string, coverUrl: string) => Promise<void>;
   transcribeTrack: (trackId: string) => Promise<TrackLyrics | null>;
   getLyrics: (trackId: string) => Promise<TrackLyrics | null>;
+  cleanupTracksWithoutAudio: () => Promise<{ deleted: number; tracks: string[] }>;
   createProjectFolder: (name: string) => Promise<string>;
   deleteProjectFolder: (folderId: string) => Promise<void>;
   renameProjectFolder: (folderId: string, newName: string) => Promise<void>;
@@ -1003,6 +1004,41 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Cleanup function to remove tracks without audio data
+  const cleanupTracksWithoutAudio = async (): Promise<{ deleted: number; tracks: string[] }> => {
+    if (!token) return { deleted: 0, tracks: [] };
+
+    try {
+      const response = await fetch(`${API_URL}/api/tracks/cleanup/no-audio`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // Remove deleted tracks from local state
+        setTracks(prev => prev.filter(track => track.hasAudio !== false));
+
+        // Refresh tracks from API
+        if (token) {
+          const apiTracks = await fetchTracksFromAPI(token);
+          if (apiTracks) {
+            setTracks(apiTracks);
+          }
+        }
+
+        return { deleted: data.deleted, tracks: data.tracks };
+      }
+      return { deleted: 0, tracks: [] };
+    } catch (error) {
+      console.error('Error cleaning up tracks:', error);
+      return { deleted: 0, tracks: [] };
+    }
+  };
+
   // Project Folder functions
   const createProjectFolder = async (name: string): Promise<string> => {
     const newFolder: ProjectFolder = {
@@ -1075,6 +1111,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       updatePlaylistCover,
       transcribeTrack,
       getLyrics,
+      cleanupTracksWithoutAudio,
       createProjectFolder,
       deleteProjectFolder,
       renameProjectFolder,

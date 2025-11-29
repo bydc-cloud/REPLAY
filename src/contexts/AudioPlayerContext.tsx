@@ -470,7 +470,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
       if (!audioUrl) {
         console.error("Could not get audio URL for track:", track.title);
-        showToast(`Unable to play "${track.title}" - no audio data`, 'error');
+        showToast(`"${track.title}" needs to be re-imported - audio not found in cloud`, 'error');
         return;
       }
 

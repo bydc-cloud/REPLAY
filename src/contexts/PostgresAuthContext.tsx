@@ -211,7 +211,7 @@ export const PostgresAuthProvider = ({ children }: { children: ReactNode }) => {
       const updatedUser = {
         id: data.user.id,
         email: data.user.email,
-        name: data.user.username,
+        name: data.user.name,
         createdAt: new Date(data.user.created_at)
       };
 

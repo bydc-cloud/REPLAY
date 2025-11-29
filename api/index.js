@@ -201,7 +201,14 @@ app.post('/api/auth/signup', async (req, res) => {
       'INSERT INTO users (email, username, password_hash) VALUES ($1, $2, $3) RETURNING id, email, username, created_at',
       [email.toLowerCase(), username, hash]
     );
-    const user = result.rows[0];
+    const dbUser = result.rows[0];
+    // Map username to name for frontend compatibility
+    const user = {
+      id: dbUser.id,
+      email: dbUser.email,
+      name: dbUser.username,
+      created_at: dbUser.created_at
+    };
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ user, token });
   } catch (e) {
@@ -226,10 +233,16 @@ app.post('/api/auth/signin', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-    const user = result.rows[0];
-    const valid = await bcrypt.compare(password, user.password_hash);
+    const dbUser = result.rows[0];
+    const valid = await bcrypt.compare(password, dbUser.password_hash);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
-    delete user.password_hash;
+    // Map username to name for frontend compatibility
+    const user = {
+      id: dbUser.id,
+      email: dbUser.email,
+      name: dbUser.username,
+      created_at: dbUser.created_at
+    };
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ user, token });
   } catch (e) {
@@ -241,6 +254,36 @@ app.post('/api/auth/signin', async (req, res) => {
 // Verify token
 app.get('/api/auth/verify', auth, (req, res) => {
   res.json({ valid: true, userId: req.user.id });
+});
+
+// Update profile
+app.put('/api/auth/profile', auth, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+    const db = getPool();
+    const result = await db.query(
+      'UPDATE users SET username = $1 WHERE id = $2 RETURNING id, email, username, created_at',
+      [name.trim(), req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const dbUser = result.rows[0];
+    // Map username to name for frontend compatibility
+    const user = {
+      id: dbUser.id,
+      email: dbUser.email,
+      name: dbUser.username,
+      created_at: dbUser.created_at
+    };
+    res.json({ user });
+  } catch (e) {
+    console.error('Profile update error:', e.message);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
 });
 
 // Get tracks (includes lyrics status)
@@ -405,6 +448,25 @@ app.post('/api/tracks', auth, async (req, res) => {
   } catch (e) {
     console.error('Add track error:', e.message);
     res.status(500).json({ error: 'Failed to add track' });
+  }
+});
+
+// Delete tracks without audio data (authenticated user)
+app.delete('/api/tracks/cleanup/no-audio', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const result = await db.query(
+      'DELETE FROM tracks WHERE user_id = $1 AND file_data IS NULL RETURNING id, title',
+      [req.user.id]
+    );
+    console.log(`Cleaned up ${result.rows.length} tracks without audio for user ${req.user.id}`);
+    res.json({
+      deleted: result.rows.length,
+      tracks: result.rows.map(t => t.title)
+    });
+  } catch (e) {
+    console.error('Cleanup error:', e.message);
+    res.status(500).json({ error: 'Failed to cleanup tracks' });
   }
 });
 
