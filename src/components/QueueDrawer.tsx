@@ -44,12 +44,12 @@ export const QueueDrawer = ({ isOpen, onClose }: QueueDrawerProps) => {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] transition-opacity duration-300"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] transition-opacity duration-300"
         onClick={onClose}
       />
 
       {/* Drawer */}
-      <div className="fixed top-0 right-0 bottom-0 w-full md:w-[400px] bg-[#1a1a1a]/95 backdrop-blur-2xl border-l border-white/10 z-[70] shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="fixed top-0 right-0 bottom-0 w-full md:w-[400px] bg-[#1a1a1a]/95 backdrop-blur-2xl border-l border-white/10 z-[260] shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
           <div>
