@@ -38,26 +38,55 @@ export const LyricsVisualizer = ({
     return audioLevels.reduce((a, b) => a + b, 0) / audioLevels.length;
   }, [audioLevels]);
 
-  // Load lyrics when track changes
+  // Load lyrics when track changes - with polling for processing tracks
   useEffect(() => {
+    let pollInterval: NodeJS.Timeout | null = null;
+
     const loadLyrics = async () => {
       if (!trackId) return;
 
-      // Check if lyrics are already in track object
-      if (track?.lyrics && track.lyrics.status === 'completed') {
+      console.log('Loading lyrics for track:', trackId, 'status:', track?.lyrics?.status);
+
+      // Check if lyrics are already in track object and completed
+      if (track?.lyrics && track.lyrics.status === 'completed' && track.lyrics.segments && track.lyrics.segments.length > 0) {
+        console.log('Using cached lyrics with', track.lyrics.segments.length, 'segments');
         setLyrics(track.lyrics);
         return;
       }
 
       // Try to fetch from API
       const fetchedLyrics = await getLyrics(trackId);
+      console.log('Fetched lyrics:', fetchedLyrics?.status, 'segments:', fetchedLyrics?.segments?.length);
+
       if (fetchedLyrics) {
         setLyrics(fetchedLyrics);
+
+        // If still processing, poll every 5 seconds
+        if (fetchedLyrics.status === 'processing' && !pollInterval) {
+          console.log('Lyrics processing, starting poll...');
+          pollInterval = setInterval(async () => {
+            const updated = await getLyrics(trackId);
+            if (updated && updated.status === 'completed') {
+              console.log('Lyrics completed via poll');
+              setLyrics(updated);
+              if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+              }
+            }
+          }, 5000);
+        }
       }
     };
 
     loadLyrics();
-  }, [trackId, track?.lyrics, getLyrics]);
+
+    return () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
+  }, [trackId, track?.lyrics?.status, getLyrics]);
 
   // Convert lyrics segments to line format
   const lines = useMemo(() => {
