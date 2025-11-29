@@ -124,7 +124,15 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     const unlockAudio = async () => {
       if (audioUnlockedRef.current) return;
 
+      // IMMEDIATELY mark as unlocked to prevent multiple calls
+      audioUnlockedRef.current = true;
+
       console.log("Unlocking audio for mobile...");
+
+      // Remove listeners immediately to prevent duplicate calls
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('touchend', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
 
       try {
         // Create and resume AudioContext
@@ -163,9 +171,6 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         silentAudio.src = originalSrc;
         silentAudio.volume = volume;
 
-        // Mark as unlocked
-        audioUnlockedRef.current = true;
-
         // If there was a pending play, execute it now
         if (pendingPlayRef.current) {
           const track = pendingPlayRef.current;
@@ -174,14 +179,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         }
       } catch (e) {
         console.log("Audio unlock error (non-fatal):", e);
-        // Still mark as unlocked so we can try to play
-        audioUnlockedRef.current = true;
       }
-
-      // Remove listeners after unlock
-      document.removeEventListener('touchstart', unlockAudio);
-      document.removeEventListener('touchend', unlockAudio);
-      document.removeEventListener('click', unlockAudio);
     };
 
     // Add unlock listeners with capture to ensure they fire first

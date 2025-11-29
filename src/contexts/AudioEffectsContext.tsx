@@ -289,27 +289,68 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
 
   // Connect to audio element
   const connectToAudioElement = useCallback((audio: HTMLAudioElement) => {
-    // Don't reconnect if already connected to same element
-    if (connectedAudioRef.current === audio && audioContextRef.current) {
+    // Don't reconnect if already connected to same element and context exists
+    if (connectedAudioRef.current === audio && audioContextRef.current && sourceRef.current) {
+      // Just resume context if suspended
+      if (audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume().catch(console.error);
+      }
       return;
     }
 
-    // Clean up previous connection
-    if (audioContextRef.current) {
+    // If connecting to a new audio element, we need to be careful
+    // MediaElementAudioSourceNode can only be created once per audio element
+    // So we need to track if this element already has a source
+
+    // Check if the audio element already has a source node attached (from a previous connection)
+    // We store this on the element itself to track across reconnections
+    const existingSourceInfo = (audio as any).__replayAudioSource as { ctx: AudioContext, source: MediaElementAudioSourceNode } | undefined;
+
+    if (existingSourceInfo && existingSourceInfo.ctx.state !== 'closed') {
+      // Reuse existing AudioContext and source
+      audioContextRef.current = existingSourceInfo.ctx;
+      sourceRef.current = existingSourceInfo.source;
+      setAudioContext(existingSourceInfo.ctx);
+
+      if (existingSourceInfo.ctx.state === 'suspended') {
+        existingSourceInfo.ctx.resume().catch(console.error);
+      }
+
+      // Rebuild the effects chain with existing source
+      console.log("Reusing existing audio source for element");
+    } else {
+      // Clean up previous connection if it was for a different element
+      if (audioContextRef.current && connectedAudioRef.current !== audio) {
+        try {
+          audioContextRef.current.close();
+        } catch { }
+      }
+
       try {
-        audioContextRef.current.close();
-      } catch { }
+        // Create new AudioContext
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        setAudioContext(audioContextRef.current);
+
+        // Create source from audio element
+        sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
+
+        // Store on the audio element for future reconnections
+        (audio as any).__replayAudioSource = { ctx: audioContextRef.current, source: sourceRef.current };
+      } catch (e) {
+        console.error("Failed to create audio source:", e);
+        return;
+      }
     }
 
+    const ctx = audioContextRef.current;
+    if (!ctx || !sourceRef.current) return;
+
+    // Disconnect source from any existing connections first (to rebuild the chain)
     try {
-      // Create new AudioContext
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const ctx = audioContextRef.current;
-      setAudioContext(ctx);
+      sourceRef.current.disconnect();
+    } catch { /* May not be connected yet */ }
 
-      // Create source from audio element
-      sourceRef.current = ctx.createMediaElementSource(audio);
-
+    try {
       // Create analyser for visualizations
       analyserRef.current = ctx.createAnalyser();
       analyserRef.current.fftSize = 256;
