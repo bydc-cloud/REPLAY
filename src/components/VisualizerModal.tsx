@@ -125,6 +125,7 @@ export const VisualizerModal = ({ isOpen, onClose }: VisualizerModalProps) => {
               currentTime={currentTime}
               duration={duration}
               isPlaying={isPlaying}
+              trackId={currentTrack.id}
               trackTitle={currentTrack.title}
               trackArtist={currentTrack.artist}
               audioLevels={audioLevels}
