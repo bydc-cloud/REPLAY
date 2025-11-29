@@ -791,6 +791,96 @@ app.delete('/api/lyrics/:trackId', authMiddleware, async (req, res) => {
   }
 });
 
+// ============ TRACK ANALYSIS API ============
+
+// Store BPM for a track
+app.post('/api/tracks/:id/analysis/bpm', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { bpm } = req.body;
+    const db = getPool();
+
+    // First ensure the analysis columns exist
+    await db.query(`
+      ALTER TABLE tracks
+      ADD COLUMN IF NOT EXISTS bpm INTEGER,
+      ADD COLUMN IF NOT EXISTS musical_key VARCHAR(10)
+    `);
+
+    const result = await db.query(
+      `UPDATE tracks SET bpm = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2 AND user_id = $3
+       RETURNING id, bpm`,
+      [bpm, id, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    console.log('BPM saved for track:', id, '-', bpm);
+    res.json({ success: true, trackId: id, bpm });
+  } catch (error) {
+    console.error('Save BPM error:', error.message);
+    res.status(500).json({ error: 'Failed to save BPM' });
+  }
+});
+
+// Store musical key for a track
+app.post('/api/tracks/:id/analysis/key', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { key } = req.body;
+    const db = getPool();
+
+    // First ensure the analysis columns exist
+    await db.query(`
+      ALTER TABLE tracks
+      ADD COLUMN IF NOT EXISTS bpm INTEGER,
+      ADD COLUMN IF NOT EXISTS musical_key VARCHAR(10)
+    `);
+
+    const result = await db.query(
+      `UPDATE tracks SET musical_key = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2 AND user_id = $3
+       RETURNING id, musical_key`,
+      [key, id, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    console.log('Key saved for track:', id, '-', key);
+    res.json({ success: true, trackId: id, key });
+  } catch (error) {
+    console.error('Save key error:', error.message);
+    res.status(500).json({ error: 'Failed to save key' });
+  }
+});
+
+// Get track analysis data
+app.get('/api/tracks/:id/analysis', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getPool();
+
+    const result = await db.query(
+      `SELECT id, bpm, musical_key FROM tracks WHERE id = $1 AND user_id = $2`,
+      [id, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Get analysis error:', error.message);
+    res.status(500).json({ error: 'Failed to get analysis data' });
+  }
+});
+
 // ============ PLAYLISTS API ============
 
 // Get all playlists
@@ -925,6 +1015,471 @@ app.delete('/api/playlists/:id', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Delete playlist error:', error.message);
     res.status(500).json({ error: 'Failed to delete playlist' });
+  }
+});
+
+// ============ PRODUCER MARKETPLACE API ============
+
+// Initialize marketplace tables
+async function initMarketplaceTables() {
+  const db = getPool();
+  try {
+    // Producer profiles
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS producer_profiles (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+        display_name VARCHAR(255) NOT NULL,
+        bio TEXT,
+        avatar_url TEXT,
+        social_links JSONB DEFAULT '{}',
+        total_sales INTEGER DEFAULT 0,
+        total_earnings DECIMAL(10, 2) DEFAULT 0,
+        is_verified BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Beats for sale
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS beats (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        producer_id UUID REFERENCES producer_profiles(id) ON DELETE CASCADE,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        price DECIMAL(10, 2) NOT NULL,
+        license_type VARCHAR(50) DEFAULT 'standard',
+        bpm INTEGER,
+        musical_key VARCHAR(10),
+        genre VARCHAR(100),
+        tags TEXT[],
+        preview_url TEXT,
+        file_key TEXT,
+        cover_url TEXT,
+        duration INTEGER DEFAULT 0,
+        play_count INTEGER DEFAULT 0,
+        purchase_count INTEGER DEFAULT 0,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Beat purchases
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS beat_purchases (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        buyer_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        beat_id UUID REFERENCES beats(id) ON DELETE SET NULL,
+        producer_id UUID REFERENCES producer_profiles(id) ON DELETE SET NULL,
+        amount DECIMAL(10, 2) NOT NULL,
+        license_type VARCHAR(50) NOT NULL,
+        transaction_id VARCHAR(255),
+        status VARCHAR(20) DEFAULT 'completed',
+        purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    console.log('Marketplace tables ready');
+    return true;
+  } catch (error) {
+    console.error('Marketplace tables init error:', error.message);
+    return false;
+  }
+}
+
+// Get or create producer profile
+app.get('/api/marketplace/profile', authMiddleware, async (req, res) => {
+  try {
+    await initMarketplaceTables();
+    const db = getPool();
+
+    let result = await db.query(
+      'SELECT * FROM producer_profiles WHERE user_id = $1',
+      [req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      // Get user info to create profile
+      const userResult = await db.query(
+        'SELECT username, email FROM users WHERE id = $1',
+        [req.userId]
+      );
+
+      if (userResult.rows.length > 0) {
+        const user = userResult.rows[0];
+        result = await db.query(
+          `INSERT INTO producer_profiles (user_id, display_name)
+           VALUES ($1, $2)
+           RETURNING *`,
+          [req.userId, user.username]
+        );
+      }
+    }
+
+    res.json(result.rows[0] || null);
+  } catch (error) {
+    console.error('Get producer profile error:', error.message);
+    res.status(500).json({ error: 'Failed to get producer profile' });
+  }
+});
+
+// Update producer profile
+app.put('/api/marketplace/profile', authMiddleware, async (req, res) => {
+  try {
+    const { display_name, bio, avatar_url, social_links } = req.body;
+    const db = getPool();
+
+    const result = await db.query(
+      `UPDATE producer_profiles SET
+        display_name = COALESCE($1, display_name),
+        bio = COALESCE($2, bio),
+        avatar_url = COALESCE($3, avatar_url),
+        social_links = COALESCE($4, social_links),
+        updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = $5
+       RETURNING *`,
+      [display_name, bio, avatar_url, social_links ? JSON.stringify(social_links) : null, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Update producer profile error:', error.message);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// List beats (public marketplace)
+app.get('/api/marketplace/beats', async (req, res) => {
+  try {
+    await initMarketplaceTables();
+    const db = getPool();
+    const { genre, minPrice, maxPrice, bpm, key, sort } = req.query;
+
+    let query = `
+      SELECT b.*, pp.display_name as producer_name, pp.avatar_url as producer_avatar
+      FROM beats b
+      JOIN producer_profiles pp ON b.producer_id = pp.id
+      WHERE b.is_active = true
+    `;
+    const params = [];
+    let paramIndex = 1;
+
+    if (genre) {
+      query += ` AND b.genre = $${paramIndex++}`;
+      params.push(genre);
+    }
+    if (minPrice) {
+      query += ` AND b.price >= $${paramIndex++}`;
+      params.push(minPrice);
+    }
+    if (maxPrice) {
+      query += ` AND b.price <= $${paramIndex++}`;
+      params.push(maxPrice);
+    }
+    if (bpm) {
+      query += ` AND b.bpm = $${paramIndex++}`;
+      params.push(parseInt(bpm));
+    }
+    if (key) {
+      query += ` AND b.musical_key = $${paramIndex++}`;
+      params.push(key);
+    }
+
+    // Sorting
+    switch (sort) {
+      case 'price_asc':
+        query += ' ORDER BY b.price ASC';
+        break;
+      case 'price_desc':
+        query += ' ORDER BY b.price DESC';
+        break;
+      case 'popular':
+        query += ' ORDER BY b.purchase_count DESC';
+        break;
+      case 'newest':
+      default:
+        query += ' ORDER BY b.created_at DESC';
+    }
+
+    query += ' LIMIT 50';
+
+    const result = await db.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('List beats error:', error.message);
+    res.status(500).json({ error: 'Failed to list beats' });
+  }
+});
+
+// Get single beat
+app.get('/api/marketplace/beats/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getPool();
+
+    const result = await db.query(
+      `SELECT b.*, pp.display_name as producer_name, pp.avatar_url as producer_avatar, pp.bio as producer_bio
+       FROM beats b
+       JOIN producer_profiles pp ON b.producer_id = pp.id
+       WHERE b.id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Beat not found' });
+    }
+
+    // Increment play count
+    await db.query('UPDATE beats SET play_count = play_count + 1 WHERE id = $1', [id]);
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Get beat error:', error.message);
+    res.status(500).json({ error: 'Failed to get beat' });
+  }
+});
+
+// Create a beat listing (producer only)
+app.post('/api/marketplace/beats', authMiddleware, async (req, res) => {
+  try {
+    const { title, description, price, license_type, bpm, musical_key, genre, tags, preview_url, file_key, cover_url, duration } = req.body;
+    const db = getPool();
+
+    // Get producer profile
+    const profileResult = await db.query(
+      'SELECT id FROM producer_profiles WHERE user_id = $1',
+      [req.userId]
+    );
+
+    if (profileResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Producer profile required' });
+    }
+
+    const producerId = profileResult.rows[0].id;
+
+    const result = await db.query(
+      `INSERT INTO beats (producer_id, title, description, price, license_type, bpm, musical_key, genre, tags, preview_url, file_key, cover_url, duration)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       RETURNING *`,
+      [producerId, title, description, price, license_type || 'standard', bpm, musical_key, genre, tags || [], preview_url, file_key, cover_url, duration || 0]
+    );
+
+    console.log('Beat created:', title, '- $', price);
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Create beat error:', error.message);
+    res.status(500).json({ error: 'Failed to create beat listing' });
+  }
+});
+
+// Update a beat listing
+app.put('/api/marketplace/beats/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, price, license_type, bpm, musical_key, genre, tags, preview_url, cover_url, is_active } = req.body;
+    const db = getPool();
+
+    // Verify ownership
+    const ownerCheck = await db.query(
+      `SELECT b.id FROM beats b
+       JOIN producer_profiles pp ON b.producer_id = pp.id
+       WHERE b.id = $1 AND pp.user_id = $2`,
+      [id, req.userId]
+    );
+
+    if (ownerCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'Not authorized to update this beat' });
+    }
+
+    const result = await db.query(
+      `UPDATE beats SET
+        title = COALESCE($1, title),
+        description = COALESCE($2, description),
+        price = COALESCE($3, price),
+        license_type = COALESCE($4, license_type),
+        bpm = COALESCE($5, bpm),
+        musical_key = COALESCE($6, musical_key),
+        genre = COALESCE($7, genre),
+        tags = COALESCE($8, tags),
+        preview_url = COALESCE($9, preview_url),
+        cover_url = COALESCE($10, cover_url),
+        is_active = COALESCE($11, is_active),
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = $12
+       RETURNING *`,
+      [title, description, price, license_type, bpm, musical_key, genre, tags, preview_url, cover_url, is_active, id]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Update beat error:', error.message);
+    res.status(500).json({ error: 'Failed to update beat' });
+  }
+});
+
+// Delete a beat listing
+app.delete('/api/marketplace/beats/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getPool();
+
+    // Verify ownership
+    const ownerCheck = await db.query(
+      `SELECT b.id FROM beats b
+       JOIN producer_profiles pp ON b.producer_id = pp.id
+       WHERE b.id = $1 AND pp.user_id = $2`,
+      [id, req.userId]
+    );
+
+    if (ownerCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'Not authorized to delete this beat' });
+    }
+
+    await db.query('DELETE FROM beats WHERE id = $1', [id]);
+    res.json({ deleted: true, id });
+  } catch (error) {
+    console.error('Delete beat error:', error.message);
+    res.status(500).json({ error: 'Failed to delete beat' });
+  }
+});
+
+// Get my beat listings (producer dashboard)
+app.get('/api/marketplace/my-beats', authMiddleware, async (req, res) => {
+  try {
+    const db = getPool();
+
+    const result = await db.query(
+      `SELECT b.* FROM beats b
+       JOIN producer_profiles pp ON b.producer_id = pp.id
+       WHERE pp.user_id = $1
+       ORDER BY b.created_at DESC`,
+      [req.userId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get my beats error:', error.message);
+    res.status(500).json({ error: 'Failed to get your beats' });
+  }
+});
+
+// Purchase a beat (simulated - would integrate with payment provider)
+app.post('/api/marketplace/purchase/:beatId', authMiddleware, async (req, res) => {
+  try {
+    const { beatId } = req.params;
+    const { license_type } = req.body;
+    const db = getPool();
+
+    // Get beat info
+    const beatResult = await db.query(
+      'SELECT * FROM beats WHERE id = $1 AND is_active = true',
+      [beatId]
+    );
+
+    if (beatResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Beat not found or not available' });
+    }
+
+    const beat = beatResult.rows[0];
+
+    // Check not buying own beat
+    const ownerCheck = await db.query(
+      'SELECT id FROM producer_profiles WHERE id = $1 AND user_id = $2',
+      [beat.producer_id, req.userId]
+    );
+
+    if (ownerCheck.rows.length > 0) {
+      return res.status(400).json({ error: 'Cannot purchase your own beat' });
+    }
+
+    // Check not already purchased
+    const existingPurchase = await db.query(
+      'SELECT id FROM beat_purchases WHERE buyer_id = $1 AND beat_id = $2 AND status = $3',
+      [req.userId, beatId, 'completed']
+    );
+
+    if (existingPurchase.rows.length > 0) {
+      return res.status(400).json({ error: 'Beat already purchased' });
+    }
+
+    // Create purchase record
+    const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+    const purchaseResult = await db.query(
+      `INSERT INTO beat_purchases (buyer_id, beat_id, producer_id, amount, license_type, transaction_id, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'completed')
+       RETURNING *`,
+      [req.userId, beatId, beat.producer_id, beat.price, license_type || beat.license_type, transactionId]
+    );
+
+    // Update beat purchase count
+    await db.query('UPDATE beats SET purchase_count = purchase_count + 1 WHERE id = $1', [beatId]);
+
+    // Update producer earnings
+    await db.query(
+      'UPDATE producer_profiles SET total_sales = total_sales + 1, total_earnings = total_earnings + $1 WHERE id = $2',
+      [beat.price, beat.producer_id]
+    );
+
+    console.log('Beat purchased:', beat.title, 'by user', req.userId);
+
+    res.json({
+      success: true,
+      purchase: purchaseResult.rows[0],
+      beat: beat
+    });
+  } catch (error) {
+    console.error('Purchase beat error:', error.message);
+    res.status(500).json({ error: 'Failed to complete purchase' });
+  }
+});
+
+// Get my purchased beats
+app.get('/api/marketplace/my-purchases', authMiddleware, async (req, res) => {
+  try {
+    const db = getPool();
+
+    const result = await db.query(
+      `SELECT bp.*, b.title, b.cover_url, b.preview_url, b.file_key, b.bpm, b.musical_key, b.genre, b.duration,
+              pp.display_name as producer_name
+       FROM beat_purchases bp
+       JOIN beats b ON bp.beat_id = b.id
+       JOIN producer_profiles pp ON bp.producer_id = pp.id
+       WHERE bp.buyer_id = $1 AND bp.status = 'completed'
+       ORDER BY bp.purchased_at DESC`,
+      [req.userId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get my purchases error:', error.message);
+    res.status(500).json({ error: 'Failed to get purchases' });
+  }
+});
+
+// Get marketplace genres (for filters)
+app.get('/api/marketplace/genres', async (req, res) => {
+  try {
+    const db = getPool();
+
+    const result = await db.query(
+      `SELECT DISTINCT genre, COUNT(*) as count
+       FROM beats
+       WHERE is_active = true AND genre IS NOT NULL
+       GROUP BY genre
+       ORDER BY count DESC`
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get genres error:', error.message);
+    res.status(500).json({ error: 'Failed to get genres' });
   }
 });
 

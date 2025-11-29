@@ -8,6 +8,8 @@ interface SettingsContextType {
   setVisualizerVariant: (variant: VisualizerVariant) => void;
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
+  developerMode: boolean;
+  setDeveloperMode: (enabled: boolean) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -34,6 +36,22 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }
     return "dark"; // Default to dark
   });
+
+  const [developerMode, setDeveloperModeState] = useState<boolean>(() => {
+    // Load from localStorage on initial mount
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("replay-developer-mode");
+      return saved === "true";
+    }
+    return false; // Default to off
+  });
+
+  const setDeveloperMode = (enabled: boolean) => {
+    setDeveloperModeState(enabled);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("replay-developer-mode", enabled.toString());
+    }
+  };
 
   const setVisualizerVariant = (variant: VisualizerVariant) => {
     setVisualizerVariantState(variant);
@@ -67,7 +85,14 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   }, [themeMode]);
 
   return (
-    <SettingsContext.Provider value={{ visualizerVariant, setVisualizerVariant, themeMode, setThemeMode }}>
+    <SettingsContext.Provider value={{
+      visualizerVariant,
+      setVisualizerVariant,
+      themeMode,
+      setThemeMode,
+      developerMode,
+      setDeveloperMode
+    }}>
       {children}
     </SettingsContext.Provider>
   );

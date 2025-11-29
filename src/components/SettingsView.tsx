@@ -1,4 +1,4 @@
-import { Settings as SettingsIcon, Sparkles, Check, Sun, Moon, Palette, Keyboard, Info, Heart, Download, Upload, FileJson, CheckCircle2, User, Loader2 } from "lucide-react";
+import { Settings as SettingsIcon, Sparkles, Check, Sun, Moon, Palette, Keyboard, Info, Heart, Download, Upload, FileJson, CheckCircle2, User, Loader2, Code2, Zap } from "lucide-react";
 import { useState, useRef } from "react";
 import { PremiumCoverArt } from "./PremiumCoverArt";
 import { useSettings } from "../contexts/SettingsContext";
@@ -14,7 +14,7 @@ interface SettingsViewProps {
 
 export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: SettingsViewProps) => {
   const [previewPlaying, setPreviewPlaying] = useState(true);
-  const { themeMode, setThemeMode } = useSettings();
+  const { themeMode, setThemeMode, developerMode, setDeveloperMode } = useSettings();
   const { tracks, playlists, projectFolders } = useMusicLibrary();
   const { user, updateProfile, error: authError, clearError } = useAuth();
   const [exportSuccess, setExportSuccess] = useState(false);
@@ -340,6 +340,88 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Developer Mode Section */}
+      <section className="mb-8">
+        <div className="bg-[var(--replay-elevated)]/80 backdrop-blur-xl border border-[var(--replay-border)] rounded-3xl p-6 md:p-8 shadow-2xl">
+          <div className="flex items-center gap-3 mb-6">
+            <Code2 className="text-[var(--replay-off-white)]" size={28} />
+            <div>
+              <h2 className="text-2xl font-black text-[var(--replay-off-white)]">
+                Developer Mode
+              </h2>
+              <p className="text-sm text-[var(--replay-mid-grey)] mt-1">
+                Unlock advanced producer tools and features
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 bg-[var(--replay-dark-grey)]/60 backdrop-blur-sm rounded-xl border border-[var(--replay-border)]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                  developerMode
+                    ? "bg-gradient-to-br from-purple-500/30 to-pink-500/30 border border-purple-500/50"
+                    : "bg-[var(--replay-dark-grey)] border border-[var(--replay-border)]"
+                }`}>
+                  <Zap className={`transition-colors ${developerMode ? "text-purple-400" : "text-[var(--replay-mid-grey)]"}`} size={24} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--replay-off-white)]">
+                    Enable Developer Mode
+                  </h3>
+                  <p className="text-xs text-[var(--replay-mid-grey)]">
+                    Access Producer Mode, waveform analysis, BPM detection, and more
+                  </p>
+                </div>
+              </div>
+
+              {/* Toggle Switch */}
+              <button
+                onClick={() => setDeveloperMode(!developerMode)}
+                className={`relative w-14 h-8 rounded-full transition-all duration-300 ${
+                  developerMode
+                    ? "bg-gradient-to-r from-purple-500 to-pink-500"
+                    : "bg-[var(--replay-dark-grey)] border border-[var(--replay-border)]"
+                }`}
+              >
+                <div className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-lg transition-all duration-300 ${
+                  developerMode ? "left-7" : "left-1"
+                }`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Developer Mode Features Preview */}
+          {developerMode && (
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { icon: "🎛️", label: "Producer Mode", desc: "Waveform & controls" },
+                { icon: "🥁", label: "BPM Detection", desc: "Auto tempo analysis" },
+                { icon: "🎵", label: "Key Detection", desc: "Musical key finder" },
+                { icon: "🔁", label: "A/B Looping", desc: "Practice sections" },
+              ].map((feature, idx) => (
+                <div
+                  key={idx}
+                  className="p-3 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-xl border border-purple-500/20"
+                >
+                  <div className="text-2xl mb-2">{feature.icon}</div>
+                  <h4 className="text-xs font-semibold text-[var(--replay-off-white)]">{feature.label}</h4>
+                  <p className="text-xs text-[var(--replay-mid-grey)]">{feature.desc}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-4 p-3 bg-[var(--replay-dark-grey)]/60 backdrop-blur-sm rounded-xl border border-[var(--replay-border)]">
+            <p className="text-xs text-[var(--replay-mid-grey)] leading-relaxed">
+              {developerMode
+                ? "🚀 Developer Mode is active! Producer tools are now available in the player view."
+                : "Enable Developer Mode to unlock advanced audio analysis tools, waveform visualization, pitch/speed controls, and producer-grade features."}
+            </p>
           </div>
         </div>
       </section>

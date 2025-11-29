@@ -1,7 +1,8 @@
-import { Heart, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, Volume2, VolumeX, ListMusic, Minimize2 } from "lucide-react";
+import { Heart, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, Volume2, VolumeX, ListMusic, Minimize2, Sliders } from "lucide-react";
 import { useState, useRef } from "react";
 import { FullScreenPlayer } from "./FullScreenPlayer";
 import { VisualizerModal } from "./VisualizerModal";
+import { ProducerModePanel } from "./ProducerModePanel";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { PremiumCoverArt } from "./PremiumCoverArt";
 import { WaveformProgress } from "./WaveformProgress";
@@ -17,7 +18,8 @@ interface PlayerBarProps {
 export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps = {}) => {
   const [fullScreenOpen, setFullScreenOpen] = useState(false);
   const [visualizerModalOpen, setVisualizerModalOpen] = useState(false);
-  const { visualizerVariant } = useSettings();
+  const [producerPanelExpanded, setProducerPanelExpanded] = useState(false);
+  const { visualizerVariant, developerMode } = useSettings();
 
   const {
     currentTrack,
@@ -303,6 +305,17 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
         </div>
       </div>
 
+      {/* Producer Mode Panel - Above Desktop Player */}
+      {developerMode && currentTrack && (
+        <div className="hidden md:block fixed bottom-20 left-0 right-0 z-40">
+          <ProducerModePanel
+            audioElement={audioElement}
+            isExpanded={producerPanelExpanded}
+            onToggleExpand={() => setProducerPanelExpanded(!producerPanelExpanded)}
+          />
+        </div>
+      )}
+
       {/* Desktop: Full Player Bar */}
       <div className="hidden md:flex fixed bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#0a0a0a]/98 via-[#1a1a1a]/98 to-[#0a0a0a]/98 backdrop-blur-2xl border-t border-white/5 z-50">
         {/* Progress Bar - Ultra Thin Top */}
@@ -435,6 +448,19 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
 
           {/* Right: Volume & Queue */}
           <div className="flex items-center gap-4 w-[320px] justify-end">
+            {developerMode && (
+              <button
+                onClick={() => setProducerPanelExpanded(!producerPanelExpanded)}
+                className={`transition-all p-2 rounded-full hover:bg-white/5 ${
+                  producerPanelExpanded
+                    ? "text-purple-400 bg-purple-500/20"
+                    : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)]"
+                }`}
+                title="Producer Mode"
+              >
+                <Sliders size={18} />
+              </button>
+            )}
             {onMiniPlayerToggle && (
               <button
                 onClick={onMiniPlayerToggle}

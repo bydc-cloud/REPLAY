@@ -1,5 +1,6 @@
-import { Home, Search, Library, Heart, Disc, ListMusic, Plus, X, Folder, Settings, Info } from "lucide-react";
+import { Home, Search, Library, Heart, Disc, ListMusic, Plus, X, Folder, Settings, Info, Store } from "lucide-react";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
+import { useSettings } from "../contexts/SettingsContext";
 
 interface NavItemProps {
   icon: React.ReactNode;
@@ -54,6 +55,7 @@ interface SidebarProps {
 export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClose, onAboutClick }: SidebarProps) => {
   // Load playlists from MusicLibrary context
   const { playlists } = useMusicLibrary();
+  const { developerMode } = useSettings();
 
   // Map playlists to projects format
   const projects = playlists.map(playlist => ({
@@ -196,6 +198,14 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
               active={activeTab === "settings"}
               onClick={() => handleNavClick("settings")}
             />
+            {developerMode && (
+              <NavItem
+                icon={<Store size={20} />}
+                label="Marketplace"
+                active={activeTab === "marketplace"}
+                onClick={() => handleNavClick("marketplace")}
+              />
+            )}
             <NavItem
               icon={<Info size={20} />}
               label="About REPLAY"

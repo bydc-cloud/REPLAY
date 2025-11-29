@@ -10,6 +10,7 @@ import { QueueView } from "./components/QueueView";
 import { AlbumArtBackground } from "./components/AlbumArtBackground";
 import { QueueDrawer } from "./components/QueueDrawer";
 import { SettingsView } from "./components/SettingsView";
+import { MarketplaceView } from "./components/MarketplaceView";
 import { SettingsProvider, useSettings } from "./contexts/SettingsContext";
 import { PostgresAuthProvider, useAuth } from "./contexts/PostgresAuthContext";
 import { MusicLibraryProvider } from "./contexts/MusicLibraryContext";
@@ -161,11 +162,13 @@ function AppContent() {
         return <QueueView />;
       case "settings":
         return (
-          <SettingsView 
+          <SettingsView
             selectedVisualizer={visualizerVariant}
             onVisualizerChange={setVisualizerVariant}
           />
         );
+      case "marketplace":
+        return <MarketplaceView />;
       default:
         return <HomeView />;
     }
