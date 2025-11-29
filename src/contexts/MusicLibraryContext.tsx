@@ -604,30 +604,68 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
   // Process a single file in the import queue
   const processImportItem = async (file: File, index: number): Promise<Track | null> => {
     try {
+      console.log(`Processing file ${index}: ${file.name}, size: ${file.size}`);
+
       // Update status to uploading
       setImportQueue(prev => prev.map((item, i) =>
         i === index ? { ...item, status: 'uploading' as const, progress: 10 } : item
       ));
 
-      // Process audio file to get metadata
-      const track = await processAudioFile(file);
+      // Process audio file to get metadata with timeout
+      let track: Track;
+      try {
+        const metadataPromise = processAudioFile(file);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Metadata extraction timeout')), 10000)
+        );
+        track = await Promise.race([metadataPromise, timeoutPromise]);
+      } catch (metaError) {
+        console.warn('Metadata extraction failed, using fallback:', metaError);
+        // Fallback: create basic track from filename
+        const title = file.name.replace(/\.[^/.]+$/, "");
+        track = {
+          id: `local-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          title,
+          artist: "Unknown Artist",
+          album: "Unknown Album",
+          duration: 0,
+          fileUrl: "",
+          isLiked: false,
+          addedAt: new Date(),
+          playCount: 0,
+          filePath: file.name
+        };
+      }
+
+      console.log(`Metadata extracted for: ${track.title}`);
 
       setImportQueue(prev => prev.map((item, i) =>
         i === index ? { ...item, progress: 30 } : item
       ));
 
-      // Convert file to base64 for storage
-      const reader = new FileReader();
-      const fileDataPromise = new Promise<string>((resolve) => {
-        reader.onloadend = () => resolve(reader.result as string);
+      // Convert file to base64 for storage with timeout
+      const fileDataPromise = new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (reader.result) {
+            resolve(reader.result as string);
+          } else {
+            reject(new Error('FileReader returned no result'));
+          }
+        };
+        reader.onerror = () => reject(new Error('FileReader error'));
+        reader.readAsDataURL(file);
+
+        // Timeout for large files on mobile
+        setTimeout(() => reject(new Error('File read timeout')), 60000);
       });
-      reader.readAsDataURL(file);
 
       setImportQueue(prev => prev.map((item, i) =>
         i === index ? { ...item, status: 'uploading' as const, progress: 50 } : item
       ));
 
       const fileData = await fileDataPromise;
+      console.log(`File converted to base64, length: ${fileData.length}`);
       track.fileUrl = fileData;
 
       setImportQueue(prev => prev.map((item, i) =>
@@ -637,33 +675,47 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       // Save to API if authenticated
       if (token) {
         try {
+          console.log(`Uploading to cloud: ${track.title}, data size: ${fileData.length}`);
+
           const savedTrack = await retryWithBackoff(async () => {
-            const trackResponse = await fetch(`${API_URL}/api/tracks`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                title: track.title,
-                artist: track.artist,
-                album: track.album,
-                duration: Math.round(track.duration),
-                genre: track.genre,
-                file_data: fileData,
-                cover_url: track.artworkUrl || null
-              })
-            });
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
 
-            if (!trackResponse.ok) {
-              const errorText = await trackResponse.text();
-              throw new Error(`Track save failed: ${trackResponse.status} - ${errorText}`);
+            try {
+              const trackResponse = await fetch(`${API_URL}/api/tracks`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  title: track.title,
+                  artist: track.artist,
+                  album: track.album,
+                  duration: Math.round(track.duration),
+                  genre: track.genre,
+                  file_data: fileData,
+                  cover_url: track.artworkUrl || null
+                }),
+                signal: controller.signal
+              });
+
+              clearTimeout(timeoutId);
+
+              if (!trackResponse.ok) {
+                const errorText = await trackResponse.text();
+                throw new Error(`Track save failed: ${trackResponse.status} - ${errorText}`);
+              }
+
+              return trackResponse.json();
+            } catch (fetchError) {
+              clearTimeout(timeoutId);
+              throw fetchError;
             }
-
-            return trackResponse.json();
-          }, 3, 1000);
+          }, 2, 2000); // 2 retries with 2 second delay
 
           track.id = savedTrack.id; // Use server-generated ID
+          track.hasAudio = true; // Mark that audio is in cloud
           console.log(`Saved to cloud: ${track.title}`);
         } catch (saveError) {
           console.error(`Error saving ${file.name}:`, saveError);
