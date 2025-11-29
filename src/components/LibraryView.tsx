@@ -207,8 +207,13 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
     { id: "playlists", label: "Playlists", icon: ListMusic },
   ];
 
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
+  const handleImportClick = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Small delay helps with iOS Safari
+    setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 10);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -284,14 +289,15 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
 
   return (
     <div className="p-4 md:p-8 pt-4 md:pt-8 pb-32 min-h-full">
-      {/* Hidden file input */}
+      {/* Hidden file input - using sr-only for better mobile compatibility */}
       <input
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
         accept="audio/*,.mp3,.m4a,.wav,.ogg,.flac,.aac,.wma"
         multiple
-        className="hidden"
+        className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0"
+        style={{ clip: 'rect(0, 0, 0, 0)' }}
       />
 
       <div className="flex items-center justify-between mb-6 md:mb-8">
@@ -301,8 +307,9 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
 
         <button
           onClick={handleImportClick}
+          onTouchEnd={handleImportClick}
           disabled={isImporting}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--replay-off-white)] text-[var(--replay-black)] font-semibold rounded-full hover:bg-white/90 transition-all disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--replay-off-white)] text-[var(--replay-black)] font-semibold rounded-full hover:bg-white/90 transition-all disabled:opacity-50 touch-manipulation"
         >
           {isImporting ? (
             <>
@@ -432,7 +439,8 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
           {!showLikedOnly && (
             <button
               onClick={handleImportClick}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--replay-off-white)] text-[var(--replay-black)] font-semibold rounded-full hover:bg-white/90 transition-all"
+              onTouchEnd={handleImportClick}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--replay-off-white)] text-[var(--replay-black)] font-semibold rounded-full hover:bg-white/90 transition-all touch-manipulation"
             >
               <Upload size={20} />
               Import Music
