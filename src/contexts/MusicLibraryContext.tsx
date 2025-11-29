@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from "react";
 import { useAuth } from "./PostgresAuthContext";
 import { useToast } from "./ToastContext";
+import * as musicMetadata from 'music-metadata-browser';
 
 // API URL from environment
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -125,49 +126,87 @@ interface MusicLibraryContextType {
 
 const MusicLibraryContext = createContext<MusicLibraryContextType | undefined>(undefined);
 
-const processAudioFile = (file: File): Promise<Track> => {
-  return new Promise((resolve, reject) => {
-    const audio = new Audio();
-    const objectUrl = URL.createObjectURL(file);
-
-    audio.addEventListener("loadedmetadata", () => {
-      const track: Track = {
-        id: `local-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        title: file.name.replace(/\.[^/.]+$/, ""),
-        artist: "Unknown Artist",
-        album: "Unknown Album",
-        duration: audio.duration,
-        fileUrl: objectUrl,
-        isLiked: false,
-        addedAt: new Date(),
-        playCount: 0,
-        filePath: file.name
-      };
-
-      // Try to extract metadata from filename (e.g., "Artist - Title.mp3")
-      const parts = track.title.split(" - ");
-      if (parts.length === 2) {
-        track.artist = parts[0].trim();
-        track.title = parts[1].trim();
-      }
-
-      // Check if the browser supports reading metadata
-      if ('mediaSession' in navigator && 'metadata' in (navigator as any).mediaSession) {
-        // This would require additional libraries for proper metadata extraction
-        // For now, we'll use the basic extraction above
-      }
-
-      URL.revokeObjectURL(objectUrl);
-      resolve(track);
+const processAudioFile = async (file: File): Promise<Track> => {
+  // Get audio duration using Audio element
+  const getDuration = (): Promise<number> => {
+    return new Promise((resolve) => {
+      const audio = new Audio();
+      const objectUrl = URL.createObjectURL(file);
+      audio.addEventListener("loadedmetadata", () => {
+        const duration = audio.duration;
+        URL.revokeObjectURL(objectUrl);
+        resolve(duration);
+      });
+      audio.addEventListener("error", () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(0);
+      });
+      audio.src = objectUrl;
     });
+  };
 
-    audio.addEventListener("error", () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("Failed to load audio file"));
-    });
+  // Extract metadata using music-metadata-browser
+  let title = file.name.replace(/\.[^/.]+$/, "");
+  let artist = "Unknown Artist";
+  let album = "Unknown Album";
+  let genre: string | undefined;
+  let artworkData: string | undefined;
 
-    audio.src = objectUrl;
-  });
+  try {
+    const metadata = await musicMetadata.parseBlob(file);
+
+    if (metadata.common.title) {
+      title = metadata.common.title;
+    }
+    if (metadata.common.artist) {
+      artist = metadata.common.artist;
+    } else if (metadata.common.artists && metadata.common.artists.length > 0) {
+      artist = metadata.common.artists.join(", ");
+    }
+    if (metadata.common.album) {
+      album = metadata.common.album;
+    }
+    if (metadata.common.genre && metadata.common.genre.length > 0) {
+      genre = metadata.common.genre[0];
+    }
+
+    // Extract album artwork if available
+    if (metadata.common.picture && metadata.common.picture.length > 0) {
+      const picture = metadata.common.picture[0];
+      const base64 = btoa(
+        new Uint8Array(picture.data).reduce((data, byte) => data + String.fromCharCode(byte), '')
+      );
+      artworkData = `data:${picture.format};base64,${base64}`;
+    }
+  } catch (error) {
+    console.log('Could not parse metadata, using filename:', error);
+    // Fallback: Try to extract from filename (e.g., "Artist - Title.mp3")
+    const parts = title.split(" - ");
+    if (parts.length === 2) {
+      artist = parts[0].trim();
+      title = parts[1].trim();
+    }
+  }
+
+  const duration = await getDuration();
+
+  const track: Track = {
+    id: `local-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+    title,
+    artist,
+    album,
+    duration,
+    fileUrl: "",
+    isLiked: false,
+    addedAt: new Date(),
+    playCount: 0,
+    filePath: file.name,
+    genre,
+    artworkData,
+    artworkUrl: artworkData
+  };
+
+  return track;
 };
 
 // Storage keys for localStorage
@@ -721,6 +760,8 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
 
   // Get audio data for a track (lazy-loaded from cloud)
   const getTrackAudio = useCallback(async (trackId: string): Promise<string | null> => {
+    console.log('getTrackAudio called for:', trackId, 'token available:', !!token);
+
     // First check if we have it locally (blob URL or data URL)
     const track = tracks.find(t => t.id === trackId);
     if (track?.fileUrl && (track.fileUrl.startsWith('blob:') || track.fileUrl.startsWith('data:'))) {
@@ -730,14 +771,20 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
 
     // Fetch from API
     if (token) {
+      console.log('Fetching audio from API for track:', trackId);
       const audioData = await fetchTrackAudio(trackId, token);
       if (audioData) {
+        console.log('Audio fetched successfully, length:', audioData.length);
         // Cache the audio URL in local track state
         setTracks(prev => prev.map(t =>
           t.id === trackId ? { ...t, fileUrl: audioData } : t
         ));
         return audioData;
+      } else {
+        console.log('No audio data returned from API');
       }
+    } else {
+      console.log('No token available, cannot fetch audio from API');
     }
 
     return null;

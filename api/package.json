@@ -4,8 +4,7 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node cors-server.js",
-    "start-old": "node server.js",
+    "start": "node index.js",
     "build": "echo 'No build step required'"
   },
   "dependencies": {

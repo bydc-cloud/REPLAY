@@ -45,6 +45,7 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.487.0",
     "multer": "^1.4.5-lts.1",
+    "music-metadata-browser": "^2.5.11",
     "next-themes": "^0.4.6",
     "pg": "^8.11.3",
     "react": "^18.3.1",

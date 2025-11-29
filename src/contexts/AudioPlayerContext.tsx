@@ -445,18 +445,26 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         hasAudio: track.hasAudio,
       });
 
-      // Check if we already have the audio locally
+      // Check if we already have the audio locally (blob or data URL)
       if (track.fileUrl && track.fileUrl.length > 0 &&
           (track.fileUrl.startsWith('blob:') || track.fileUrl.startsWith('data:'))) {
         audioUrl = track.fileUrl;
         console.log("Using local audio for playback");
-      } else if (track.hasAudio || track.id.startsWith('local-') === false) {
-        // Fetch audio from API (lazy-load)
-        console.log("Fetching audio from cloud for track:", track.id);
+      } else {
+        // For any track without local audio, try to fetch from API
+        // This covers: cloud-synced tracks, tracks from other devices, etc.
+        console.log("Fetching audio from cloud for track:", track.id, "hasAudio:", track.hasAudio);
         showToast(`Loading "${track.title}"...`, 'info', 2000);
-        audioUrl = await getTrackAudio(track.id);
-        if (audioUrl) {
-          console.log("Audio fetched from cloud, size:", audioUrl.length);
+
+        try {
+          audioUrl = await getTrackAudio(track.id);
+          if (audioUrl) {
+            console.log("Audio fetched from cloud, size:", audioUrl.length);
+          } else {
+            console.log("No audio returned from cloud");
+          }
+        } catch (fetchError) {
+          console.error("Error fetching audio from cloud:", fetchError);
         }
       }
 
