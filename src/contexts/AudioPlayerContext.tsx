@@ -453,20 +453,31 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
       // Try to get audio URL from available sources
       // Priority: fileUrl (object URL or base64) > fileData (from API)
+      console.log("Track data for playback:", {
+        id: track.id,
+        title: track.title,
+        hasFileUrl: !!track.fileUrl,
+        fileUrlLength: track.fileUrl?.length || 0,
+        fileUrlStart: track.fileUrl?.substring(0, 50) || 'none',
+        hasFileData: !!(track as any).fileData,
+      });
+
       if (track.fileUrl && track.fileUrl.length > 0) {
         audioUrl = track.fileUrl;
+        console.log("Using track.fileUrl for playback");
       } else if ((track as any).fileData && (track as any).fileData.length > 0) {
         // Track has base64 audio data from API
         audioUrl = (track as any).fileData;
+        console.log("Using track.fileData for playback");
       }
 
       if (!audioUrl) {
-        console.error("Could not get audio URL for track:", track.title);
-        showToast(`Unable to play "${track.title}"`, 'error');
+        console.error("Could not get audio URL for track:", track.title, "- no fileUrl or fileData available");
+        showToast(`Unable to play "${track.title}" - no audio data`, 'error');
         return;
       }
 
-      console.log("Loading audio URL:", audioUrl.substring(0, 100) + "...");
+      console.log("Loading audio, URL type:", audioUrl.startsWith('data:') ? 'base64' : audioUrl.startsWith('blob:') ? 'blob' : 'url');
 
       // Load the audio
       audioRef.current.src = audioUrl;

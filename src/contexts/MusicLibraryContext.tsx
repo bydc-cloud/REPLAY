@@ -334,14 +334,17 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
         if (token) {
           const apiTracks = await fetchTracksFromAPI(token);
           if (apiTracks && apiTracks.length > 0) {
-            // Merge API tracks with local tracks (keep local fileUrl for playback)
+            // Merge API tracks with local tracks
             setTracks(prev => {
               const localMap = new Map(prev.map(t => [t.id, t]));
               const merged = apiTracks.map((apiTrack: Track) => {
                 const localTrack = localMap.get(apiTrack.id);
                 if (localTrack) {
-                  // Keep local fileUrl but update metadata from API
-                  return { ...apiTrack, fileUrl: localTrack.fileUrl };
+                  // Prefer local fileUrl if it exists and is valid (blob URL or data URI)
+                  // Otherwise use API's fileUrl (which contains file_data)
+                  const useLocalFile = localTrack.fileUrl &&
+                    (localTrack.fileUrl.startsWith('blob:') || localTrack.fileUrl.startsWith('data:'));
+                  return { ...apiTrack, fileUrl: useLocalFile ? localTrack.fileUrl : apiTrack.fileUrl };
                 }
                 return apiTrack;
               });
