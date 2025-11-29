@@ -446,17 +446,30 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       });
 
       // Check if we already have the audio locally (blob or data URL)
+      // First check the passed track object
       if (track.fileUrl && track.fileUrl.length > 0 &&
           (track.fileUrl.startsWith('blob:') || track.fileUrl.startsWith('data:'))) {
         audioUrl = track.fileUrl;
-        console.log("Using local audio for playback");
+        console.log("Using local audio from track object");
       } else {
+        // Also try to get audio via the context method which checks current tracks state
+        console.log("Trying to get audio via getTrackAudio...");
+        const contextAudio = await getTrackAudio(track.id);
+        if (contextAudio && (contextAudio.startsWith('blob:') || contextAudio.startsWith('data:'))) {
+          audioUrl = contextAudio;
+          console.log("Using audio from getTrackAudio, length:", contextAudio.length);
+        }
+      }
+
+      // If still no local audio, try cloud
+      if (!audioUrl) {
         // For any track without local audio, try to fetch from API
         // This covers: cloud-synced tracks, tracks from other devices, etc.
         console.log("Fetching audio from cloud for track:", track.id, "hasAudio:", track.hasAudio);
         showToast(`Loading "${track.title}"...`, 'info', 2000);
 
         try {
+          // getTrackAudio will fetch from API if no local data
           audioUrl = await getTrackAudio(track.id);
           if (audioUrl) {
             console.log("Audio fetched from cloud, size:", audioUrl.length);
@@ -536,12 +549,20 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
               console.log('Playback requires user interaction. Tap play to start.');
               pendingPlayRef.current = track;
               setIsPlaying(false);
+              showToast('Tap play again to start playback', 'info');
+            } else if (error.name === 'AbortError') {
+              // This can happen on mobile when switching tracks quickly
+              console.log('Playback aborted - retrying...');
+              // Don't show error, just let user try again
+            } else {
+              showToast(`Playback error: ${error.message}`, 'error');
             }
           });
       }
     } catch (e) {
       console.error("Failed to play track:", e);
-      showToast(`Failed to play "${track.title}"`, 'error');
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+      showToast(`Failed to play "${track.title}": ${errorMessage}`, 'error');
     }
   };
 
