@@ -1483,6 +1483,829 @@ app.get('/api/marketplace/genres', async (req, res) => {
   }
 });
 
+// ============ BEAT PACKS API ============
+
+// Get beat packs
+app.get('/api/marketplace/packs', async (req, res) => {
+  try {
+    const db = getPool();
+
+    // Create table if not exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS beat_packs (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        producer_id UUID NOT NULL REFERENCES producer_profiles(id),
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        cover_url TEXT,
+        price DECIMAL(10,2) NOT NULL,
+        discount_percent INTEGER DEFAULT 0,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS beat_pack_items (
+        pack_id UUID REFERENCES beat_packs(id) ON DELETE CASCADE,
+        beat_id UUID REFERENCES beats(id) ON DELETE CASCADE,
+        PRIMARY KEY (pack_id, beat_id)
+      );
+    `);
+
+    const { producer_id } = req.query;
+    let query = `
+      SELECT bp.*, pp.display_name as producer_name,
+             COUNT(bpi.beat_id) as beat_count,
+             COALESCE(SUM(b.price), 0) as original_price
+      FROM beat_packs bp
+      JOIN producer_profiles pp ON bp.producer_id = pp.id
+      LEFT JOIN beat_pack_items bpi ON bp.id = bpi.pack_id
+      LEFT JOIN beats b ON bpi.beat_id = b.id
+      WHERE bp.is_active = true
+    `;
+    const params = [];
+
+    if (producer_id) {
+      params.push(producer_id);
+      query += ` AND bp.producer_id = $${params.length}`;
+    }
+
+    query += ` GROUP BY bp.id, pp.display_name ORDER BY bp.created_at DESC`;
+
+    const result = await db.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get beat packs error:', error.message);
+    res.status(500).json({ error: 'Failed to get beat packs' });
+  }
+});
+
+// Create beat pack
+app.post('/api/marketplace/packs', authMiddleware, async (req, res) => {
+  try {
+    const { title, description, cover_url, price, discount_percent, beat_ids } = req.body;
+    const db = getPool();
+
+    // Get producer profile
+    const profile = await db.query('SELECT id FROM producer_profiles WHERE user_id = $1', [req.userId]);
+    if (profile.rows.length === 0) {
+      return res.status(403).json({ error: 'Producer profile required' });
+    }
+
+    const producerId = profile.rows[0].id;
+
+    const packResult = await db.query(
+      `INSERT INTO beat_packs (producer_id, title, description, cover_url, price, discount_percent)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [producerId, title, description, cover_url, price, discount_percent || 0]
+    );
+
+    const pack = packResult.rows[0];
+
+    // Add beats to pack
+    if (beat_ids && beat_ids.length > 0) {
+      for (const beatId of beat_ids) {
+        await db.query(
+          'INSERT INTO beat_pack_items (pack_id, beat_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [pack.id, beatId]
+        );
+      }
+    }
+
+    res.json(pack);
+  } catch (error) {
+    console.error('Create beat pack error:', error.message);
+    res.status(500).json({ error: 'Failed to create beat pack' });
+  }
+});
+
+// ============ LICENSING API ============
+
+// Get license types
+app.get('/api/marketplace/licenses', async (req, res) => {
+  try {
+    const db = getPool();
+
+    // Create table if not exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS license_templates (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        producer_id UUID REFERENCES producer_profiles(id),
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        price DECIMAL(10,2) NOT NULL,
+        max_streams INTEGER,
+        max_sales INTEGER,
+        allows_radio BOOLEAN DEFAULT false,
+        allows_video BOOLEAN DEFAULT false,
+        allows_live BOOLEAN DEFAULT false,
+        exclusive BOOLEAN DEFAULT false,
+        is_default BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    const { producer_id } = req.query;
+    let query = 'SELECT * FROM license_templates WHERE 1=1';
+    const params = [];
+
+    if (producer_id) {
+      params.push(producer_id);
+      query += ` AND (producer_id = $${params.length} OR is_default = true)`;
+    } else {
+      query += ' AND is_default = true';
+    }
+
+    query += ' ORDER BY price ASC';
+
+    const result = await db.query(query, params);
+
+    // Return default licenses if none found
+    if (result.rows.length === 0) {
+      const defaultLicenses = [
+        { name: 'Basic', description: 'Non-profit use only', price: 29.99, max_streams: 5000, exclusive: false },
+        { name: 'Standard', description: 'Commercial use, limited distribution', price: 79.99, max_streams: 100000, max_sales: 5000, allows_video: true, exclusive: false },
+        { name: 'Premium', description: 'Full commercial rights', price: 199.99, max_streams: null, allows_radio: true, allows_video: true, allows_live: true, exclusive: false },
+        { name: 'Exclusive', description: 'Full ownership transfer', price: 999.99, allows_radio: true, allows_video: true, allows_live: true, exclusive: true }
+      ];
+      return res.json(defaultLicenses);
+    }
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get licenses error:', error.message);
+    res.status(500).json({ error: 'Failed to get licenses' });
+  }
+});
+
+// Generate license contract PDF data
+app.post('/api/marketplace/licenses/generate', authMiddleware, async (req, res) => {
+  try {
+    const { purchase_id, beat_id, license_type } = req.body;
+    const db = getPool();
+
+    // Get purchase and beat details
+    const purchaseResult = await db.query(
+      `SELECT bp.*, b.title as beat_title, b.bpm, b.musical_key, b.genre,
+              pp.display_name as producer_name, pp.bio as producer_bio,
+              u.email as buyer_email
+       FROM beat_purchases bp
+       JOIN beats b ON bp.beat_id = b.id
+       JOIN producer_profiles pp ON bp.producer_id = pp.id
+       JOIN users u ON bp.buyer_id = u.id
+       WHERE bp.id = $1 AND bp.buyer_id = $2`,
+      [purchase_id, req.userId]
+    );
+
+    if (purchaseResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Purchase not found' });
+    }
+
+    const purchase = purchaseResult.rows[0];
+
+    // Generate license data (for PDF generation on frontend)
+    const licenseData = {
+      contractId: `LIC-${Date.now().toString(36).toUpperCase()}`,
+      date: new Date().toISOString(),
+      licensee: {
+        email: purchase.buyer_email
+      },
+      licensor: {
+        name: purchase.producer_name,
+        bio: purchase.producer_bio
+      },
+      beat: {
+        title: purchase.beat_title,
+        bpm: purchase.bpm,
+        key: purchase.musical_key,
+        genre: purchase.genre
+      },
+      license: {
+        type: purchase.license_type,
+        price: purchase.amount,
+        transactionId: purchase.transaction_id
+      },
+      terms: getLicenseTerms(purchase.license_type)
+    };
+
+    res.json(licenseData);
+  } catch (error) {
+    console.error('Generate license error:', error.message);
+    res.status(500).json({ error: 'Failed to generate license' });
+  }
+});
+
+function getLicenseTerms(licenseType) {
+  const terms = {
+    basic: {
+      usage: 'Non-profit and personal use only',
+      distribution: 'Up to 5,000 streams',
+      credits: 'Producer credit required',
+      exclusivity: 'Non-exclusive',
+      modifications: 'Minor modifications allowed'
+    },
+    standard: {
+      usage: 'Commercial use permitted',
+      distribution: 'Up to 100,000 streams or 5,000 sales',
+      credits: 'Producer credit required',
+      exclusivity: 'Non-exclusive',
+      modifications: 'Modifications allowed',
+      video: 'Music video permitted'
+    },
+    premium: {
+      usage: 'Full commercial rights',
+      distribution: 'Unlimited streams and sales',
+      credits: 'Producer credit appreciated',
+      exclusivity: 'Non-exclusive',
+      modifications: 'Full modifications allowed',
+      video: 'Unlimited video use',
+      radio: 'Radio broadcasting permitted',
+      live: 'Live performances permitted'
+    },
+    exclusive: {
+      usage: 'Full ownership transfer',
+      distribution: 'Unlimited worldwide distribution',
+      credits: 'Optional',
+      exclusivity: 'Exclusive - beat removed from marketplace',
+      modifications: 'Full rights to modify',
+      video: 'Unlimited',
+      radio: 'Unlimited',
+      live: 'Unlimited',
+      resale: 'Resale rights included'
+    }
+  };
+  return terms[licenseType?.toLowerCase()] || terms.basic;
+}
+
+// ============ ROYALTY TRACKING API ============
+
+// Get royalty stats for a producer
+app.get('/api/marketplace/royalties', authMiddleware, async (req, res) => {
+  try {
+    const db = getPool();
+
+    // Get producer profile
+    const profile = await db.query('SELECT id FROM producer_profiles WHERE user_id = $1', [req.userId]);
+    if (profile.rows.length === 0) {
+      return res.status(403).json({ error: 'Producer profile required' });
+    }
+
+    const producerId = profile.rows[0].id;
+
+    // Get earnings by time period
+    const earningsResult = await db.query(
+      `SELECT
+        DATE_TRUNC('month', purchased_at) as month,
+        COUNT(*) as sales_count,
+        SUM(amount) as total_earnings,
+        license_type
+       FROM beat_purchases
+       WHERE producer_id = $1 AND status = 'completed'
+       GROUP BY DATE_TRUNC('month', purchased_at), license_type
+       ORDER BY month DESC
+       LIMIT 12`,
+      [producerId]
+    );
+
+    // Get top selling beats
+    const topBeatsResult = await db.query(
+      `SELECT b.id, b.title, b.cover_url, b.purchase_count,
+              SUM(bp.amount) as total_revenue
+       FROM beats b
+       LEFT JOIN beat_purchases bp ON b.id = bp.beat_id AND bp.status = 'completed'
+       WHERE b.producer_id = $1
+       GROUP BY b.id
+       ORDER BY total_revenue DESC NULLS LAST
+       LIMIT 10`,
+      [producerId]
+    );
+
+    // Get pending payouts (simplified - in real app this would track actual payouts)
+    const pendingResult = await db.query(
+      `SELECT SUM(amount) as pending
+       FROM beat_purchases
+       WHERE producer_id = $1 AND status = 'completed'
+       AND purchased_at > CURRENT_DATE - INTERVAL '30 days'`,
+      [producerId]
+    );
+
+    res.json({
+      monthlyEarnings: earningsResult.rows,
+      topBeats: topBeatsResult.rows,
+      pendingPayout: pendingResult.rows[0]?.pending || 0,
+      currency: 'USD'
+    });
+  } catch (error) {
+    console.error('Get royalties error:', error.message);
+    res.status(500).json({ error: 'Failed to get royalty data' });
+  }
+});
+
+// ============ TRENDING/DISCOVERY API ============
+
+// Get trending beats
+app.get('/api/marketplace/trending', async (req, res) => {
+  try {
+    const db = getPool();
+    const { period = '7days' } = req.query;
+
+    let interval = '7 days';
+    if (period === '30days') interval = '30 days';
+    if (period === 'alltime') interval = '365 days';
+
+    const result = await db.query(
+      `SELECT b.*, pp.display_name as producer_name, pp.avatar_url as producer_avatar,
+              COALESCE(recent_sales.count, 0) as recent_purchases,
+              b.play_count as plays
+       FROM beats b
+       JOIN producer_profiles pp ON b.producer_id = pp.id
+       LEFT JOIN (
+         SELECT beat_id, COUNT(*) as count
+         FROM beat_purchases
+         WHERE purchased_at > CURRENT_TIMESTAMP - INTERVAL '${interval}'
+         AND status = 'completed'
+         GROUP BY beat_id
+       ) recent_sales ON b.id = recent_sales.beat_id
+       WHERE b.is_active = true
+       ORDER BY recent_purchases DESC, b.play_count DESC NULLS LAST
+       LIMIT 20`,
+      []
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get trending error:', error.message);
+    res.status(500).json({ error: 'Failed to get trending beats' });
+  }
+});
+
+// Track beat play (for discovery algorithm)
+app.post('/api/marketplace/beats/:id/play', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getPool();
+
+    // Add play_count column if not exists
+    await db.query('ALTER TABLE beats ADD COLUMN IF NOT EXISTS play_count INTEGER DEFAULT 0');
+
+    await db.query('UPDATE beats SET play_count = COALESCE(play_count, 0) + 1 WHERE id = $1', [id]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Track play error:', error.message);
+    res.status(500).json({ error: 'Failed to track play' });
+  }
+});
+
+// ============ PUBLIC PROFILES API ============
+
+// Get public profile by username
+app.get('/api/profiles/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const db = getPool();
+
+    // Add username column if not exists
+    await db.query('ALTER TABLE producer_profiles ADD COLUMN IF NOT EXISTS username VARCHAR(50) UNIQUE');
+
+    const result = await db.query(
+      `SELECT pp.id, pp.display_name, pp.username, pp.bio, pp.avatar_url, pp.is_verified,
+              pp.total_sales, pp.total_earnings, pp.created_at,
+              COUNT(DISTINCT b.id) as beat_count,
+              COALESCE(AVG(b.price), 0) as avg_price
+       FROM producer_profiles pp
+       LEFT JOIN beats b ON pp.id = b.producer_id AND b.is_active = true
+       WHERE pp.username = $1
+       GROUP BY pp.id`,
+      [username.toLowerCase()]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Get profile error:', error.message);
+    res.status(500).json({ error: 'Failed to get profile' });
+  }
+});
+
+// Set username
+app.put('/api/profiles/username', authMiddleware, async (req, res) => {
+  try {
+    const { username } = req.body;
+    const db = getPool();
+
+    // Validate username
+    if (!username || username.length < 3 || username.length > 30) {
+      return res.status(400).json({ error: 'Username must be 3-30 characters' });
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      return res.status(400).json({ error: 'Username can only contain letters, numbers, and underscores' });
+    }
+
+    const result = await db.query(
+      `UPDATE producer_profiles SET username = $1 WHERE user_id = $2 RETURNING *`,
+      [username.toLowerCase(), req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'Username already taken' });
+    }
+    console.error('Set username error:', error.message);
+    res.status(500).json({ error: 'Failed to set username' });
+  }
+});
+
+// ============ ACTIVITY FEED API ============
+
+// Get activity feed
+app.get('/api/activity', authMiddleware, async (req, res) => {
+  try {
+    const db = getPool();
+    const { limit = 20, offset = 0 } = req.query;
+
+    // Create activity table if not exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS activities (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        user_id UUID REFERENCES users(id),
+        type VARCHAR(50) NOT NULL,
+        data JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Get activities from users we follow or our own
+    const result = await db.query(
+      `SELECT a.*, u.email as user_email
+       FROM activities a
+       JOIN users u ON a.user_id = u.id
+       WHERE a.user_id = $1
+       ORDER BY a.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [req.userId, parseInt(limit), parseInt(offset)]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get activity error:', error.message);
+    res.status(500).json({ error: 'Failed to get activity' });
+  }
+});
+
+// Log activity
+app.post('/api/activity', authMiddleware, async (req, res) => {
+  try {
+    const { type, data } = req.body;
+    const db = getPool();
+
+    const result = await db.query(
+      `INSERT INTO activities (user_id, type, data) VALUES ($1, $2, $3) RETURNING *`,
+      [req.userId, type, data]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Log activity error:', error.message);
+    res.status(500).json({ error: 'Failed to log activity' });
+  }
+});
+
+// ============ COMMENTS & LIKES API ============
+
+// Get comments for a beat
+app.get('/api/marketplace/beats/:id/comments', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getPool();
+
+    // Create comments table if not exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS beat_comments (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        beat_id UUID REFERENCES beats(id) ON DELETE CASCADE,
+        user_id UUID REFERENCES users(id),
+        content TEXT NOT NULL,
+        timestamp_seconds DECIMAL(10,2),
+        likes_count INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    const result = await db.query(
+      `SELECT bc.*, u.email as user_email
+       FROM beat_comments bc
+       JOIN users u ON bc.user_id = u.id
+       WHERE bc.beat_id = $1
+       ORDER BY bc.created_at DESC`,
+      [id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get comments error:', error.message);
+    res.status(500).json({ error: 'Failed to get comments' });
+  }
+});
+
+// Add comment
+app.post('/api/marketplace/beats/:id/comments', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { content, timestamp_seconds } = req.body;
+    const db = getPool();
+
+    const result = await db.query(
+      `INSERT INTO beat_comments (beat_id, user_id, content, timestamp_seconds)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [id, req.userId, content, timestamp_seconds]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Add comment error:', error.message);
+    res.status(500).json({ error: 'Failed to add comment' });
+  }
+});
+
+// Like a beat
+app.post('/api/marketplace/beats/:id/like', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getPool();
+
+    // Create likes table if not exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS beat_likes (
+        user_id UUID REFERENCES users(id),
+        beat_id UUID REFERENCES beats(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, beat_id)
+      )
+    `);
+
+    // Add likes_count column if not exists
+    await db.query('ALTER TABLE beats ADD COLUMN IF NOT EXISTS likes_count INTEGER DEFAULT 0');
+
+    await db.query(
+      `INSERT INTO beat_likes (user_id, beat_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [req.userId, id]
+    );
+
+    await db.query('UPDATE beats SET likes_count = COALESCE(likes_count, 0) + 1 WHERE id = $1', [id]);
+
+    res.json({ liked: true });
+  } catch (error) {
+    console.error('Like beat error:', error.message);
+    res.status(500).json({ error: 'Failed to like beat' });
+  }
+});
+
+// Unlike a beat
+app.delete('/api/marketplace/beats/:id/like', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getPool();
+
+    const result = await db.query(
+      'DELETE FROM beat_likes WHERE user_id = $1 AND beat_id = $2 RETURNING *',
+      [req.userId, id]
+    );
+
+    if (result.rows.length > 0) {
+      await db.query('UPDATE beats SET likes_count = GREATEST(0, COALESCE(likes_count, 0) - 1) WHERE id = $1', [id]);
+    }
+
+    res.json({ unliked: true });
+  } catch (error) {
+    console.error('Unlike beat error:', error.message);
+    res.status(500).json({ error: 'Failed to unlike beat' });
+  }
+});
+
+// ============ MESSAGING API ============
+
+// Get conversations
+app.get('/api/messages/conversations', authMiddleware, async (req, res) => {
+  try {
+    const db = getPool();
+
+    // Create messages table if not exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        sender_id UUID REFERENCES users(id),
+        receiver_id UUID REFERENCES users(id),
+        content TEXT NOT NULL,
+        is_read BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Get unique conversations
+    const result = await db.query(
+      `SELECT DISTINCT ON (other_user)
+        CASE WHEN sender_id = $1 THEN receiver_id ELSE sender_id END as other_user,
+        m.content as last_message,
+        m.created_at as last_message_time,
+        m.is_read,
+        u.email as other_email
+       FROM messages m
+       JOIN users u ON u.id = CASE WHEN m.sender_id = $1 THEN m.receiver_id ELSE m.sender_id END
+       WHERE m.sender_id = $1 OR m.receiver_id = $1
+       ORDER BY other_user, m.created_at DESC`,
+      [req.userId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get conversations error:', error.message);
+    res.status(500).json({ error: 'Failed to get conversations' });
+  }
+});
+
+// Get messages with a user
+app.get('/api/messages/:userId', authMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { limit = 50, offset = 0 } = req.query;
+    const db = getPool();
+
+    const result = await db.query(
+      `SELECT * FROM messages
+       WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1)
+       ORDER BY created_at DESC
+       LIMIT $3 OFFSET $4`,
+      [req.userId, userId, parseInt(limit), parseInt(offset)]
+    );
+
+    // Mark messages as read
+    await db.query(
+      'UPDATE messages SET is_read = true WHERE receiver_id = $1 AND sender_id = $2 AND is_read = false',
+      [req.userId, userId]
+    );
+
+    res.json(result.rows.reverse());
+  } catch (error) {
+    console.error('Get messages error:', error.message);
+    res.status(500).json({ error: 'Failed to get messages' });
+  }
+});
+
+// Send message
+app.post('/api/messages/:userId', authMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { content } = req.body;
+    const db = getPool();
+
+    if (!content || content.trim().length === 0) {
+      return res.status(400).json({ error: 'Message content required' });
+    }
+
+    const result = await db.query(
+      `INSERT INTO messages (sender_id, receiver_id, content) VALUES ($1, $2, $3) RETURNING *`,
+      [req.userId, userId, content.trim()]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Send message error:', error.message);
+    res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+// ============ PRODUCER BADGES API ============
+
+// Get badges
+app.get('/api/badges', async (req, res) => {
+  try {
+    const db = getPool();
+
+    // Create badges tables if not exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS badges (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        icon VARCHAR(50),
+        color VARCHAR(20),
+        requirement_type VARCHAR(50),
+        requirement_value INTEGER
+      );
+
+      CREATE TABLE IF NOT EXISTS user_badges (
+        user_id UUID REFERENCES users(id),
+        badge_id UUID REFERENCES badges(id),
+        earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, badge_id)
+      );
+    `);
+
+    // Insert default badges if none exist
+    const existingBadges = await db.query('SELECT COUNT(*) FROM badges');
+    if (parseInt(existingBadges.rows[0].count) === 0) {
+      await db.query(`
+        INSERT INTO badges (name, description, icon, color, requirement_type, requirement_value) VALUES
+        ('First Beat', 'Uploaded your first beat', 'music', 'blue', 'beats_uploaded', 1),
+        ('Rising Star', 'Made 10 sales', 'star', 'yellow', 'total_sales', 10),
+        ('Top Producer', 'Made 100 sales', 'crown', 'gold', 'total_sales', 100),
+        ('Hit Maker', 'Beat reached 1000 plays', 'zap', 'purple', 'beat_plays', 1000),
+        ('Verified', 'Verified producer status', 'check-circle', 'green', 'verified', 1),
+        ('Premium', 'Premium member', 'diamond', 'cyan', 'premium', 1)
+      `);
+    }
+
+    const result = await db.query('SELECT * FROM badges ORDER BY requirement_value');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get badges error:', error.message);
+    res.status(500).json({ error: 'Failed to get badges' });
+  }
+});
+
+// Get user badges
+app.get('/api/badges/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const db = getPool();
+
+    const result = await db.query(
+      `SELECT b.*, ub.earned_at
+       FROM badges b
+       JOIN user_badges ub ON b.id = ub.badge_id
+       WHERE ub.user_id = $1
+       ORDER BY ub.earned_at DESC`,
+      [userId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get user badges error:', error.message);
+    res.status(500).json({ error: 'Failed to get user badges' });
+  }
+});
+
+// Check and award badges (called after relevant actions)
+app.post('/api/badges/check', authMiddleware, async (req, res) => {
+  try {
+    const db = getPool();
+
+    // Get producer stats
+    const stats = await db.query(
+      `SELECT
+        (SELECT COUNT(*) FROM beats b JOIN producer_profiles pp ON b.producer_id = pp.id WHERE pp.user_id = $1) as beats_uploaded,
+        (SELECT total_sales FROM producer_profiles WHERE user_id = $1) as total_sales,
+        (SELECT MAX(play_count) FROM beats b JOIN producer_profiles pp ON b.producer_id = pp.id WHERE pp.user_id = $1) as max_plays,
+        (SELECT is_verified FROM producer_profiles WHERE user_id = $1) as verified
+      `,
+      [req.userId]
+    );
+
+    const userStats = stats.rows[0] || {};
+    const earnedBadges = [];
+
+    // Check each badge
+    const badges = await db.query('SELECT * FROM badges');
+    for (const badge of badges.rows) {
+      let earned = false;
+
+      if (badge.requirement_type === 'beats_uploaded' && userStats.beats_uploaded >= badge.requirement_value) {
+        earned = true;
+      } else if (badge.requirement_type === 'total_sales' && userStats.total_sales >= badge.requirement_value) {
+        earned = true;
+      } else if (badge.requirement_type === 'beat_plays' && userStats.max_plays >= badge.requirement_value) {
+        earned = true;
+      } else if (badge.requirement_type === 'verified' && userStats.verified) {
+        earned = true;
+      }
+
+      if (earned) {
+        await db.query(
+          'INSERT INTO user_badges (user_id, badge_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [req.userId, badge.id]
+        );
+        earnedBadges.push(badge);
+      }
+    }
+
+    res.json({ checked: true, newBadges: earnedBadges });
+  } catch (error) {
+    console.error('Check badges error:', error.message);
+    res.status(500).json({ error: 'Failed to check badges' });
+  }
+});
+
 // Error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err.message);

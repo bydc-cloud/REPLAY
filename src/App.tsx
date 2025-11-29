@@ -15,6 +15,7 @@ import { SettingsProvider, useSettings } from "./contexts/SettingsContext";
 import { PostgresAuthProvider, useAuth } from "./contexts/PostgresAuthContext";
 import { MusicLibraryProvider } from "./contexts/MusicLibraryContext";
 import { AudioPlayerProvider } from "./contexts/AudioPlayerContext";
+import { AudioEffectsProvider } from "./contexts/AudioEffectsContext";
 import { LandingPage } from "./components/LandingPage";
 import { AuthPage } from "./components/AuthPage";
 import { DragDropOverlay } from "./components/DragDropOverlay";
@@ -282,11 +283,13 @@ function AppContent() {
 // Wrapper that provides AudioPlayer context (needs MusicLibrary)
 function AppWithAudioPlayer() {
   return (
-    <AudioPlayerProvider>
-      <DragDropOverlay>
-        <AppContent />
-      </DragDropOverlay>
-    </AudioPlayerProvider>
+    <AudioEffectsProvider>
+      <AudioPlayerProvider>
+        <DragDropOverlay>
+          <AppContent />
+        </DragDropOverlay>
+      </AudioPlayerProvider>
+    </AudioEffectsProvider>
   );
 }
 

@@ -1,14 +1,16 @@
-import { Heart, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, Volume2, VolumeX, ListMusic, Minimize2, Sliders } from "lucide-react";
-import { useState, useRef } from "react";
+import { Heart, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, Volume2, VolumeX, ListMusic, Minimize2, Sliders, Music } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 import { FullScreenPlayer } from "./FullScreenPlayer";
 import { VisualizerModal } from "./VisualizerModal";
 import { ProducerModePanel } from "./ProducerModePanel";
+import { EqualizerPanel } from "./EqualizerPanel";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { PremiumCoverArt } from "./PremiumCoverArt";
 import { WaveformProgress } from "./WaveformProgress";
 import { useSettings } from "../contexts/SettingsContext";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
 import { useMusicLibrary, getAudioUrl } from "../contexts/MusicLibraryContext";
+import { useAudioEffects } from "../contexts/AudioEffectsContext";
 
 interface PlayerBarProps {
   onQueueClick?: () => void;
@@ -19,7 +21,9 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
   const [fullScreenOpen, setFullScreenOpen] = useState(false);
   const [visualizerModalOpen, setVisualizerModalOpen] = useState(false);
   const [producerPanelExpanded, setProducerPanelExpanded] = useState(false);
+  const [equalizerExpanded, setEqualizerExpanded] = useState(false);
   const { visualizerVariant, developerMode } = useSettings();
+  const { connectToAudioElement, eqEnabled } = useAudioEffects();
 
   const {
     currentTrack,
@@ -80,6 +84,13 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
 
   // Get audio URL for waveform
   const audioUrl = currentTrack ? getAudioUrl(currentTrack) : undefined;
+
+  // Connect audio element to effects chain
+  useEffect(() => {
+    if (audioElement) {
+      connectToAudioElement(audioElement);
+    }
+  }, [audioElement, connectToAudioElement]);
 
   // Swipe handlers
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -305,6 +316,19 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
         </div>
       </div>
 
+      {/* Equalizer Panel - Above Producer Mode */}
+      {currentTrack && (
+        <div
+          className="hidden md:block fixed left-0 right-0 z-40"
+          style={{ bottom: developerMode && producerPanelExpanded ? '280px' : (developerMode ? '116px' : '80px') }}
+        >
+          <EqualizerPanel
+            isExpanded={equalizerExpanded}
+            onToggleExpand={() => setEqualizerExpanded(!equalizerExpanded)}
+          />
+        </div>
+      )}
+
       {/* Producer Mode Panel - Above Desktop Player */}
       {developerMode && currentTrack && (
         <div className="hidden md:block fixed bottom-20 left-0 right-0 z-40">
@@ -448,6 +472,18 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
 
           {/* Right: Volume & Queue */}
           <div className="flex items-center gap-4 w-[320px] justify-end">
+            {/* EQ Button */}
+            <button
+              onClick={() => setEqualizerExpanded(!equalizerExpanded)}
+              className={`transition-all p-2 rounded-full hover:bg-white/5 ${
+                equalizerExpanded || eqEnabled
+                  ? "text-purple-400 bg-purple-500/20"
+                  : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)]"
+              }`}
+              title="Equalizer & Effects"
+            >
+              <Music size={18} />
+            </button>
             {developerMode && (
               <button
                 onClick={() => setProducerPanelExpanded(!producerPanelExpanded)}
