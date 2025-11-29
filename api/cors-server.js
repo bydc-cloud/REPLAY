@@ -466,18 +466,52 @@ async function deleteFileFromB2(fileKey) {
 
 // ============ TRACKS API ============
 
-// Get all tracks for user
+// Get all tracks for user (without file_data for performance)
 app.get('/api/tracks', authMiddleware, async (req, res) => {
   try {
     const db = getPool();
+    // Exclude file_data from listing - it's fetched separately per track
     const result = await db.query(
-      'SELECT * FROM tracks WHERE user_id = $1 ORDER BY created_at DESC',
+      `SELECT id, user_id, title, artist, album, duration, file_url, file_key,
+              cover_url, play_count, is_liked, genre, year, track_number,
+              created_at, updated_at,
+              CASE WHEN file_data IS NOT NULL AND file_data != '' THEN true ELSE false END as has_audio
+       FROM tracks WHERE user_id = $1 ORDER BY created_at DESC`,
       [req.userId]
     );
     res.json(result.rows);
   } catch (error) {
     console.error('Get tracks error:', error.message);
     res.status(500).json({ error: 'Failed to get tracks' });
+  }
+});
+
+// Get audio data for a specific track (lazy-loaded)
+app.get('/api/tracks/:id/audio', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = getPool();
+
+    const result = await db.query(
+      'SELECT file_data FROM tracks WHERE id = $1 AND user_id = $2',
+      [id, req.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    const track = result.rows[0];
+
+    if (!track.file_data) {
+      return res.status(404).json({ error: 'No audio data for this track' });
+    }
+
+    console.log('Serving audio for track:', id, '- size:', track.file_data.length);
+    res.json({ file_data: track.file_data });
+  } catch (error) {
+    console.error('Get track audio error:', error.message);
+    res.status(500).json({ error: 'Failed to get track audio' });
   }
 });
 

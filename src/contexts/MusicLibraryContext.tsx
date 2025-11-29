@@ -33,6 +33,7 @@ export interface Track {
   duration: number;
   fileUrl: string;
   fileKey?: string; // Backblaze B2 file key for cloud-synced tracks
+  hasAudio?: boolean; // Indicates if audio data exists in cloud DB (lazy-loaded)
   artworkUrl?: string;
   artworkData?: string;
   isLiked: boolean;
@@ -106,6 +107,7 @@ interface MusicLibraryContextType {
   toggleLike: (trackId: string) => void;
   incrementPlayCount: (trackId: string) => void;
   importFiles: (files: FileList) => Promise<void>;
+  getTrackAudio: (trackId: string) => Promise<string | null>;
   createPlaylist: (name: string, description?: string, coverUrl?: string) => Promise<string>;
   deletePlaylist: (playlistId: string) => Promise<void>;
   addToPlaylist: (playlistId: string, trackId: string) => Promise<void>;
@@ -231,7 +233,8 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
           artist: track.artist || 'Unknown Artist',
           album: track.album || 'Unknown Album',
           duration: track.duration || 0,
-          fileUrl: track.file_data || track.file_url || '', // Use file_data (base64) from API
+          fileUrl: track.file_url || '', // file_data is now lazy-loaded
+          hasAudio: track.has_audio || false, // Indicates if audio data exists in DB
           artworkUrl: track.cover_url,
           isLiked: track.is_liked || false,
           addedAt: new Date(track.created_at),
@@ -242,6 +245,28 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       return null;
     } catch (error) {
       console.error('Error fetching tracks from API:', error);
+      return null;
+    }
+  };
+
+  // Fetch audio data for a specific track (lazy-loaded)
+  const fetchTrackAudio = async (trackId: string, authToken: string): Promise<string | null> => {
+    try {
+      console.log('Fetching audio for track:', trackId);
+      const response = await fetch(`${API_URL}/api/tracks/${trackId}/audio`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Audio fetched, size:', data.file_data?.length || 0);
+        return data.file_data;
+      }
+      console.error('Failed to fetch audio:', response.status);
+      return null;
+    } catch (error) {
+      console.error('Error fetching track audio:', error);
       return null;
     }
   };
@@ -694,6 +719,30 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     }, 2000);
   };
 
+  // Get audio data for a track (lazy-loaded from cloud)
+  const getTrackAudio = useCallback(async (trackId: string): Promise<string | null> => {
+    // First check if we have it locally (blob URL or data URL)
+    const track = tracks.find(t => t.id === trackId);
+    if (track?.fileUrl && (track.fileUrl.startsWith('blob:') || track.fileUrl.startsWith('data:'))) {
+      console.log('Using local audio for track:', trackId);
+      return track.fileUrl;
+    }
+
+    // Fetch from API
+    if (token) {
+      const audioData = await fetchTrackAudio(trackId, token);
+      if (audioData) {
+        // Cache the audio URL in local track state
+        setTracks(prev => prev.map(t =>
+          t.id === trackId ? { ...t, fileUrl: audioData } : t
+        ));
+        return audioData;
+      }
+    }
+
+    return null;
+  }, [tracks, token]);
+
   const createPlaylist = async (name: string, description?: string, coverUrl?: string): Promise<string> => {
     const newPlaylist: Playlist = {
       id: `playlist-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -949,6 +998,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       toggleLike,
       incrementPlayCount,
       importFiles,
+      getTrackAudio,
       createPlaylist,
       deletePlaylist,
       addToPlaylist,
