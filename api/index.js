@@ -5,6 +5,7 @@ import pkg from 'pg';
 const { Pool } = pkg;
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
+import OpenAI from 'openai';
 
 dotenv.config();
 
@@ -14,6 +15,13 @@ const port = process.env.PORT || 3001;
 console.log('Starting Replay API...');
 console.log('Port:', port);
 console.log('Node version:', process.version);
+console.log('OpenAI configured:', !!process.env.OPENAI_API_KEY);
+
+// OpenAI client for transcription
+let openai = null;
+if (process.env.OPENAI_API_KEY) {
+  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
 
 // CORS
 app.use(cors({ origin: true, credentials: true }));
@@ -42,11 +50,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key';
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString() });
+  res.json({ status: 'ok', time: new Date().toISOString(), openai: !!openai });
 });
 
 app.get('/', (req, res) => {
-  res.json({ name: 'Replay Music API', status: 'running' });
+  res.json({ name: 'Replay Music API', status: 'running', transcription: !!openai });
 });
 
 // Auth middleware
@@ -88,9 +96,29 @@ async function initDB() {
         cover_url TEXT,
         play_count INTEGER DEFAULT 0,
         is_liked BOOLEAN DEFAULT false,
+        lyrics_text TEXT,
+        lyrics_segments JSONB,
+        lyrics_status VARCHAR(50) DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Add lyrics columns if they don't exist (for existing tables)
+    await db.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tracks' AND column_name = 'lyrics_text') THEN
+          ALTER TABLE tracks ADD COLUMN lyrics_text TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tracks' AND column_name = 'lyrics_segments') THEN
+          ALTER TABLE tracks ADD COLUMN lyrics_segments JSONB;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tracks' AND column_name = 'lyrics_status') THEN
+          ALTER TABLE tracks ADD COLUMN lyrics_status VARCHAR(50) DEFAULT 'pending';
+        END IF;
+      END $$;
+    `);
+
     await db.query(`
       CREATE TABLE IF NOT EXISTS playlists (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -112,6 +140,51 @@ async function initDB() {
     console.log('Database ready');
   } catch (e) {
     console.error('DB init error:', e.message);
+  }
+}
+
+// Helper: Convert base64 audio to buffer for OpenAI
+function base64ToBuffer(base64Data) {
+  // Remove data URL prefix if present
+  const base64 = base64Data.replace(/^data:audio\/[^;]+;base64,/, '');
+  return Buffer.from(base64, 'base64');
+}
+
+// Transcribe audio using OpenAI Whisper
+async function transcribeAudio(audioBase64, trackId) {
+  if (!openai) {
+    console.log('OpenAI not configured, skipping transcription');
+    return null;
+  }
+
+  try {
+    console.log(`Starting transcription for track ${trackId}`);
+
+    // Convert base64 to buffer
+    const audioBuffer = base64ToBuffer(audioBase64);
+
+    // Create a File-like object for OpenAI
+    const audioFile = new File([audioBuffer], 'audio.mp3', { type: 'audio/mpeg' });
+
+    // Transcribe with Whisper
+    const transcription = await openai.audio.transcriptions.create({
+      file: audioFile,
+      model: 'whisper-1',
+      response_format: 'verbose_json',
+      timestamp_granularities: ['segment', 'word']
+    });
+
+    console.log(`Transcription complete for track ${trackId}, segments: ${transcription.segments?.length || 0}`);
+
+    return {
+      text: transcription.text,
+      segments: transcription.segments || [],
+      words: transcription.words || [],
+      language: transcription.language || 'en'
+    };
+  } catch (error) {
+    console.error('Transcription error:', error.message);
+    return null;
   }
 }
 
@@ -170,13 +243,15 @@ app.get('/api/auth/verify', auth, (req, res) => {
   res.json({ valid: true, userId: req.user.id });
 });
 
-// Get tracks
+// Get tracks (includes lyrics status)
 app.get('/api/tracks', auth, async (req, res) => {
   try {
     const db = getPool();
     const result = await db.query(
-      `SELECT id, user_id, title, artist, album, duration, cover_url, play_count, is_liked, created_at,
-              (file_data IS NOT NULL) as has_audio
+      `SELECT id, user_id, title, artist, album, duration, cover_url, play_count, is_liked,
+              lyrics_status, created_at,
+              (file_data IS NOT NULL) as has_audio,
+              (lyrics_text IS NOT NULL AND lyrics_text != '') as has_lyrics
        FROM tracks WHERE user_id = $1 ORDER BY created_at DESC`,
       [req.user.id]
     );
@@ -203,17 +278,130 @@ app.get('/api/tracks/:id/audio', auth, async (req, res) => {
   }
 });
 
-// Add track
+// Get track lyrics
+app.get('/api/lyrics/:id', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const result = await db.query(
+      'SELECT lyrics_text, lyrics_segments, lyrics_status FROM tracks WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+
+    const track = result.rows[0];
+    if (!track.lyrics_text) {
+      return res.json({ status: track.lyrics_status || 'pending', content: null, segments: null });
+    }
+
+    res.json({
+      status: 'completed',
+      content: track.lyrics_text,
+      segments: track.lyrics_segments
+    });
+  } catch (e) {
+    console.error('Get lyrics error:', e.message);
+    res.status(500).json({ error: 'Failed to get lyrics' });
+  }
+});
+
+// Transcribe a track (manual trigger)
+app.post('/api/transcribe/:id', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const trackId = req.params.id;
+
+    // Get track with audio data
+    const result = await db.query(
+      'SELECT id, file_data, lyrics_status FROM tracks WHERE id = $1 AND user_id = $2',
+      [trackId, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    const track = result.rows[0];
+
+    if (!track.file_data) {
+      return res.status(400).json({ error: 'No audio data available' });
+    }
+
+    // Mark as processing
+    await db.query(
+      'UPDATE tracks SET lyrics_status = $1 WHERE id = $2',
+      ['processing', trackId]
+    );
+
+    // Transcribe
+    const transcription = await transcribeAudio(track.file_data, trackId);
+
+    if (!transcription) {
+      await db.query(
+        'UPDATE tracks SET lyrics_status = $1 WHERE id = $2',
+        ['failed', trackId]
+      );
+      return res.status(500).json({ error: 'Transcription failed' });
+    }
+
+    // Save lyrics
+    await db.query(
+      'UPDATE tracks SET lyrics_text = $1, lyrics_segments = $2, lyrics_status = $3 WHERE id = $4',
+      [transcription.text, JSON.stringify({ segments: transcription.segments, words: transcription.words }), 'completed', trackId]
+    );
+
+    res.json({
+      text: transcription.text,
+      segments: transcription.segments,
+      words: transcription.words,
+      language: transcription.language
+    });
+  } catch (e) {
+    console.error('Transcribe error:', e.message);
+    res.status(500).json({ error: 'Transcription failed' });
+  }
+});
+
+// Add track (with auto-transcription)
 app.post('/api/tracks', auth, async (req, res) => {
   try {
     const { title, artist, album, duration, file_data, cover_url } = req.body;
     const db = getPool();
+
+    // Insert track
     const result = await db.query(
-      `INSERT INTO tracks (user_id, title, artist, album, duration, file_data, cover_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [req.user.id, title, artist, album, duration || 0, file_data, cover_url]
+      `INSERT INTO tracks (user_id, title, artist, album, duration, file_data, cover_url, lyrics_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [req.user.id, title, artist, album, duration || 0, file_data, cover_url, 'pending']
     );
-    res.json(result.rows[0]);
+
+    const track = result.rows[0];
+
+    // Start auto-transcription in background (don't await)
+    if (file_data && openai) {
+      console.log(`Starting auto-transcription for track: ${track.id}`);
+
+      // Update status to processing
+      db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['processing', track.id]);
+
+      // Transcribe in background
+      transcribeAudio(file_data, track.id).then(async (transcription) => {
+        if (transcription) {
+          await db.query(
+            'UPDATE tracks SET lyrics_text = $1, lyrics_segments = $2, lyrics_status = $3 WHERE id = $4',
+            [transcription.text, JSON.stringify({ segments: transcription.segments, words: transcription.words }), 'completed', track.id]
+          );
+          console.log(`Auto-transcription completed for track: ${track.id}`);
+        } else {
+          await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', track.id]);
+          console.log(`Auto-transcription failed for track: ${track.id}`);
+        }
+      }).catch((err) => {
+        console.error(`Auto-transcription error for track ${track.id}:`, err.message);
+        db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', track.id]);
+      });
+    }
+
+    res.json(track);
   } catch (e) {
     console.error('Add track error:', e.message);
     res.status(500).json({ error: 'Failed to add track' });
@@ -283,6 +471,75 @@ app.post('/api/playlists', auth, async (req, res) => {
   } catch (e) {
     console.error('Create playlist error:', e.message);
     res.status(500).json({ error: 'Failed to create playlist' });
+  }
+});
+
+// Transcribe all tracks that don't have lyrics (admin/batch endpoint)
+app.post('/api/transcribe-all', auth, async (req, res) => {
+  if (!openai) {
+    return res.status(400).json({ error: 'OpenAI not configured' });
+  }
+
+  try {
+    const db = getPool();
+
+    // Get all tracks without lyrics for this user
+    const result = await db.query(
+      `SELECT id, title, file_data FROM tracks
+       WHERE user_id = $1
+       AND file_data IS NOT NULL
+       AND (lyrics_text IS NULL OR lyrics_text = '')
+       AND lyrics_status != 'processing'
+       ORDER BY created_at DESC`,
+      [req.user.id]
+    );
+
+    const tracksToTranscribe = result.rows;
+    console.log(`Found ${tracksToTranscribe.length} tracks to transcribe for user ${req.user.id}`);
+
+    if (tracksToTranscribe.length === 0) {
+      return res.json({ message: 'No tracks need transcription', count: 0 });
+    }
+
+    // Return immediately, process in background
+    res.json({
+      message: `Starting transcription for ${tracksToTranscribe.length} tracks`,
+      count: tracksToTranscribe.length
+    });
+
+    // Process each track in background
+    for (const track of tracksToTranscribe) {
+      try {
+        console.log(`Transcribing track: ${track.title} (${track.id})`);
+
+        // Mark as processing
+        await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['processing', track.id]);
+
+        // Transcribe
+        const transcription = await transcribeAudio(track.file_data, track.id);
+
+        if (transcription) {
+          await db.query(
+            'UPDATE tracks SET lyrics_text = $1, lyrics_segments = $2, lyrics_status = $3 WHERE id = $4',
+            [transcription.text, JSON.stringify({ segments: transcription.segments, words: transcription.words }), 'completed', track.id]
+          );
+          console.log(`Transcription completed for: ${track.title}`);
+        } else {
+          await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', track.id]);
+          console.log(`Transcription failed for: ${track.title}`);
+        }
+
+        // Small delay between tracks to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (err) {
+        console.error(`Error transcribing track ${track.id}:`, err.message);
+        await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', track.id]);
+      }
+    }
+
+    console.log('Batch transcription complete');
+  } catch (e) {
+    console.error('Transcribe-all error:', e.message);
   }
 });
 

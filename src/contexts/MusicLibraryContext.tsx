@@ -278,7 +278,9 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
           isLiked: track.is_liked || false,
           addedAt: new Date(track.created_at),
           playCount: track.play_count || 0,
-          genre: track.genre
+          genre: track.genre,
+          hasLyrics: track.has_lyrics || false,
+          lyrics: track.has_lyrics ? { status: 'completed' as const } : { status: (track.lyrics_status || 'pending') as 'pending' | 'processing' | 'completed' | 'failed' }
         }));
       }
       return null;
@@ -876,14 +878,33 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
 
       if (response.ok) {
         const data = await response.json();
-        const segments = data.segments ? JSON.parse(data.segments) : { segments: [], words: [] };
+
+        // Handle case where lyrics aren't available yet
+        if (!data.content || data.status === 'pending' || data.status === 'processing') {
+          return {
+            content: '',
+            segments: [],
+            words: [],
+            language: 'en',
+            status: data.status || 'pending'
+          };
+        }
+
+        // Parse segments - they come as JSONB from the API
+        let parsedSegments: { segments: LyricsSegment[], words: LyricsWord[] } = { segments: [], words: [] };
+        if (data.segments) {
+          // If it's a string, parse it; if it's already an object, use it directly
+          parsedSegments = typeof data.segments === 'string'
+            ? JSON.parse(data.segments)
+            : data.segments;
+        }
 
         const lyrics: TrackLyrics = {
           content: data.content,
-          segments: segments.segments || [],
-          words: segments.words || [],
+          segments: parsedSegments.segments || [],
+          words: parsedSegments.words || [],
           language: data.language || 'en',
-          status: data.transcription_status || 'completed'
+          status: 'completed'
         };
 
         // Update track in state with lyrics
