@@ -36,7 +36,7 @@ export const FullScreenPlayer = ({
   const [isVisible, setIsVisible] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  // Handle open/close animations
+  // Handle open/close animations with smoother timing
   useEffect(() => {
     if (isOpen) {
       setIsVisible(true);
@@ -48,10 +48,10 @@ export const FullScreenPlayer = ({
       });
     } else {
       setIsAnimating(false);
-      // Wait for animation to complete before hiding
+      // Wait for animation to complete before hiding - matches CSS transition duration
       const timer = setTimeout(() => {
         setIsVisible(false);
-      }, 400);
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
@@ -75,8 +75,10 @@ export const FullScreenPlayer = ({
       className={`fixed inset-0 z-[100] bg-[var(--replay-black)] md:hidden flex flex-col will-change-transform`}
       style={{
         transform: isAnimating ? 'translateY(0)' : 'translateY(100%)',
-        opacity: isAnimating ? 1 : 0.5,
-        transition: 'transform 0.4s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s ease-out',
+        opacity: isAnimating ? 1 : 0,
+        transition: isAnimating
+          ? 'transform 0.45s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.35s ease-out'
+          : 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease-in',
       }}
     >
       {/* Header - Compact */}
@@ -146,8 +148,11 @@ export const FullScreenPlayer = ({
               className="absolute top-2 left-0 right-0 h-2 bg-white/10 rounded-full overflow-hidden pointer-events-none"
             >
               <div
-                className="h-full bg-[var(--replay-off-white)] will-change-[width]"
-                style={{ width: `${progress}%` }}
+                className="h-full bg-[var(--replay-off-white)]"
+                style={{
+                  width: `${progress}%`,
+                  transition: 'width 100ms linear'
+                }}
               />
             </div>
             <input

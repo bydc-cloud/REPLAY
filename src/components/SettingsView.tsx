@@ -169,7 +169,7 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
   ];
 
   return (
-    <div className="p-4 md:p-8 pt-2 md:pt-8 pb-32 md:pb-24">
+    <div className="p-4 md:p-8 pt-4 md:pt-8 pb-32 md:pb-24">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">

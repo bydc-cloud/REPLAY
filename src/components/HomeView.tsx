@@ -59,7 +59,7 @@ export const HomeView = () => {
   const jumpBackInSongs = recentlyPlayed.slice(0, 4);
 
   return (
-    <div className="p-4 md:p-8 pt-2 md:pt-8">
+    <div className="p-4 md:p-8 pt-4 md:pt-8">
       {/* Hidden file input */}
       <input
         type="file"

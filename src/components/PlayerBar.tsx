@@ -166,8 +166,11 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
         {/* Ultra Thin Progress Bar */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/5">
           <div
-            className="h-full bg-gradient-to-r from-[var(--replay-off-white)] to-[var(--replay-off-white)]/60 will-change-[width]"
-            style={{ width: `${progress}%` }}
+            className="h-full bg-gradient-to-r from-[var(--replay-off-white)] to-[var(--replay-off-white)]/60"
+            style={{
+              width: `${progress}%`,
+              transition: 'width 100ms linear'
+            }}
           />
         </div>
 
@@ -312,8 +315,11 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
           />
           <div
-            className="h-full bg-gradient-to-r from-[var(--replay-off-white)] to-white/80 will-change-[width]"
-            style={{ width: `${progress}%` }}
+            className="h-full bg-gradient-to-r from-[var(--replay-off-white)] to-white/80"
+            style={{
+              width: `${progress}%`,
+              transition: 'width 100ms linear'
+            }}
           />
         </div>
 

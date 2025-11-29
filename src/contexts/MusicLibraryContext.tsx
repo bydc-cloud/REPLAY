@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef, useMemo } from "react";
 import { useAuth } from "./PostgresAuthContext";
+import { useToast } from "./ToastContext";
 
 // API URL from environment
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -79,6 +80,14 @@ export interface ProjectFolder {
   color?: string;
 }
 
+interface ImportQueueItem {
+  file: File;
+  status: 'pending' | 'uploading' | 'processing' | 'completed' | 'failed';
+  progress: number;
+  track?: Track;
+  error?: string;
+}
+
 interface MusicLibraryContextType {
   tracks: Track[];
   albums: Album[];
@@ -90,6 +99,8 @@ interface MusicLibraryContextType {
   isLoading: boolean;
   isImporting: boolean;
   importProgress: number;
+  importQueue: ImportQueueItem[];
+  importStats: { total: number; completed: number; failed: number };
   addTrack: (track: Track) => void;
   removeTrack: (trackId: string) => Promise<void>;
   toggleLike: (trackId: string) => void;
@@ -190,14 +201,18 @@ const loadFromStorage = (key: string, userId?: string) => {
 
 export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
   const { user, token } = useAuth();
+  const { showToast } = useToast();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [projectFolders, setProjectFolders] = useState<ProjectFolder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [importProgress, setImportProgress] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
+  const [importQueue, setImportQueue] = useState<ImportQueueItem[]>([]);
+  const [importStats, setImportStats] = useState({ total: 0, completed: 0, failed: 0 });
   const [recentlyPlayed, setRecentlyPlayed] = useState<Track[]>([]);
   const syncInProgressRef = useRef(false);
+  const importInProgressRef = useRef(false);
 
   // Fetch tracks from API
   const fetchTracksFromAPI = async (authToken: string) => {
@@ -392,35 +407,15 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [projectFolders, user, isLoading]);
 
-  // Compute derived data
-  const albums: Album[] = tracks.reduce((acc, track) => {
-    const existingAlbum = acc.find(a => a.name === track.album && a.artist === track.artist);
-    if (existingAlbum) {
-      existingAlbum.tracks.push(track);
-      existingAlbum.trackCount++;
-    } else {
-      acc.push({
-        id: `album-${track.album}-${track.artist}`,
-        name: track.album,
-        artist: track.artist,
-        artworkUrl: track.artworkUrl,
-        trackCount: 1,
-        tracks: [track]
-      });
-    }
-    return acc;
-  }, [] as Album[]);
-
-  const artists: Artist[] = tracks.reduce((acc, track) => {
-    const existingArtist = acc.find(a => a.name === track.artist);
-    if (existingArtist) {
-      existingArtist.trackCount++;
-      const album = existingArtist.albums.find(a => a.name === track.album);
-      if (album) {
-        album.tracks.push(track);
-        album.trackCount++;
+  // Compute derived data with memoization for performance
+  const albums = useMemo((): Album[] => {
+    return tracks.reduce((acc, track) => {
+      const existingAlbum = acc.find(a => a.name === track.album && a.artist === track.artist);
+      if (existingAlbum) {
+        existingAlbum.tracks.push(track);
+        existingAlbum.trackCount++;
       } else {
-        existingArtist.albums.push({
+        acc.push({
           id: `album-${track.album}-${track.artist}`,
           name: track.album,
           artist: track.artist,
@@ -428,28 +423,52 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
           trackCount: 1,
           tracks: [track]
         });
-        existingArtist.albumCount++;
       }
-    } else {
-      acc.push({
-        id: `artist-${track.artist}`,
-        name: track.artist,
-        albumCount: 1,
-        trackCount: 1,
-        albums: [{
-          id: `album-${track.album}-${track.artist}`,
-          name: track.album,
-          artist: track.artist,
-          artworkUrl: track.artworkUrl,
-          trackCount: 1,
-          tracks: [track]
-        }]
-      });
-    }
-    return acc;
-  }, [] as Artist[]);
+      return acc;
+    }, [] as Album[]);
+  }, [tracks]);
 
-  const likedTracks = tracks.filter(t => t.isLiked);
+  const artists = useMemo((): Artist[] => {
+    return tracks.reduce((acc, track) => {
+      const existingArtist = acc.find(a => a.name === track.artist);
+      if (existingArtist) {
+        existingArtist.trackCount++;
+        const album = existingArtist.albums.find(a => a.name === track.album);
+        if (album) {
+          album.tracks.push(track);
+          album.trackCount++;
+        } else {
+          existingArtist.albums.push({
+            id: `album-${track.album}-${track.artist}`,
+            name: track.album,
+            artist: track.artist,
+            artworkUrl: track.artworkUrl,
+            trackCount: 1,
+            tracks: [track]
+          });
+          existingArtist.albumCount++;
+        }
+      } else {
+        acc.push({
+          id: `artist-${track.artist}`,
+          name: track.artist,
+          albumCount: 1,
+          trackCount: 1,
+          albums: [{
+            id: `album-${track.album}-${track.artist}`,
+            name: track.album,
+            artist: track.artist,
+            artworkUrl: track.artworkUrl,
+            trackCount: 1,
+            tracks: [track]
+          }]
+        });
+      }
+      return acc;
+    }, [] as Artist[]);
+  }, [tracks]);
+
+  const likedTracks = useMemo(() => tracks.filter(t => t.isLiked), [tracks]);
 
   const addTrack = (track: Track) => {
     setTracks(prev => [...prev, track]);
@@ -460,10 +479,21 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const toggleLike = useCallback((trackId: string) => {
-    setTracks(prev => prev.map(track =>
-      track.id === trackId ? { ...track, isLiked: !track.isLiked } : track
+    const track = tracks.find(t => t.id === trackId);
+    const wasLiked = track?.isLiked ?? false;
+
+    setTracks(prev => prev.map(t =>
+      t.id === trackId ? { ...t, isLiked: !t.isLiked } : t
     ));
-  }, []);
+
+    if (track) {
+      showToast(
+        wasLiked ? `Removed "${track.title}" from Liked` : `Added "${track.title}" to Liked`,
+        wasLiked ? 'info' : 'success',
+        2000
+      );
+    }
+  }, [tracks, showToast]);
 
   const incrementPlayCount = useCallback((trackId: string) => {
     setTracks(prev => prev.map(track =>
@@ -480,27 +510,55 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [tracks]);
 
-  const importFiles = async (files: FileList) => {
-    setIsImporting(true);
-    setImportProgress(0);
-
-    const newTracks: Track[] = [];
-    const totalFiles = files.length;
-
-    for (let i = 0; i < totalFiles; i++) {
-      const file = files[i];
-
+  // Helper function to retry an operation with exponential backoff
+  const retryWithBackoff = async <T,>(
+    operation: () => Promise<T>,
+    maxRetries: number = 3,
+    baseDelay: number = 1000
+  ): Promise<T> => {
+    let lastError: Error;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        // Process audio file to get metadata
-        const track = await processAudioFile(file);
+        return await operation();
+      } catch (error) {
+        lastError = error as Error;
+        if (attempt < maxRetries - 1) {
+          const delay = baseDelay * Math.pow(2, attempt);
+          console.log(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    throw lastError!;
+  };
 
-        // Upload to cloud storage if authenticated
-        if (token) {
-          try {
-            // Upload file to Backblaze via API
-            const formData = new FormData();
-            formData.append('audio', file);
+  // Process a single file in the import queue
+  const processImportItem = async (file: File, index: number): Promise<Track | null> => {
+    try {
+      // Update status to uploading
+      setImportQueue(prev => prev.map((item, i) =>
+        i === index ? { ...item, status: 'uploading' as const, progress: 10 } : item
+      ));
 
+      // Process audio file to get metadata
+      const track = await processAudioFile(file);
+
+      setImportQueue(prev => prev.map((item, i) =>
+        i === index ? { ...item, progress: 30 } : item
+      ));
+
+      // Upload to cloud storage if authenticated
+      if (token) {
+        try {
+          // Upload file to Backblaze via API with retry logic
+          const formData = new FormData();
+          formData.append('audio', file);
+
+          setImportQueue(prev => prev.map((item, i) =>
+            i === index ? { ...item, status: 'uploading' as const, progress: 50 } : item
+          ));
+
+          const uploadResult = await retryWithBackoff(async () => {
             const uploadResponse = await fetch(`${API_URL}/api/upload`, {
               method: 'POST',
               headers: {
@@ -509,67 +567,124 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
               body: formData
             });
 
-            if (uploadResponse.ok) {
-              const uploadResult = await uploadResponse.json();
-              track.fileKey = uploadResult.fileKey;
-
-              // Create track in database with file_key
-              const trackResponse = await fetch(`${API_URL}/api/tracks`, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  title: track.title,
-                  artist: track.artist,
-                  album: track.album,
-                  duration: Math.round(track.duration),
-                  genre: track.genre,
-                  file_key: uploadResult.fileKey,
-                })
-              });
-
-              if (trackResponse.ok) {
-                const savedTrack = await trackResponse.json();
-                track.id = savedTrack.id; // Use server-generated ID
-                console.log(`Uploaded and saved: ${track.title}`);
-              }
-            } else {
-              console.error(`Upload failed for ${file.name}`);
-              // Fall back to local storage
-              const reader = new FileReader();
-              const fileDataPromise = new Promise<string>((resolve) => {
-                reader.onloadend = () => resolve(reader.result as string);
-              });
-              reader.readAsDataURL(file);
-              track.fileUrl = await fileDataPromise;
+            if (!uploadResponse.ok) {
+              const errorText = await uploadResponse.text();
+              throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`);
             }
-          } catch (uploadError) {
-            console.error(`Error uploading ${file.name}:`, uploadError);
-            // Fall back to local storage
-            const reader = new FileReader();
-            const fileDataPromise = new Promise<string>((resolve) => {
-              reader.onloadend = () => resolve(reader.result as string);
-            });
-            reader.readAsDataURL(file);
-            track.fileUrl = await fileDataPromise;
-          }
-        } else {
-          // Not authenticated - store locally only
-          const reader = new FileReader();
-          const fileDataPromise = new Promise<string>((resolve) => {
-            reader.onloadend = () => resolve(reader.result as string);
-          });
-          reader.readAsDataURL(file);
-          track.fileUrl = await fileDataPromise;
-        }
 
-        newTracks.push(track);
-        setImportProgress(Math.round(((i + 1) / totalFiles) * 100));
-      } catch (error) {
-        console.error(`Error processing file ${file.name}:`, error);
+            return uploadResponse.json();
+          }, 3, 1000);
+
+          setImportQueue(prev => prev.map((item, i) =>
+            i === index ? { ...item, progress: 70 } : item
+          ));
+
+          track.fileKey = uploadResult.fileKey;
+
+          // Create track in database with file_key - also with retry
+          const savedTrack = await retryWithBackoff(async () => {
+            const trackResponse = await fetch(`${API_URL}/api/tracks`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                title: track.title,
+                artist: track.artist,
+                album: track.album,
+                duration: Math.round(track.duration),
+                genre: track.genre,
+                file_key: uploadResult.fileKey,
+              })
+            });
+
+            if (!trackResponse.ok) {
+              const errorText = await trackResponse.text();
+              throw new Error(`Track save failed: ${trackResponse.status} - ${errorText}`);
+            }
+
+            return trackResponse.json();
+          }, 3, 1000);
+
+          track.id = savedTrack.id; // Use server-generated ID
+          console.log(`Uploaded and saved: ${track.title}`);
+        } catch (uploadError) {
+          console.error(`Error uploading ${file.name}:`, uploadError);
+          throw uploadError;
+        }
+      } else {
+        // Not authenticated - store locally only (base64)
+        const reader = new FileReader();
+        const fileDataPromise = new Promise<string>((resolve) => {
+          reader.onloadend = () => resolve(reader.result as string);
+        });
+        reader.readAsDataURL(file);
+        track.fileUrl = await fileDataPromise;
       }
+
+      // Mark as completed
+      setImportQueue(prev => prev.map((item, i) =>
+        i === index ? { ...item, status: 'completed' as const, progress: 100, track } : item
+      ));
+
+      return track;
+    } catch (error) {
+      console.error(`Error processing file ${file.name}:`, error);
+      setImportQueue(prev => prev.map((item, i) =>
+        i === index ? { ...item, status: 'failed' as const, error: String(error) } : item
+      ));
+      return null;
+    }
+  };
+
+  const importFiles = async (files: FileList) => {
+    if (importInProgressRef.current) {
+      console.log('Import already in progress, adding to queue...');
+    }
+
+    importInProgressRef.current = true;
+    setIsImporting(true);
+
+    const totalFiles = files.length;
+
+    // Initialize queue with all files
+    const newQueueItems: ImportQueueItem[] = Array.from(files).map(file => ({
+      file,
+      status: 'pending' as const,
+      progress: 0
+    }));
+
+    setImportQueue(newQueueItems);
+    setImportStats({ total: totalFiles, completed: 0, failed: 0 });
+    setImportProgress(0);
+
+    const newTracks: Track[] = [];
+    let completed = 0;
+    let failed = 0;
+
+    // Process files in batches of 3 for better performance
+    const BATCH_SIZE = 3;
+
+    for (let i = 0; i < totalFiles; i += BATCH_SIZE) {
+      const batch = newQueueItems.slice(i, Math.min(i + BATCH_SIZE, totalFiles));
+      const batchPromises = batch.map((item, batchIndex) =>
+        processImportItem(item.file, i + batchIndex)
+      );
+
+      const results = await Promise.allSettled(batchPromises);
+
+      results.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value) {
+          newTracks.push(result.value);
+          completed++;
+        } else {
+          failed++;
+        }
+      });
+
+      setImportStats({ total: totalFiles, completed, failed });
+      setImportProgress(Math.round(((completed + failed) / totalFiles) * 100));
     }
 
     if (newTracks.length > 0) {
@@ -578,8 +693,23 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       console.log(`Imported ${newTracks.length} tracks`);
     }
 
-    setIsImporting(false);
-    setImportProgress(0);
+    // Show toast notification based on results
+    if (failed === 0 && completed > 0) {
+      showToast(`Successfully imported ${completed} ${completed === 1 ? 'song' : 'songs'}`, 'success');
+    } else if (failed > 0 && completed > 0) {
+      showToast(`Imported ${completed} ${completed === 1 ? 'song' : 'songs'}, ${failed} failed`, 'warning');
+    } else if (failed > 0 && completed === 0) {
+      showToast(`Failed to import ${failed} ${failed === 1 ? 'song' : 'songs'}`, 'error');
+    }
+
+    // Clear queue after a delay to show completion
+    setTimeout(() => {
+      setImportQueue([]);
+      setIsImporting(false);
+      setImportProgress(0);
+      setImportStats({ total: 0, completed: 0, failed: 0 });
+      importInProgressRef.current = false;
+    }, 2000);
   };
 
   const createPlaylist = async (name: string, description?: string, coverUrl?: string): Promise<string> => {
@@ -593,29 +723,48 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     };
 
     setPlaylists(prev => [...prev, newPlaylist]);
+    showToast(`Created playlist "${name}"`, 'success', 2500);
     return newPlaylist.id;
   };
 
   const deletePlaylist = async (playlistId: string) => {
+    const playlist = playlists.find(p => p.id === playlistId);
     setPlaylists(prev => prev.filter(p => p.id !== playlistId));
+    if (playlist) {
+      showToast(`Deleted playlist "${playlist.name}"`, 'info', 2500);
+    }
   };
 
   const addToPlaylist = async (playlistId: string, trackId: string) => {
-    setPlaylists(prev => prev.map(playlist => {
-      if (playlist.id === playlistId && !playlist.trackIds.includes(trackId)) {
-        return { ...playlist, trackIds: [...playlist.trackIds, trackId] };
+    const playlist = playlists.find(p => p.id === playlistId);
+    const track = tracks.find(t => t.id === trackId);
+
+    setPlaylists(prev => prev.map(p => {
+      if (p.id === playlistId && !p.trackIds.includes(trackId)) {
+        return { ...p, trackIds: [...p.trackIds, trackId] };
       }
-      return playlist;
+      return p;
     }));
+
+    if (playlist && track) {
+      showToast(`Added "${track.title}" to ${playlist.name}`, 'success', 2500);
+    }
   };
 
   const removeFromPlaylist = async (playlistId: string, trackId: string) => {
-    setPlaylists(prev => prev.map(playlist => {
-      if (playlist.id === playlistId) {
-        return { ...playlist, trackIds: playlist.trackIds.filter(id => id !== trackId) };
+    const playlist = playlists.find(p => p.id === playlistId);
+    const track = tracks.find(t => t.id === trackId);
+
+    setPlaylists(prev => prev.map(p => {
+      if (p.id === playlistId) {
+        return { ...p, trackIds: p.trackIds.filter(id => id !== trackId) };
       }
-      return playlist;
+      return p;
     }));
+
+    if (playlist && track) {
+      showToast(`Removed "${track.title}" from ${playlist.name}`, 'info', 2500);
+    }
   };
 
   const updatePlaylistName = async (playlistId: string, newName: string) => {
@@ -811,6 +960,8 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       isLoading,
       isImporting,
       importProgress,
+      importQueue,
+      importStats,
       addTrack,
       removeTrack,
       toggleLike,

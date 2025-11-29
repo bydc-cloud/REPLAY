@@ -179,6 +179,7 @@ export const LibraryView = () => {
     importFiles,
     isImporting,
     importProgress,
+    importStats,
     createPlaylist,
     deletePlaylist,
     createProjectFolder,
@@ -274,7 +275,7 @@ export const LibraryView = () => {
     : [];
 
   return (
-    <div className="p-4 md:p-8 pt-2 md:pt-8 pb-32 min-h-full">
+    <div className="p-4 md:p-8 pt-4 md:pt-8 pb-32 min-h-full">
       {/* Hidden file input */}
       <input
         type="file"
@@ -309,21 +310,73 @@ export const LibraryView = () => {
         </button>
       </div>
 
-      {/* Import Progress */}
+      {/* Import Progress - Modern animated UI */}
       {isImporting && (
-        <div className="mb-6 p-4 bg-[var(--replay-elevated)] border border-[var(--replay-border)] rounded-xl">
-          <div className="flex items-center gap-3 mb-2">
-            <Loader2 className="w-5 h-5 text-[var(--replay-off-white)] animate-spin" />
-            <span className="text-sm font-medium text-[var(--replay-off-white)]">
-              Importing music...
-            </span>
+        <div className="mb-6 p-5 bg-[#1a1a1a]/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              {/* Animated audio bars */}
+              <div className="flex items-end gap-[2px] h-6">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className="w-1 rounded-full"
+                    style={{
+                      background: `linear-gradient(to top, hsl(${260 + i * 20}, 80%, 50%), hsl(${280 + i * 20}, 90%, 65%))`,
+                      height: '100%',
+                      animation: `audioLoading 1s ease-in-out ${i * 0.1}s infinite`,
+                      boxShadow: `0 0 6px hsla(${270 + i * 15}, 80%, 60%, 0.4)`,
+                    }}
+                  />
+                ))}
+              </div>
+              <div>
+                <h3 className="text-[var(--replay-off-white)] font-semibold">
+                  Uploading Music
+                </h3>
+                <p className="text-sm text-[var(--replay-mid-grey)]">
+                  {importStats.completed + importStats.failed} / {importStats.total} files
+                  {importStats.failed > 0 && (
+                    <span className="text-red-400 ml-2">({importStats.failed} failed)</span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-2xl font-bold text-[var(--replay-off-white)]">
+                {importProgress}%
+              </span>
+            </div>
           </div>
-          <div className="h-2 bg-[var(--replay-dark-grey)] rounded-full overflow-hidden">
+
+          {/* Progress bar */}
+          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
             <div
-              className="h-full bg-[var(--replay-off-white)] transition-all duration-300"
-              style={{ width: `${importProgress}%` }}
+              className="h-full rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 bg-[length:200%_100%]"
+              style={{
+                width: `${importProgress}%`,
+                animation: 'shimmer 2s linear infinite',
+              }}
             />
           </div>
+
+          {/* Current file indicator */}
+          {importStats.total > 0 && importStats.completed < importStats.total && (
+            <p className="mt-3 text-xs text-[var(--replay-mid-grey)] truncate">
+              Processing batch {Math.min(Math.ceil((importStats.completed + 1) / 3), Math.ceil(importStats.total / 3))} of {Math.ceil(importStats.total / 3)}...
+            </p>
+          )}
+
+          <style>{`
+            @keyframes audioLoading {
+              0%, 100% { transform: scaleY(0.3); opacity: 0.5; }
+              50% { transform: scaleY(1); opacity: 1; }
+            }
+            @keyframes shimmer {
+              0% { background-position: 200% 0; }
+              100% { background-position: -200% 0; }
+            }
+          `}</style>
         </div>
       )}
 

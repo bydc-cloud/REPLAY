@@ -18,6 +18,8 @@ import { LandingPage } from "./components/LandingPage";
 import { AuthPage } from "./components/AuthPage";
 import { DragDropOverlay } from "./components/DragDropOverlay";
 import { MiniPlayer } from "./components/MiniPlayer";
+import { ToastProvider } from "./contexts/ToastContext";
+import { ToastContainer } from "./components/ToastContainer";
 
 type AppView = "landing" | "auth" | "app" | "about";
 type AuthMode = "signin" | "signup";
@@ -186,8 +188,8 @@ function AppContent() {
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden pb-32 md:pb-28 pt-[60px] md:pt-0 relative scroll-smooth" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
 
-        {/* Mobile Header */}
-        <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[#1a1a1a]/95 backdrop-blur-xl border-b border-white/10 shadow-lg">
+        {/* Mobile Header - Glass Effect */}
+        <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-[#0a0a0a]/90 via-[#111111]/85 to-[#1a1a1a]/80 backdrop-blur-2xl border-b border-white/[0.08] shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
           <div className="px-4 py-3">
             <div className="flex items-center gap-3">
               <button
@@ -297,9 +299,12 @@ function AppWithMusicLibrary() {
 export default function App() {
   return (
     <SettingsProvider>
-      <PostgresAuthProvider>
-        <AppWithMusicLibrary />
-      </PostgresAuthProvider>
+      <ToastProvider>
+        <PostgresAuthProvider>
+          <AppWithMusicLibrary />
+          <ToastContainer />
+        </PostgresAuthProvider>
+      </ToastProvider>
     </SettingsProvider>
   );
 }

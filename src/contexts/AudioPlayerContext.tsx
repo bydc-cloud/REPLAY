@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useRef, useEffect, ReactNode, useCallback } from "react";
 import { Track, getAudioUrl, useMusicLibrary } from "./MusicLibraryContext";
 import { useAuth } from "./PostgresAuthContext";
+import { useToast } from "./ToastContext";
 
 // API URL from environment
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -46,6 +47,7 @@ const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(und
 export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const { incrementPlayCount } = useMusicLibrary();
   const { token } = useAuth();
+  const { showToast } = useToast();
 
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -84,9 +86,9 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     audioRef.current = audio;
 
     audio.addEventListener("timeupdate", () => {
-      // Throttle timeupdate to ~4 updates per second to reduce re-renders and glitching
+      // Throttle timeupdate to ~10 updates per second - fast enough to be smooth but not overwhelm React
       const now = Date.now();
-      if (now - lastTimeUpdateRef.current >= 250) {
+      if (now - lastTimeUpdateRef.current >= 100) {
         lastTimeUpdateRef.current = now;
         setCurrentTime(audio.currentTime);
       }
@@ -481,6 +483,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
       if (!audioUrl) {
         console.error("Could not get audio URL for track:", track.title);
+        showToast(`Unable to play "${track.title}"`, 'error');
         return;
       }
 
@@ -551,6 +554,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (e) {
       console.error("Failed to play track:", e);
+      showToast(`Failed to play "${track.title}"`, 'error');
     }
   };
 

@@ -80,8 +80,11 @@ export const MiniPlayer = ({ isOpen, onClose, onExpand }: MiniPlayerProps) => {
         {/* Progress bar at top */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-white/10">
           <div
-            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 will-change-[width]"
-            style={{ width: `${progress}%` }}
+            className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
+            style={{
+              width: `${progress}%`,
+              transition: 'width 100ms linear'
+            }}
           />
         </div>
 
