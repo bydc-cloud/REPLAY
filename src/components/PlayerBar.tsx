@@ -1,4 +1,4 @@
-import { Heart, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, Volume2, VolumeX, ListMusic, Minimize2, Sliders, Music } from "lucide-react";
+import { Heart, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, Volume2, VolumeX, ListMusic, Minimize2, Sliders, Music, MoreHorizontal, ListPlus, User, Disc, Share2, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { FullScreenPlayer } from "./FullScreenPlayer";
 import { VisualizerModal } from "./VisualizerModal";
@@ -11,6 +11,7 @@ import { useSettings } from "../contexts/SettingsContext";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
 import { useMusicLibrary, getAudioUrl } from "../contexts/MusicLibraryContext";
 import { useAudioEffects } from "../contexts/AudioEffectsContext";
+import { useToast } from "../contexts/ToastContext";
 
 interface PlayerBarProps {
   onQueueClick?: () => void;
@@ -22,6 +23,9 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
   const [visualizerModalOpen, setVisualizerModalOpen] = useState(false);
   const [producerPanelExpanded, setProducerPanelExpanded] = useState(false);
   const [equalizerExpanded, setEqualizerExpanded] = useState(false);
+  const [showTrackMenu, setShowTrackMenu] = useState(false);
+  const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
+  const trackMenuRef = useRef<HTMLDivElement>(null);
   const { visualizerVariant, developerMode } = useSettings();
   const { connectToAudioElement, eqEnabled } = useAudioEffects();
 
@@ -42,10 +46,13 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
     seekBackward,
     setVolume,
     toggleShuffle,
-    cycleRepeatMode
+    cycleRepeatMode,
+    addToQueue,
+    addToQueueNext
   } = useAudioPlayer();
 
-  const { toggleLike, tracks } = useMusicLibrary();
+  const { toggleLike, tracks, playlists, addToPlaylist } = useMusicLibrary();
+  const { showToast } = useToast();
 
   // Check if current track is liked
   const isLiked = currentTrack ? tracks.find(t => t.id === currentTrack.id)?.isLiked || false : false;
@@ -91,6 +98,22 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
       connectToAudioElement(audioElement);
     }
   }, [audioElement, connectToAudioElement]);
+
+  // Close track menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (trackMenuRef.current && !trackMenuRef.current.contains(e.target as Node)) {
+        setShowTrackMenu(false);
+        setShowPlaylistMenu(false);
+      }
+    };
+    if (showTrackMenu || showPlaylistMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showTrackMenu, showPlaylistMenu]);
 
   // Swipe handlers
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -403,6 +426,148 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
             >
               <Heart size={20} className={isLiked ? "fill-current" : ""} />
             </button>
+
+            {/* 3-dot Menu */}
+            <div className="relative" ref={trackMenuRef}>
+              <button
+                onClick={() => setShowTrackMenu(!showTrackMenu)}
+                className="p-2.5 rounded-xl text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] hover:bg-white/10 transition-all duration-300"
+                title="More options"
+              >
+                <MoreHorizontal size={20} />
+              </button>
+
+              {/* Dropdown Menu */}
+              {showTrackMenu && (
+                <div className="absolute left-0 bottom-full mb-2 w-56 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-xl overflow-hidden z-[60]">
+                  {/* Play Next */}
+                  <button
+                    onClick={() => {
+                      if (currentTrack) {
+                        addToQueueNext(currentTrack);
+                        showToast('Added to queue (next)', 'success');
+                        setShowTrackMenu(false);
+                      }
+                    }}
+                    className="w-full px-4 py-3 flex items-center gap-3 text-left text-[var(--replay-off-white)] hover:bg-white/10 transition-colors"
+                  >
+                    <ListMusic size={18} className="text-[var(--replay-mid-grey)]" />
+                    <span>Play Next</span>
+                  </button>
+
+                  {/* Add to Queue */}
+                  <button
+                    onClick={() => {
+                      if (currentTrack) {
+                        addToQueue(currentTrack);
+                        showToast('Added to queue', 'success');
+                        setShowTrackMenu(false);
+                      }
+                    }}
+                    className="w-full px-4 py-3 flex items-center gap-3 text-left text-[var(--replay-off-white)] hover:bg-white/10 transition-colors"
+                  >
+                    <ListPlus size={18} className="text-[var(--replay-mid-grey)]" />
+                    <span>Add to Queue</span>
+                  </button>
+
+                  {/* Divider */}
+                  <div className="h-px bg-white/10 my-1" />
+
+                  {/* Add to Playlist */}
+                  <button
+                    onClick={() => {
+                      setShowPlaylistMenu(!showPlaylistMenu);
+                    }}
+                    className="w-full px-4 py-3 flex items-center justify-between text-left text-[var(--replay-off-white)] hover:bg-white/10 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <ListPlus size={18} className="text-[var(--replay-mid-grey)]" />
+                      <span>Add to Playlist</span>
+                    </div>
+                    <ChevronDown size={16} className={`text-[var(--replay-mid-grey)] transition-transform ${showPlaylistMenu ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Playlist submenu */}
+                  {showPlaylistMenu && (
+                    <div className="bg-black/20 max-h-40 overflow-y-auto">
+                      {playlists.length === 0 ? (
+                        <div className="px-4 py-2 text-sm text-[var(--replay-mid-grey)]">
+                          No playlists yet
+                        </div>
+                      ) : (
+                        playlists.map(playlist => (
+                          <button
+                            key={playlist.id}
+                            onClick={() => {
+                              if (currentTrack) {
+                                addToPlaylist(playlist.id, currentTrack.id);
+                                showToast(`Added to "${playlist.name}"`, 'success');
+                                setShowTrackMenu(false);
+                                setShowPlaylistMenu(false);
+                              }
+                            }}
+                            className="w-full px-6 py-2 flex items-center gap-2 text-left text-sm text-[var(--replay-off-white)] hover:bg-white/10 transition-colors"
+                          >
+                            <Disc size={14} className="text-[var(--replay-mid-grey)]" />
+                            <span className="truncate">{playlist.name}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+
+                  {/* Divider */}
+                  <div className="h-px bg-white/10 my-1" />
+
+                  {/* Go to Artist */}
+                  <button
+                    onClick={() => {
+                      showToast(`Artist: ${currentTrack?.artist || 'Unknown'}`, 'info');
+                      setShowTrackMenu(false);
+                    }}
+                    className="w-full px-4 py-3 flex items-center gap-3 text-left text-[var(--replay-off-white)] hover:bg-white/10 transition-colors"
+                  >
+                    <User size={18} className="text-[var(--replay-mid-grey)]" />
+                    <span>Go to Artist</span>
+                  </button>
+
+                  {/* Go to Album */}
+                  <button
+                    onClick={() => {
+                      showToast(`Album: ${currentTrack?.album || 'Unknown'}`, 'info');
+                      setShowTrackMenu(false);
+                    }}
+                    className="w-full px-4 py-3 flex items-center gap-3 text-left text-[var(--replay-off-white)] hover:bg-white/10 transition-colors"
+                  >
+                    <Disc size={18} className="text-[var(--replay-mid-grey)]" />
+                    <span>Go to Album</span>
+                  </button>
+
+                  {/* Share */}
+                  <button
+                    onClick={async () => {
+                      if (navigator.share && currentTrack) {
+                        try {
+                          await navigator.share({
+                            title: currentTrack.title,
+                            text: `Check out "${currentTrack.title}" by ${currentTrack.artist}`,
+                          });
+                        } catch {
+                          // User cancelled
+                        }
+                      } else {
+                        showToast('Share not available', 'info');
+                      }
+                      setShowTrackMenu(false);
+                    }}
+                    className="w-full px-4 py-3 flex items-center gap-3 text-left text-[var(--replay-off-white)] hover:bg-white/10 transition-colors"
+                  >
+                    <Share2 size={18} className="text-[var(--replay-mid-grey)]" />
+                    <span>Share</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Center: Playback Controls */}

@@ -152,9 +152,6 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         // Create a short silent data URI (tiny MP3)
         const silentDataUri = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAAAAAAAAAAAAYZVPblmAAAAAAAAAAAAAAAAAAAA//tQZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//tQZB4P8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAEVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
 
-        // Store original src
-        const originalSrc = silentAudio.src;
-
         // Play silent audio to unlock
         silentAudio.src = silentDataUri;
         silentAudio.volume = 0.01;
@@ -167,8 +164,9 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
           console.log("Silent play failed (expected on some devices):", playError);
         }
 
-        // Restore
-        silentAudio.src = originalSrc;
+        // Reset to empty state (don't restore empty src which causes errors)
+        silentAudio.removeAttribute('src');
+        silentAudio.load(); // Reset audio element
         silentAudio.volume = volume;
 
         // If there was a pending play, execute it now

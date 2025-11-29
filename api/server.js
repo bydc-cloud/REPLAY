@@ -267,8 +267,12 @@ app.post('/api/auth/signin', async (req, res) => {
 // Track routes
 app.get('/api/tracks', authenticateToken, async (req, res) => {
   try {
+    // Don't send file_data in listing - it's lazy-loaded via /audio endpoint
     const result = await pool.query(
-      'SELECT * FROM tracks WHERE user_id = $1 ORDER BY created_at DESC',
+      `SELECT id, user_id, title, artist, album, duration, file_url, cover_url,
+              play_count, is_liked, genre, year, track_number, created_at, updated_at,
+              (file_data IS NOT NULL AND file_data != '') as has_audio
+       FROM tracks WHERE user_id = $1 ORDER BY created_at DESC`,
       [req.user.id]
     );
     res.json(result.rows);
@@ -343,6 +347,32 @@ app.delete('/api/tracks/:id', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error deleting track:', error);
     res.status(500).json({ error: 'Failed to delete track' });
+  }
+});
+
+// Get track audio (lazy-loaded)
+app.get('/api/tracks/:id/audio', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      'SELECT file_data FROM tracks WHERE id = $1 AND user_id = $2',
+      [id, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    const fileData = result.rows[0].file_data;
+    if (!fileData) {
+      return res.status(404).json({ error: 'No audio data available for this track' });
+    }
+
+    res.json({ file_data: fileData });
+  } catch (error) {
+    console.error('Error fetching track audio:', error);
+    res.status(500).json({ error: 'Failed to fetch track audio' });
   }
 });
 
