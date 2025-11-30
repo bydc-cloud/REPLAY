@@ -109,6 +109,7 @@ interface MusicLibraryContextType {
   incrementPlayCount: (trackId: string) => void;
   importFiles: (files: FileList) => Promise<void>;
   getTrackAudio: (trackId: string) => Promise<string | null>;
+  getStreamUrl: (trackId: string) => string | null;
   createPlaylist: (name: string, description?: string, coverUrl?: string) => Promise<string>;
   deletePlaylist: (playlistId: string) => Promise<void>;
   addToPlaylist: (playlistId: string, trackId: string) => Promise<void>;
@@ -313,23 +314,11 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Get streaming URL for a cloud-synced track
-  const getStreamUrl = async (trackId: string, authToken: string): Promise<string | null> => {
-    try {
-      const response = await fetch(`${API_URL}/api/stream/${trackId}`, {
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        return data.url;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error getting stream URL:', error);
-      return null;
-    }
+  // Get streaming URL for a cloud-synced track - returns direct URL with token for audio element
+  const getStreamUrl = (trackId: string, authToken: string): string => {
+    // Return the streaming endpoint URL - the audio element will fetch it directly
+    // We append the token as a query param for the streaming endpoint
+    return `${API_URL}/api/tracks/${trackId}/stream?token=${encodeURIComponent(authToken)}`;
   };
 
   // Fetch playlists from API
@@ -1155,6 +1144,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       incrementPlayCount,
       importFiles,
       getTrackAudio,
+      getStreamUrl: (trackId: string) => token ? getStreamUrl(trackId, token) : null,
       createPlaylist,
       deletePlaylist,
       addToPlaylist,

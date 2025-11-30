@@ -45,7 +45,7 @@ interface AudioPlayerContextType {
 const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined);
 
 export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
-  const { incrementPlayCount, getTrackAudio } = useMusicLibrary();
+  const { incrementPlayCount, getTrackAudio, getStreamUrl } = useMusicLibrary();
   const { token } = useAuth();
   const { showToast } = useToast();
 
@@ -461,23 +461,31 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      // If still no local audio, try cloud
+      // If still no local audio, try cloud streaming
       if (!audioUrl) {
-        // For any track without local audio, try to fetch from API
-        // This covers: cloud-synced tracks, tracks from other devices, etc.
-        console.log("Fetching audio from cloud for track:", track.id, "hasAudio:", track.hasAudio);
-        showToast(`Loading "${track.title}"...`, 'info', 2000);
+        // For cloud tracks, use streaming URL for instant playback
+        console.log("Using streaming URL for track:", track.id, "hasAudio:", track.hasAudio);
 
-        try {
-          // getTrackAudio will fetch from API if no local data
-          audioUrl = await getTrackAudio(track.id);
-          if (audioUrl) {
-            console.log("Audio fetched from cloud, size:", audioUrl.length);
-          } else {
-            console.log("No audio returned from cloud");
+        // Get streaming URL (doesn't download the file, just provides URL for audio element)
+        const streamUrl = getStreamUrl(track.id);
+        if (streamUrl) {
+          audioUrl = streamUrl;
+          console.log("Using streaming URL for instant playback");
+        } else {
+          // Fallback to full download if streaming not available
+          console.log("Streaming not available, fetching full audio...");
+          showToast(`Loading "${track.title}"...`, 'info', 2000);
+
+          try {
+            audioUrl = await getTrackAudio(track.id);
+            if (audioUrl) {
+              console.log("Audio fetched from cloud, size:", audioUrl.length);
+            } else {
+              console.log("No audio returned from cloud");
+            }
+          } catch (fetchError) {
+            console.error("Error fetching audio from cloud:", fetchError);
           }
-        } catch (fetchError) {
-          console.error("Error fetching audio from cloud:", fetchError);
         }
       }
 

@@ -321,6 +321,64 @@ app.get('/api/tracks/:id/audio', auth, async (req, res) => {
   }
 });
 
+// Stream audio - sends binary data for faster playback start
+// Accepts token via query param for direct audio element access
+app.get('/api/tracks/:id/stream', async (req, res) => {
+  // Support token from query param (for audio element) or header
+  let token = req.headers.authorization?.split(' ')[1] || req.query.token;
+  if (!token) return res.status(401).json({ error: 'No token' });
+
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+  try {
+    const db = getPool();
+    const result = await db.query(
+      'SELECT file_data FROM tracks WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+
+    const fileData = result.rows[0].file_data;
+    if (!fileData) return res.status(404).json({ error: 'No audio data' });
+
+    // Parse the data URL to get mime type and base64 data
+    const matches = fileData.match(/^data:([^;]+);base64,(.+)$/);
+    if (!matches) return res.status(400).json({ error: 'Invalid audio format' });
+
+    const mimeType = matches[1];
+    const base64Data = matches[2];
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Set headers for streaming
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Length', buffer.length);
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+
+    // Handle range requests for seeking
+    const range = req.headers.range;
+    if (range) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : buffer.length - 1;
+      const chunkSize = end - start + 1;
+
+      res.status(206);
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${buffer.length}`);
+      res.setHeader('Content-Length', chunkSize);
+      res.end(buffer.slice(start, end + 1));
+    } else {
+      res.end(buffer);
+    }
+  } catch (e) {
+    console.error('Stream audio error:', e.message);
+    res.status(500).json({ error: 'Failed to stream audio' });
+  }
+});
+
 // Get track lyrics
 app.get('/api/lyrics/:id', auth, async (req, res) => {
   try {
