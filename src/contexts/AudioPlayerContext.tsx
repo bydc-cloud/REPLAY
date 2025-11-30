@@ -490,35 +490,74 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       console.log("Loading audio, URL type:", audioUrl.startsWith('data:') ? 'base64' : audioUrl.startsWith('blob:') ? 'blob' : 'url');
 
       // Load the audio
+      console.log("Setting audio src, length:", audioUrl.length);
       audioRef.current.src = audioUrl;
 
       // Wait for audio to be loadable
       await new Promise<void>((resolve, reject) => {
         const audio = audioRef.current!;
+        let resolved = false;
 
         const onCanPlay = () => {
+          if (resolved) return;
+          resolved = true;
+          console.log("Audio canplay event fired");
           audio.removeEventListener('canplay', onCanPlay);
+          audio.removeEventListener('canplaythrough', onCanPlayThrough);
           audio.removeEventListener('error', onError);
+          audio.removeEventListener('loadeddata', onLoadedData);
           resolve();
         };
 
-        const onError = () => {
+        const onCanPlayThrough = () => {
+          if (resolved) return;
+          resolved = true;
+          console.log("Audio canplaythrough event fired");
           audio.removeEventListener('canplay', onCanPlay);
+          audio.removeEventListener('canplaythrough', onCanPlayThrough);
           audio.removeEventListener('error', onError);
-          reject(new Error('Failed to load audio'));
+          audio.removeEventListener('loadeddata', onLoadedData);
+          resolve();
         };
 
-        audio.addEventListener('canplay', onCanPlay, { once: true });
-        audio.addEventListener('error', onError, { once: true });
+        const onLoadedData = () => {
+          console.log("Audio loadeddata event fired");
+          // Don't resolve here, wait for canplay
+        };
 
+        const onError = (e: Event) => {
+          if (resolved) return;
+          resolved = true;
+          const audioEl = e.target as HTMLAudioElement;
+          const errorCode = audioEl.error?.code;
+          const errorMsg = audioEl.error?.message || 'Unknown error';
+          console.error("Audio load error:", errorCode, errorMsg);
+          audio.removeEventListener('canplay', onCanPlay);
+          audio.removeEventListener('canplaythrough', onCanPlayThrough);
+          audio.removeEventListener('error', onError);
+          audio.removeEventListener('loadeddata', onLoadedData);
+          reject(new Error(`Failed to load audio: ${errorMsg}`));
+        };
+
+        audio.addEventListener('canplay', onCanPlay);
+        audio.addEventListener('canplaythrough', onCanPlayThrough);
+        audio.addEventListener('loadeddata', onLoadedData);
+        audio.addEventListener('error', onError);
+
+        console.log("Calling audio.load()");
         audio.load();
 
-        // Timeout fallback
+        // Timeout fallback - longer for mobile
         setTimeout(() => {
+          if (resolved) return;
+          resolved = true;
+          console.log("Audio load timeout - attempting to play anyway");
           audio.removeEventListener('canplay', onCanPlay);
+          audio.removeEventListener('canplaythrough', onCanPlayThrough);
           audio.removeEventListener('error', onError);
+          audio.removeEventListener('loadeddata', onLoadedData);
           resolve(); // Try to play anyway
-        }, 5000);
+        }, 10000); // 10 second timeout for mobile
       });
 
       // Resume AudioContext if suspended (required for mobile)
