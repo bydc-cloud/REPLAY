@@ -1,11 +1,11 @@
-import { Settings as SettingsIcon, Sparkles, Check, Sun, Moon, Palette, Keyboard, Info, Heart, Download, Upload, FileJson, CheckCircle2, User, Loader2, Code2, Zap, Trash2 } from "lucide-react";
-import { useState, useRef } from "react";
+import { Settings as SettingsIcon, Sparkles, Check, Sun, Moon, Palette, Keyboard, Info, Heart, Download, Upload, FileJson, CheckCircle2, User, Loader2, Code2, Zap, Trash2, EyeOff } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 import { PremiumCoverArt } from "./PremiumCoverArt";
 import { useSettings } from "../contexts/SettingsContext";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
 import { useAuth } from "../contexts/PostgresAuthContext";
 
-type VisualizerVariant = "bars" | "wave" | "pulse" | "circle" | "dots" | "lines" | "lyrics";
+type VisualizerVariant = "none" | "bars" | "wave" | "pulse" | "circle" | "dots" | "lines" | "lyrics";
 
 interface SettingsViewProps {
   selectedVisualizer: VisualizerVariant;
@@ -25,6 +25,13 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
   const [profileUpdateSuccess, setProfileUpdateSuccess] = useState(false);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<{ deleted: number; tracks: string[] } | null>(null);
+
+  // Sync displayName with user.name when user changes (e.g., after login)
+  useEffect(() => {
+    if (user?.name && user.name !== displayName) {
+      setDisplayName(user.name);
+    }
+  }, [user?.name]);
 
   const handleUpdateProfile = async () => {
     if (!displayName.trim() || displayName === user?.name) return;
@@ -127,6 +134,15 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
 
   const visualizers = [
     {
+      variant: "none" as const,
+      name: "None",
+      description: "No visualizer - show album art or simple player",
+      features: ["Minimal", "Low battery", "Clean"],
+      gradient: "from-gray-500/20 to-slate-500/20",
+      borderGradient: "from-gray-500/50 to-slate-500/50",
+      icon: EyeOff
+    },
+    {
       variant: "bars" as const,
       name: "Bars",
       description: "Classic frequency bars with smooth animation",
@@ -220,7 +236,7 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
               <label className="block text-sm font-semibold text-[var(--replay-off-white)] mb-2">
                 Display Name
               </label>
-              <div className="flex gap-3">
+              <div className="flex flex-col md:flex-row gap-3">
                 <input
                   type="text"
                   value={displayName}
@@ -231,7 +247,7 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
                 <button
                   onClick={handleUpdateProfile}
                   disabled={isUpdatingProfile || !displayName.trim() || displayName === user?.name}
-                  className={`px-6 py-3 rounded-xl font-semibold transition-all ${
+                  className={`w-full md:w-auto px-6 py-3 rounded-xl font-semibold transition-all flex items-center justify-center ${
                     profileUpdateSuccess
                       ? "bg-green-500 text-white"
                       : isUpdatingProfile || !displayName.trim() || displayName === user?.name
@@ -512,11 +528,17 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
                   {/* Visualizer Preview */}
                   <div className="mb-4 flex items-center justify-center">
                     <div className="w-32 h-32 flex items-center justify-center">
-                      <PremiumCoverArt 
-                        isPlaying={previewPlaying} 
-                        size="md" 
-                        variant={viz.variant}
-                      />
+                      {viz.variant === "none" ? (
+                        <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-gray-700/50 to-slate-800/50 flex items-center justify-center border border-gray-600/30">
+                          <EyeOff className="text-gray-400" size={40} />
+                        </div>
+                      ) : (
+                        <PremiumCoverArt
+                          isPlaying={previewPlaying}
+                          size="md"
+                          variant={viz.variant}
+                        />
+                      )}
                     </div>
                   </div>
 

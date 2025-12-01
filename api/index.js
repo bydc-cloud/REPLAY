@@ -116,6 +116,18 @@ async function initDB() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tracks' AND column_name = 'lyrics_status') THEN
           ALTER TABLE tracks ADD COLUMN lyrics_status VARCHAR(50) DEFAULT 'pending';
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tracks' AND column_name = 'bpm') THEN
+          ALTER TABLE tracks ADD COLUMN bpm INTEGER;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tracks' AND column_name = 'musical_key') THEN
+          ALTER TABLE tracks ADD COLUMN musical_key VARCHAR(20);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tracks' AND column_name = 'energy') THEN
+          ALTER TABLE tracks ADD COLUMN energy FLOAT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tracks' AND column_name = 'analyzed_at') THEN
+          ALTER TABLE tracks ADD COLUMN analyzed_at TIMESTAMP;
+        END IF;
       END $$;
     `);
 
@@ -292,7 +304,7 @@ app.get('/api/tracks', auth, async (req, res) => {
     const db = getPool();
     const result = await db.query(
       `SELECT id, user_id, title, artist, album, duration, cover_url, play_count, is_liked,
-              lyrics_status, created_at,
+              lyrics_status, created_at, bpm, musical_key, energy, analyzed_at,
               (file_data IS NOT NULL) as has_audio,
               (lyrics_text IS NOT NULL AND lyrics_text != '') as has_lyrics
        FROM tracks WHERE user_id = $1 ORDER BY created_at DESC`,
@@ -531,7 +543,7 @@ app.delete('/api/tracks/cleanup/no-audio', auth, async (req, res) => {
 // Update track
 app.put('/api/tracks/:id', auth, async (req, res) => {
   try {
-    const { title, artist, album, is_liked, play_count } = req.body;
+    const { title, artist, album, is_liked, play_count, bpm, musical_key, energy } = req.body;
     const db = getPool();
     const result = await db.query(
       `UPDATE tracks SET
@@ -539,15 +551,42 @@ app.put('/api/tracks/:id', auth, async (req, res) => {
         artist = COALESCE($2, artist),
         album = COALESCE($3, album),
         is_liked = COALESCE($4, is_liked),
-        play_count = COALESCE($5, play_count)
-       WHERE id = $6 AND user_id = $7 RETURNING *`,
-      [title, artist, album, is_liked, play_count, req.params.id, req.user.id]
+        play_count = COALESCE($5, play_count),
+        bpm = COALESCE($6, bpm),
+        musical_key = COALESCE($7, musical_key),
+        energy = COALESCE($8, energy),
+        analyzed_at = CASE WHEN $6 IS NOT NULL OR $7 IS NOT NULL THEN CURRENT_TIMESTAMP ELSE analyzed_at END
+       WHERE id = $9 AND user_id = $10 RETURNING *`,
+      [title, artist, album, is_liked, play_count, bpm, musical_key, energy, req.params.id, req.user.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     res.json(result.rows[0]);
   } catch (e) {
     console.error('Update track error:', e.message);
     res.status(500).json({ error: 'Failed to update track' });
+  }
+});
+
+// Update track audio analysis (BPM, key, energy)
+app.put('/api/tracks/:id/analysis', auth, async (req, res) => {
+  try {
+    const { bpm, musical_key, energy } = req.body;
+    const db = getPool();
+    const result = await db.query(
+      `UPDATE tracks SET
+        bpm = $1,
+        musical_key = $2,
+        energy = $3,
+        analyzed_at = CURRENT_TIMESTAMP
+       WHERE id = $4 AND user_id = $5 RETURNING *`,
+      [bpm, musical_key, energy, req.params.id, req.user.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    console.log(`Analysis saved for track ${req.params.id}: BPM=${bpm}, Key=${musical_key}`);
+    res.json(result.rows[0]);
+  } catch (e) {
+    console.error('Update analysis error:', e.message);
+    res.status(500).json({ error: 'Failed to update analysis' });
   }
 });
 

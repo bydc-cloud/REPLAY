@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback,
 import { useAuth } from "./PostgresAuthContext";
 import { useToast } from "./ToastContext";
 import * as musicMetadata from 'music-metadata-browser';
+import { analyzeAudioFromDataUrl, preloadEssentia, type AudioAnalysisResult } from '../services/audioAnalysis';
 
 // API URL from environment
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -44,6 +45,11 @@ export interface Track {
   filePath?: string;
   lyrics?: TrackLyrics;
   hasLyrics?: boolean;
+  // Audio analysis fields
+  bpm?: number;           // Beats per minute (detected)
+  musicalKey?: string;    // e.g., "C Major", "A Minor"
+  energy?: number;        // 0-1 energy level
+  analyzedAt?: Date;      // When analysis was performed
 }
 
 export interface Album {
@@ -124,6 +130,8 @@ interface MusicLibraryContextType {
   renameProjectFolder: (folderId: string, newName: string) => Promise<void>;
   addToProjectFolder: (folderId: string, trackId: string) => Promise<void>;
   removeFromProjectFolder: (folderId: string, trackId: string) => Promise<void>;
+  analyzeTrack: (trackId: string) => Promise<AudioAnalysisResult | null>;
+  analyzeAllTracks: () => Promise<void>;
 }
 
 const MusicLibraryContext = createContext<MusicLibraryContextType | undefined>(undefined);
@@ -256,6 +264,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
   const [recentlyPlayed, setRecentlyPlayed] = useState<Track[]>([]);
   const syncInProgressRef = useRef(false);
   const importInProgressRef = useRef(false);
+  const pendingAnalysisRef = useRef<string[]>([]); // Queue of track IDs to analyze
 
   // Fetch tracks from API
   const fetchTracksFromAPI = async (authToken: string) => {
@@ -282,7 +291,12 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
           playCount: track.play_count || 0,
           genre: track.genre,
           hasLyrics: track.has_lyrics || false,
-          lyrics: track.has_lyrics ? { status: 'completed' as const } : { status: (track.lyrics_status || 'pending') as 'pending' | 'processing' | 'completed' | 'failed' }
+          lyrics: track.has_lyrics ? { status: 'completed' as const } : { status: (track.lyrics_status || 'pending') as 'pending' | 'processing' | 'completed' | 'failed' },
+          // Audio analysis fields
+          bpm: track.bpm || undefined,
+          musicalKey: track.musical_key || undefined,
+          energy: track.energy || undefined,
+          analyzedAt: track.analyzed_at ? new Date(track.analyzed_at) : undefined
         }));
       }
       return null;
@@ -781,6 +795,13 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       // Add to local state
       setTracks(prev => [...prev, ...newTracks]);
       console.log(`Imported ${newTracks.length} tracks`);
+
+      // Queue tracks for background BPM/key analysis
+      const tracksWithAudio = newTracks.filter(t => t.fileUrl && t.fileUrl.startsWith('data:'));
+      if (tracksWithAudio.length > 0) {
+        pendingAnalysisRef.current = [...pendingAnalysisRef.current, ...tracksWithAudio.map(t => t.id)];
+        console.log(`Queued ${tracksWithAudio.length} tracks for BPM/key analysis`);
+      }
     }
 
     // Show toast notification based on results
@@ -1124,6 +1145,141 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
+  // Audio Analysis functions
+  const saveAnalysisToAPI = async (trackId: string, analysis: AudioAnalysisResult): Promise<boolean> => {
+    if (!token) return false;
+
+    try {
+      const response = await fetch(`${API_URL}/api/tracks/${trackId}/analysis`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          bpm: analysis.bpm,
+          musical_key: analysis.musicalKey,
+          energy: analysis.energy
+        })
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error('Error saving analysis to API:', error);
+      return false;
+    }
+  };
+
+  const analyzeTrack = async (trackId: string): Promise<AudioAnalysisResult | null> => {
+    const track = tracks.find(t => t.id === trackId);
+    if (!track) return null;
+
+    try {
+      // Get audio data for this track
+      let audioData: string | null = track.fileUrl || null;
+      if (!audioData || (!audioData.startsWith('data:') && !audioData.startsWith('blob:'))) {
+        // Need to fetch audio from API
+        audioData = await getTrackAudio(trackId);
+      }
+
+      if (!audioData) {
+        console.error('No audio data available for analysis');
+        return null;
+      }
+
+      console.log(`Analyzing track: ${track.title}`);
+
+      // Perform analysis
+      const analysis = await analyzeAudioFromDataUrl(audioData);
+
+      console.log(`Analysis complete for ${track.title}: BPM=${analysis.bpm}, Key=${analysis.musicalKey}`);
+
+      // Update local state
+      setTracks(prev => prev.map(t =>
+        t.id === trackId
+          ? { ...t, bpm: analysis.bpm, musicalKey: analysis.musicalKey, energy: analysis.energy, analyzedAt: new Date() }
+          : t
+      ));
+
+      // Save to API
+      await saveAnalysisToAPI(trackId, analysis);
+
+      return analysis;
+    } catch (error) {
+      console.error('Error analyzing track:', error);
+      return null;
+    }
+  };
+
+  const analyzeAllTracks = async (): Promise<void> => {
+    const tracksToAnalyze = tracks.filter(t => !t.analyzedAt && t.hasAudio);
+
+    if (tracksToAnalyze.length === 0) {
+      showToast('All tracks already analyzed', 'info');
+      return;
+    }
+
+    showToast(`Analyzing ${tracksToAnalyze.length} tracks...`, 'info');
+
+    let analyzed = 0;
+    let failed = 0;
+
+    for (const track of tracksToAnalyze) {
+      try {
+        const result = await analyzeTrack(track.id);
+        if (result) {
+          analyzed++;
+        } else {
+          failed++;
+        }
+      } catch {
+        failed++;
+      }
+    }
+
+    if (failed === 0) {
+      showToast(`Successfully analyzed ${analyzed} tracks`, 'success');
+    } else {
+      showToast(`Analyzed ${analyzed} tracks, ${failed} failed`, 'warning');
+    }
+  };
+
+  // Preload essentia on mount
+  useEffect(() => {
+    preloadEssentia().catch(console.warn);
+  }, []);
+
+  // Process pending analysis queue in background
+  useEffect(() => {
+    if (isImporting || pendingAnalysisRef.current.length === 0) return;
+
+    const processQueue = async () => {
+      const trackIds = [...pendingAnalysisRef.current];
+      pendingAnalysisRef.current = [];
+
+      if (trackIds.length > 0) {
+        console.log(`Starting background analysis for ${trackIds.length} tracks`);
+
+        for (const trackId of trackIds) {
+          try {
+            const track = tracks.find(t => t.id === trackId);
+            if (track && !track.analyzedAt) {
+              await analyzeTrack(trackId);
+            }
+          } catch (error) {
+            console.warn(`Background analysis failed for track ${trackId}:`, error);
+          }
+        }
+
+        console.log('Background analysis complete');
+      }
+    };
+
+    // Delay analysis to let UI settle after import
+    const timeout = setTimeout(processQueue, 3000);
+    return () => clearTimeout(timeout);
+  }, [isImporting, tracks]);
+
   return (
     <MusicLibraryContext.Provider value={{
       tracks,
@@ -1158,7 +1314,9 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       deleteProjectFolder,
       renameProjectFolder,
       addToProjectFolder,
-      removeFromProjectFolder
+      removeFromProjectFolder,
+      analyzeTrack,
+      analyzeAllTracks
     }}>
       {children}
     </MusicLibraryContext.Provider>

@@ -222,10 +222,12 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          onClick={() => setFullScreenOpen(true)}
         >
-          {/* Album Art & Song Info */}
-          <div className="flex items-center justify-center gap-3 mb-3">
+          {/* Album Art & Song Info - This row is clickable to open full screen */}
+          <div
+            className="flex items-center justify-center gap-3 mb-3 cursor-pointer"
+            onClick={() => setFullScreenOpen(true)}
+          >
             <div className="w-12 h-12 flex-shrink-0 rounded-lg overflow-hidden shadow-xl bg-[var(--replay-dark-grey)]">
               {currentTrack.artworkUrl || currentTrack.artworkData ? (
                 <img
@@ -234,7 +236,7 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <PremiumCoverArt isPlaying={isPlaying} size="sm" variant={visualizerVariant} audioElement={audioElement} />
+                <PremiumCoverArt isPlaying={isPlaying} size="sm" variant={visualizerVariant === "none" ? "bars" : visualizerVariant} audioElement={audioElement} />
               )}
             </div>
 
@@ -264,11 +266,8 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
             </button>
           </div>
 
-          {/* Centered Playback Controls */}
-          <div
-            className="flex items-center justify-center gap-4"
-            onClick={(e) => e.stopPropagation()}
-          >
+          {/* Centered Playback Controls - Not clickable for full screen */}
+          <div className="flex items-center justify-center gap-4">
             {/* Shuffle */}
             <button
               onClick={toggleShuffle}
@@ -291,10 +290,7 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
 
             {/* Play/Pause - Large */}
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                togglePlayPause();
-              }}
+              onClick={togglePlayPause}
               className="bg-[var(--replay-off-white)] hover:bg-white text-[var(--replay-black)] rounded-full p-3 transition-all duration-200 active:scale-95"
             >
               {isPlaying ? (

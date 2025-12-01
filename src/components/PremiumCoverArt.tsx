@@ -3,7 +3,7 @@ import { PerformantVisualizer } from "./PerformantVisualizer";
 interface PremiumCoverArtProps {
   isPlaying?: boolean;
   size?: "sm" | "md" | "lg" | "xl" | "full";
-  variant?: "bars" | "wave" | "pulse" | "circle" | "dots" | "lines" | "lyrics";
+  variant?: "none" | "bars" | "wave" | "pulse" | "circle" | "dots" | "lines" | "lyrics";
   imageUrl?: string;
   audioElement?: HTMLAudioElement | null;
   demoMode?: boolean; // Force demo mode for settings previews
@@ -53,6 +53,19 @@ export const PremiumCoverArt = ({
     xl: "w-full h-full",
     full: "w-full h-full",
   };
+
+  // If variant is "none", just show a simple album art placeholder or nothing
+  if (variant === "none") {
+    return (
+      <div className={`${sizeClasses[size]} bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] rounded-xl overflow-hidden flex items-center justify-center relative border border-white/10 shadow-lg`}>
+        <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+          <svg className="w-6 h-6 text-white/40" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+          </svg>
+        </div>
+      </div>
+    );
+  }
 
   // If image URL is provided, show the image
   if (imageUrl) {

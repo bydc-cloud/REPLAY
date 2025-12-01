@@ -218,8 +218,8 @@ export const MarketplaceView = () => {
             onClick={() => setActiveTab(id as any)}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all whitespace-nowrap ${
               activeTab === id
-                ? "bg-[var(--replay-off-white)] text-[var(--replay-black)]"
-                : "bg-[var(--replay-dark-grey)]/60 text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)]"
+                ? "bg-white text-black"
+                : "bg-[#1a1a1a] text-gray-400 hover:text-white border border-white/10"
             }`}
           >
             <Icon size={18} />
@@ -235,13 +235,13 @@ export const MarketplaceView = () => {
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             {/* Search */}
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--replay-mid-grey)]" size={20} />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
                 placeholder="Search beats, producers, genres..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-[var(--replay-dark-grey)]/60 border border-[var(--replay-border)] rounded-xl text-[var(--replay-off-white)] placeholder-[var(--replay-mid-grey)] focus:outline-none focus:border-purple-500/50"
+                className="w-full pl-12 pr-4 py-3 bg-[#1a1a1a] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50"
               />
             </div>
 
@@ -250,7 +250,7 @@ export const MarketplaceView = () => {
               <select
                 value={selectedGenre || ""}
                 onChange={(e) => setSelectedGenre(e.target.value || null)}
-                className="appearance-none px-4 py-3 pr-10 bg-[var(--replay-dark-grey)]/60 border border-[var(--replay-border)] rounded-xl text-[var(--replay-off-white)] focus:outline-none focus:border-purple-500/50 cursor-pointer"
+                className="appearance-none px-4 py-3 pr-10 bg-[#1a1a1a] border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 cursor-pointer"
               >
                 <option value="">All Genres</option>
                 {genres.map(({ genre, count }) => (
@@ -259,7 +259,7 @@ export const MarketplaceView = () => {
                   </option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--replay-mid-grey)] pointer-events-none" size={18} />
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
             </div>
 
             {/* Sort */}
@@ -267,14 +267,14 @@ export const MarketplaceView = () => {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="appearance-none px-4 py-3 pr-10 bg-[var(--replay-dark-grey)]/60 border border-[var(--replay-border)] rounded-xl text-[var(--replay-off-white)] focus:outline-none focus:border-purple-500/50 cursor-pointer"
+                className="appearance-none px-4 py-3 pr-10 bg-[#1a1a1a] border border-white/10 rounded-xl text-white focus:outline-none focus:border-purple-500/50 cursor-pointer"
               >
                 <option value="newest">Newest</option>
                 <option value="popular">Popular</option>
                 <option value="price_asc">Price: Low to High</option>
                 <option value="price_desc">Price: High to Low</option>
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--replay-mid-grey)] pointer-events-none" size={18} />
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
             </div>
           </div>
 

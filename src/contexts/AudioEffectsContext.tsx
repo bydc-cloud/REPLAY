@@ -59,6 +59,12 @@ interface AudioEffectsContextType {
   loudnessNormalization: EffectSettings;
   setLoudnessNormalization: (settings: Partial<EffectSettings>) => void;
 
+  // Pitch & Speed (linked like vinyl/DJ - changing speed changes pitch)
+  playbackSpeed: number; // 0.5 to 2.0 (1.0 = normal)
+  setPlaybackSpeed: (speed: number) => void;
+  pitchSemitones: number; // Computed from speed: -12 to +12 semitones
+  resetPlaybackSpeed: () => void;
+
   // Crossfade
   crossfadeEnabled: boolean;
   setCrossfadeEnabled: (enabled: boolean) => void;
@@ -173,6 +179,18 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
     return 3;
   });
 
+  // Playback Speed (linked pitch/speed like vinyl)
+  const [playbackSpeed, setPlaybackSpeedState] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("replay-playback-speed");
+      if (saved) return parseFloat(saved);
+    }
+    return 1.0;
+  });
+
+  // Calculate pitch change in semitones from speed (12 semitones = 1 octave = 2x speed)
+  const pitchSemitones = Math.round(12 * Math.log2(playbackSpeed));
+
   // Audio Nodes
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
@@ -234,6 +252,14 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     localStorage.setItem("replay-crossfade-duration", crossfadeDuration.toString());
   }, [crossfadeDuration]);
+
+  useEffect(() => {
+    localStorage.setItem("replay-playback-speed", playbackSpeed.toString());
+    // Apply playback speed to connected audio element
+    if (connectedAudioRef.current) {
+      connectedAudioRef.current.playbackRate = playbackSpeed;
+    }
+  }, [playbackSpeed]);
 
   // Apply EQ settings to filters
   const applyEqSettings = useCallback(() => {
@@ -414,11 +440,14 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
       applyEqSettings();
       applyEffects();
 
+      // Apply playback speed
+      audio.playbackRate = playbackSpeed;
+
       console.log("Audio effects chain connected with analyser");
     } catch (e) {
       console.error("Failed to connect audio effects:", e);
     }
-  }, [applyEqSettings, applyEffects]);
+  }, [applyEqSettings, applyEffects, playbackSpeed]);
 
   const disconnectFromAudioElement = useCallback(() => {
     if (audioContextRef.current) {
@@ -511,6 +540,24 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
     setCrossfadeDurationState(Math.max(0, Math.min(12, seconds)));
   };
 
+  // Playback speed setters (linked with pitch like vinyl/DJ)
+  const setPlaybackSpeed = (speed: number) => {
+    // Clamp to 0.5 - 2.0 range (half speed to double speed)
+    const clamped = Math.max(0.5, Math.min(2.0, speed));
+    setPlaybackSpeedState(clamped);
+    // Apply immediately to audio element
+    if (connectedAudioRef.current) {
+      connectedAudioRef.current.playbackRate = clamped;
+    }
+  };
+
+  const resetPlaybackSpeed = () => {
+    setPlaybackSpeedState(1.0);
+    if (connectedAudioRef.current) {
+      connectedAudioRef.current.playbackRate = 1.0;
+    }
+  };
+
   return (
     <AudioEffectsContext.Provider
       value={{
@@ -533,6 +580,10 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
         setStereoEnhancer,
         loudnessNormalization,
         setLoudnessNormalization,
+        playbackSpeed,
+        setPlaybackSpeed,
+        pitchSemitones,
+        resetPlaybackSpeed,
         crossfadeEnabled,
         setCrossfadeEnabled,
         crossfadeDuration,

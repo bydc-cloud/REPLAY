@@ -9,9 +9,13 @@ import {
   Play,
   Pause,
   RotateCcw,
+  Loader2,
+  Zap,
 } from "lucide-react";
 import { useSettings } from "../contexts/SettingsContext";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
+import { useAudioEffects } from "../contexts/AudioEffectsContext";
+import { useMusicLibrary } from "../contexts/MusicLibraryContext";
 
 interface ProducerModePanelProps {
   audioElement?: HTMLAudioElement | null;
@@ -26,24 +30,27 @@ export const ProducerModePanel = ({
 }: ProducerModePanelProps) => {
   const { developerMode } = useSettings();
   const { currentTrack, isPlaying, currentTime, duration, seek } = useAudioPlayer();
+  const { playbackSpeed, setPlaybackSpeed, pitchSemitones, resetPlaybackSpeed } = useAudioEffects();
+  const { analyzeTrack, tracks } = useMusicLibrary();
 
-  // BPM state
-  const [bpm, setBpm] = useState<number | null>(null);
+  // Get current track with analysis data
+  const trackWithAnalysis = currentTrack ? tracks.find(t => t.id === currentTrack.id) : null;
+
+  // BPM state - use detected BPM from track if available
+  const detectedBpm = trackWithAnalysis?.bpm;
+  const detectedKey = trackWithAnalysis?.musicalKey;
+  const [tapBpm, setTapBpm] = useState<number | null>(null);
   const [tapTimes, setTapTimes] = useState<number[]>([]);
-  const [isAnalyzingBpm, setIsAnalyzingBpm] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // Key detection state
-  const [musicalKey, setMusicalKey] = useState<string | null>(null);
-  const [isAnalyzingKey, setIsAnalyzingKey] = useState(false);
+  // Display BPM: prefer detected, then tap tempo
+  const displayBpm = detectedBpm || tapBpm;
+  const displayKey = detectedKey || null;
 
   // A/B Loop state
   const [loopA, setLoopA] = useState<number | null>(null);
   const [loopB, setLoopB] = useState<number | null>(null);
   const [isLooping, setIsLooping] = useState(false);
-
-  // Pitch and Speed state
-  const [pitch, setPitch] = useState(0); // -12 to +12 semitones
-  const [speed, setSpeed] = useState(1); // 0.5x to 2x
 
   // Waveform state
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -66,7 +73,7 @@ export const ProducerModePanel = ({
       const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
       const calculatedBpm = Math.round(60000 / avgInterval);
       if (calculatedBpm >= 40 && calculatedBpm <= 220) {
-        setBpm(calculatedBpm);
+        setTapBpm(calculatedBpm);
       }
     }
 
@@ -76,7 +83,20 @@ export const ProducerModePanel = ({
   // Reset tap tempo
   const resetTapTempo = () => {
     setTapTimes([]);
-    setBpm(null);
+    setTapBpm(null);
+  };
+
+  // Analyze current track for BPM and key
+  const handleAnalyze = async () => {
+    if (!currentTrack || isAnalyzing) return;
+    setIsAnalyzing(true);
+    try {
+      await analyzeTrack(currentTrack.id);
+    } catch (error) {
+      console.error('Analysis failed:', error);
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   // Set A point
@@ -225,12 +245,10 @@ export const ProducerModePanel = ({
 
   // Reset states when track changes
   useEffect(() => {
-    setBpm(null);
-    setMusicalKey(null);
+    setTapBpm(null);
     clearLoop();
-    setPitch(0);
-    setSpeed(1);
     setTapTimes([]);
+    // Don't reset playback speed on track change - keep user preference
   }, [currentTrack?.id]);
 
   return (
@@ -247,14 +265,19 @@ export const ProducerModePanel = ({
           <span className="text-sm font-semibold text-[var(--replay-off-white)]">
             Producer Mode
           </span>
-          {bpm && (
+          {displayBpm && (
             <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full">
-              {bpm} BPM
+              {displayBpm} BPM
             </span>
           )}
-          {musicalKey && (
+          {displayKey && (
             <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full">
-              {musicalKey}
+              {displayKey}
+            </span>
+          )}
+          {playbackSpeed !== 1 && (
+            <span className="text-xs bg-pink-500/20 text-pink-300 px-2 py-0.5 rounded-full">
+              {playbackSpeed.toFixed(2)}x
             </span>
           )}
           {isLooping && (
@@ -302,13 +325,16 @@ export const ProducerModePanel = ({
               <div className="flex items-center gap-2 mb-2">
                 <Gauge size={14} className="text-purple-400" />
                 <span className="text-xs font-semibold text-[var(--replay-off-white)]">BPM</span>
+                {detectedBpm && (
+                  <span className="text-xs text-green-400 ml-auto">Detected</span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleTapTempo}
                   className="flex-1 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-lg text-sm font-semibold transition-colors"
                 >
-                  {bpm ? bpm : "Tap"}
+                  {displayBpm ? displayBpm : "Tap"}
                 </button>
                 <button
                   onClick={resetTapTempo}
@@ -324,9 +350,26 @@ export const ProducerModePanel = ({
               <div className="flex items-center gap-2 mb-2">
                 <Music size={14} className="text-blue-400" />
                 <span className="text-xs font-semibold text-[var(--replay-off-white)]">Key</span>
+                {detectedKey && (
+                  <span className="text-xs text-green-400 ml-auto">Detected</span>
+                )}
               </div>
-              <div className="py-2 bg-blue-500/20 text-blue-300 rounded-lg text-sm font-semibold text-center">
-                {musicalKey || "—"}
+              <div className="flex items-center gap-2">
+                <div className="flex-1 py-2 bg-blue-500/20 text-blue-300 rounded-lg text-sm font-semibold text-center">
+                  {displayKey || "—"}
+                </div>
+                <button
+                  onClick={handleAnalyze}
+                  disabled={isAnalyzing || !currentTrack}
+                  className="p-2 bg-green-500/20 hover:bg-green-500/30 text-green-300 rounded-lg transition-colors disabled:opacity-50"
+                  title="Analyze BPM & Key"
+                >
+                  {isAnalyzing ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Zap size={14} />
+                  )}
+                </button>
               </div>
             </div>
 
@@ -392,76 +435,52 @@ export const ProducerModePanel = ({
             </div>
           </div>
 
-          {/* Pitch and Speed Controls */}
-          <div className="grid grid-cols-2 gap-3">
-            {/* Pitch Control */}
-            <div className="p-3 bg-[var(--replay-dark-grey)]/60 rounded-xl border border-[var(--replay-border)]">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-[var(--replay-off-white)]">Pitch</span>
-                <span className="text-xs text-purple-300 font-mono">
-                  {pitch > 0 ? "+" : ""}{pitch} st
-                </span>
+          {/* Speed Control (Linked Pitch/Speed like Vinyl/DJ) */}
+          <div className="p-3 bg-[var(--replay-dark-grey)]/60 rounded-xl border border-[var(--replay-border)]">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-[var(--replay-off-white)]">Speed / Pitch</span>
+                <span className="text-xs text-[var(--replay-mid-grey)]">(Linked like vinyl)</span>
               </div>
-              <input
-                type="range"
-                min="-12"
-                max="12"
-                step="1"
-                value={pitch}
-                onChange={(e) => setPitch(parseInt(e.target.value))}
-                className="w-full h-2 bg-[var(--replay-dark-grey)] rounded-lg appearance-none cursor-pointer accent-purple-500"
-              />
-              <div className="flex justify-between mt-1 text-xs text-[var(--replay-mid-grey)]">
-                <span>-12</span>
-                <button
-                  onClick={() => setPitch(0)}
-                  className="text-purple-400 hover:text-purple-300"
-                >
-                  Reset
-                </button>
-                <span>+12</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-pink-300 font-mono">
+                  {playbackSpeed.toFixed(2)}x
+                </span>
+                <span className="text-xs text-purple-300 font-mono">
+                  {pitchSemitones > 0 ? "+" : ""}{pitchSemitones} st
+                </span>
               </div>
             </div>
-
-            {/* Speed Control */}
-            <div className="p-3 bg-[var(--replay-dark-grey)]/60 rounded-xl border border-[var(--replay-border)]">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-[var(--replay-off-white)]">Speed</span>
-                <span className="text-xs text-pink-300 font-mono">
-                  {speed.toFixed(2)}x
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0.5"
-                max="2"
-                step="0.05"
-                value={speed}
-                onChange={(e) => setSpeed(parseFloat(e.target.value))}
-                className="w-full h-2 bg-[var(--replay-dark-grey)] rounded-lg appearance-none cursor-pointer accent-pink-500"
-              />
-              <div className="flex justify-between mt-1 text-xs text-[var(--replay-mid-grey)]">
-                <span>0.5x</span>
-                <button
-                  onClick={() => setSpeed(1)}
-                  className="text-pink-400 hover:text-pink-300"
-                >
-                  Reset
-                </button>
-                <span>2x</span>
-              </div>
+            <input
+              type="range"
+              min="0.5"
+              max="2"
+              step="0.01"
+              value={playbackSpeed}
+              onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
+              className="w-full h-2 bg-[var(--replay-dark-grey)] rounded-lg appearance-none cursor-pointer accent-pink-500"
+            />
+            <div className="flex justify-between mt-1 text-xs text-[var(--replay-mid-grey)]">
+              <span>0.5x (-12 st)</span>
+              <button
+                onClick={resetPlaybackSpeed}
+                className="text-pink-400 hover:text-pink-300"
+              >
+                Reset
+              </button>
+              <span>2x (+12 st)</span>
             </div>
           </div>
 
           {/* Quick Speed Presets */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-[var(--replay-mid-grey)]">Quick:</span>
-            {[0.5, 0.75, 1, 1.25, 1.5, 2].map((s) => (
+            {[0.5, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 2].map((s) => (
               <button
                 key={s}
-                onClick={() => setSpeed(s)}
+                onClick={() => setPlaybackSpeed(s)}
                 className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                  Math.abs(speed - s) < 0.01
+                  Math.abs(playbackSpeed - s) < 0.01
                     ? "bg-pink-500 text-white"
                     : "bg-[var(--replay-dark-grey)] text-[var(--replay-mid-grey)] hover:bg-[var(--replay-border)]"
                 }`}
