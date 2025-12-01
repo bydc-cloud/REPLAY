@@ -25,16 +25,19 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
   const [profileUpdateSuccess, setProfileUpdateSuccess] = useState(false);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<{ deleted: number; tracks: string[] } | null>(null);
+  const lastUserNameRef = useRef(user?.name);
 
-  // Sync displayName with user.name when user changes (e.g., after login)
+  // Sync displayName with user.name when user changes (e.g., after login or profile update)
   useEffect(() => {
-    if (user?.name && user.name !== displayName) {
+    // Only sync if user.name actually changed from what we last knew
+    if (user?.name && user.name !== lastUserNameRef.current) {
+      lastUserNameRef.current = user.name;
       setDisplayName(user.name);
     }
   }, [user?.name]);
 
   const handleUpdateProfile = async () => {
-    if (!displayName.trim() || displayName === user?.name) return;
+    if (!displayName.trim() || displayName.trim() === user?.name) return;
 
     setIsUpdatingProfile(true);
     clearError();
@@ -42,6 +45,8 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
     const success = await updateProfile(displayName.trim());
 
     if (success) {
+      // Update the ref so useEffect doesn't reset the name
+      lastUserNameRef.current = displayName.trim();
       setProfileUpdateSuccess(true);
       setTimeout(() => setProfileUpdateSuccess(false), 3000);
     }
