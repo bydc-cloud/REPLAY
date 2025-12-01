@@ -15,22 +15,25 @@ export const MobileBottomNav = ({ activeTab, onTabChange }: MobileBottomNavProps
   ];
 
   return (
-    <nav className="md:hidden fixed bottom-[72px] left-0 right-0 z-50 bg-gradient-to-t from-[#0a0a0a]/98 via-[#111111]/95 to-[#0a0a0a]/90 backdrop-blur-xl border-t border-white/[0.08]">
-      <div className="flex items-center justify-around px-2 py-2">
+    <nav className="md:hidden fixed bottom-[72px] left-0 right-0 z-50 bg-[var(--replay-elevated)]/95 backdrop-blur-md">
+      {/* Subtle top divider - very thin to blend with PlayerBar */}
+      <div className="absolute top-0 left-4 right-4 h-[1px] bg-white/[0.06]" />
+
+      <div className="flex items-center justify-around px-2 py-1.5">
         {navItems.map(({ id, icon: Icon, label }) => {
           const isActive = activeTab === id;
           return (
             <button
               key={id}
               onClick={() => onTabChange(id)}
-              className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-[56px] ${
+              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-all duration-200 min-w-[56px] ${
                 isActive
-                  ? "text-[var(--replay-off-white)] bg-white/10"
+                  ? "text-[var(--replay-off-white)]"
                   : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)]"
               }`}
             >
-              <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
-              <span className="text-[10px] font-medium">{label}</span>
+              <Icon size={18} strokeWidth={isActive ? 2.5 : 1.5} />
+              <span className={`text-[9px] ${isActive ? 'font-semibold' : 'font-medium opacity-80'}`}>{label}</span>
             </button>
           );
         })}

@@ -53,9 +53,13 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
 
   const { toggleLike, tracks, playlists, addToPlaylist } = useMusicLibrary();
   const { showToast } = useToast();
+  const { playbackSpeed } = useAudioEffects();
+
+  // Get current track with full data including analysis
+  const trackWithData = currentTrack ? tracks.find(t => t.id === currentTrack.id) : null;
 
   // Check if current track is liked
-  const isLiked = currentTrack ? tracks.find(t => t.id === currentTrack.id)?.isLiked || false : false;
+  const isLiked = trackWithData?.isLiked || false;
 
   // Calculate progress percentage
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
@@ -161,7 +165,7 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
     return (
       <>
         {/* Mobile: Compact Player Footer */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--replay-elevated)]/95 backdrop-blur-md border-t border-[var(--replay-border)] z-50">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--replay-elevated)]/95 backdrop-blur-md z-50">
           <div className="px-4 py-4 text-center">
             <p className="text-sm text-[var(--replay-mid-grey)]">No track playing</p>
             <p className="text-xs text-[var(--replay-mid-grey)]/60 mt-1">Import music to get started</p>
@@ -198,7 +202,7 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
 
       {/* Mobile: Compact Player Footer */}
       <div
-        className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--replay-elevated)]/95 backdrop-blur-md border-t border-[var(--replay-border)] z-50 overflow-hidden"
+        className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--replay-elevated)]/95 backdrop-blur-md z-50 overflow-hidden"
       >
         {/* Ultra Thin Progress Bar */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/5">
@@ -240,6 +244,8 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
               </h4>
               <p className="text-xs text-[var(--replay-mid-grey)] truncate">
                 {currentTrack.artist} • {formatTime(currentTime)} / {formatTime(duration)}
+                {trackWithData?.bpm && ` • ${trackWithData.bpm} BPM`}
+                {playbackSpeed !== 1 && ` • ${playbackSpeed.toFixed(2)}x`}
               </p>
             </div>
 
@@ -413,7 +419,24 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
               <h4 className="font-semibold text-[var(--replay-off-white)] truncate">
                 {currentTrack.title}
               </h4>
-              <p className="text-sm text-[var(--replay-mid-grey)] truncate">{currentTrack.artist}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-[var(--replay-mid-grey)] truncate">{currentTrack.artist}</p>
+                {trackWithData?.bpm && (
+                  <span className="text-xs bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                    {trackWithData.bpm} BPM
+                  </span>
+                )}
+                {trackWithData?.musicalKey && (
+                  <span className="text-xs bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                    {trackWithData.musicalKey}
+                  </span>
+                )}
+                {playbackSpeed !== 1 && (
+                  <span className="text-xs bg-pink-500/20 text-pink-300 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                    {playbackSpeed.toFixed(2)}x
+                  </span>
+                )}
+              </div>
             </div>
 
             <button
