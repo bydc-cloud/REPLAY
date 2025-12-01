@@ -76,12 +76,13 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     // Create audio element with mobile-friendly settings
     const audio = new Audio();
     audio.volume = volume;
-    audio.crossOrigin = "anonymous";
+    // Don't set crossOrigin for mobile - it can cause "operation not supported" errors
+    // audio.crossOrigin = "anonymous";
 
     // Mobile-specific: Enable inline playback
     audio.setAttribute('playsinline', 'true');
     audio.setAttribute('webkit-playsinline', 'true');
-    audio.preload = "auto";
+    audio.preload = "metadata"; // Use "metadata" instead of "auto" for mobile performance
 
     audioRef.current = audio;
 
@@ -103,7 +104,20 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     });
 
     audio.addEventListener("error", (e) => {
-      console.error("Audio error:", (e.target as HTMLAudioElement)?.error);
+      const audioError = (e.target as HTMLAudioElement)?.error;
+      console.error("Audio error:", audioError);
+      // Provide helpful error message based on error code
+      if (audioError) {
+        const errorMessages: Record<number, string> = {
+          1: 'Audio loading aborted',
+          2: 'Network error loading audio',
+          3: 'Audio decoding error - file may be corrupted',
+          4: 'Audio format not supported on this device'
+        };
+        const message = errorMessages[audioError.code] || 'Unknown audio error';
+        console.error(`Audio error code ${audioError.code}: ${message}`);
+        showToast(message, 'error');
+      }
     });
 
     // Mobile: Handle play/pause state changes
@@ -461,30 +475,67 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      // If still no local audio, try cloud streaming
+      // If still no local audio, try cloud audio
       if (!audioUrl) {
-        // For cloud tracks, use streaming URL for instant playback
-        console.log("Using streaming URL for track:", track.id, "hasAudio:", track.hasAudio);
+        // Detect if we're on mobile
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-        // Get streaming URL (doesn't download the file, just provides URL for audio element)
-        const streamUrl = getStreamUrl(track.id);
-        if (streamUrl) {
-          audioUrl = streamUrl;
-          console.log("Using streaming URL for instant playback");
-        } else {
-          // Fallback to full download if streaming not available
-          console.log("Streaming not available, fetching full audio...");
-          showToast(`Loading "${track.title}"...`, 'info', 2000);
+        console.log("No local audio, fetching from cloud. Mobile:", isMobile, "hasAudio:", track.hasAudio);
 
-          try {
-            audioUrl = await getTrackAudio(track.id);
-            if (audioUrl) {
-              console.log("Audio fetched from cloud, size:", audioUrl.length);
-            } else {
-              console.log("No audio returned from cloud");
+        if (isMobile) {
+          // MOBILE STRATEGY: Fetch binary audio and create blob URL
+          // This avoids both base64 memory issues AND streaming URL compatibility issues
+          // Blob URLs work reliably on iOS Safari
+          const streamUrl = getStreamUrl(track.id);
+          if (streamUrl) {
+            try {
+              showToast(`Loading "${track.title}"...`, 'info', 3000);
+              console.log("Mobile: Fetching audio as blob from streaming endpoint...");
+
+              const response = await fetch(streamUrl);
+              if (response.ok) {
+                const blob = await response.blob();
+                audioUrl = URL.createObjectURL(blob);
+                console.log("Mobile: Created blob URL, size:", blob.size);
+              } else {
+                console.error("Mobile: Stream fetch failed:", response.status);
+              }
+            } catch (fetchError) {
+              console.error("Mobile: Error fetching audio stream:", fetchError);
             }
-          } catch (fetchError) {
-            console.error("Error fetching audio from cloud:", fetchError);
+          }
+
+          // Fallback to base64 data URL if blob approach failed
+          if (!audioUrl) {
+            console.log("Mobile: Falling back to base64 data URL...");
+            try {
+              audioUrl = await getTrackAudio(track.id);
+              if (audioUrl) {
+                console.log("Mobile: Using base64 data URL, length:", audioUrl.length);
+              }
+            } catch (fetchError) {
+              console.error("Mobile: Error fetching base64 audio:", fetchError);
+            }
+          }
+        } else {
+          // DESKTOP STRATEGY: Use streaming URL directly for instant playback
+          const streamUrl = getStreamUrl(track.id);
+          if (streamUrl) {
+            audioUrl = streamUrl;
+            console.log("Desktop: Using streaming URL for instant playback");
+          } else {
+            // Fallback to full download if streaming not available
+            console.log("Desktop: Streaming not available, fetching full audio...");
+            showToast(`Loading "${track.title}"...`, 'info', 2000);
+
+            try {
+              audioUrl = await getTrackAudio(track.id);
+              if (audioUrl) {
+                console.log("Desktop: Audio fetched, size:", audioUrl.length);
+              }
+            } catch (fetchError) {
+              console.error("Desktop: Error fetching audio:", fetchError);
+            }
           }
         }
       }
@@ -496,21 +547,59 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const isStreamingUrl = audioUrl.startsWith('http');
-      console.log("Loading audio, type:", isStreamingUrl ? 'streaming' : audioUrl.startsWith('data:') ? 'base64' : 'blob');
+      const isDataUrl = audioUrl.startsWith('data:');
+      const isBlobUrl = audioUrl.startsWith('blob:');
+      console.log("Loading audio, type:", isStreamingUrl ? 'streaming' : isDataUrl ? 'base64' : isBlobUrl ? 'blob' : 'unknown');
 
       // Set the audio source
       audioRef.current.src = audioUrl;
 
-      // For streaming URLs, play immediately without waiting - browser handles buffering
-      if (isStreamingUrl) {
-        console.log("Streaming URL - playing immediately");
-        // Don't call load() for streaming - just set src and play
-      } else {
-        // For local blob/data URLs, quick load
-        audioRef.current.load();
-        // Small delay to let local data initialize
-        await new Promise(r => setTimeout(r, 50));
-      }
+      // Always call load() to prepare the audio element
+      audioRef.current.load();
+
+      // Wait for the audio to be ready, with a timeout fallback
+      // On mobile, we proceed after a short wait even if canplay hasn't fired
+      const timeoutMs = isBlobUrl ? 1500 : isStreamingUrl ? 4000 : 2000;
+
+      await new Promise<void>((resolve) => {
+        const audio = audioRef.current!;
+        let resolved = false;
+
+        const done = () => {
+          if (resolved) return;
+          resolved = true;
+          resolve();
+        };
+
+        // Timeout - proceed anyway after wait
+        const timeout = setTimeout(() => {
+          console.log("Audio load timeout - proceeding to play");
+          done();
+        }, timeoutMs);
+
+        // Success - audio is ready
+        const onCanPlay = () => {
+          console.log("Audio canplay event fired");
+          clearTimeout(timeout);
+          audio.removeEventListener('canplay', onCanPlay);
+          audio.removeEventListener('loadeddata', onLoadedData);
+          done();
+        };
+
+        // Also listen for loadeddata as backup
+        const onLoadedData = () => {
+          console.log("Audio loadeddata event fired");
+          clearTimeout(timeout);
+          audio.removeEventListener('canplay', onCanPlay);
+          audio.removeEventListener('loadeddata', onLoadedData);
+          done();
+        };
+
+        audio.addEventListener('canplay', onCanPlay, { once: true });
+        audio.addEventListener('loadeddata', onLoadedData, { once: true });
+      });
+
+      console.log("Audio ready, attempting to play...");
 
       // Resume AudioContext if suspended (required for mobile)
       if (audioContextRef.current?.state === "suspended") {
@@ -545,6 +634,16 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
               // This can happen on mobile when switching tracks quickly
               console.log('Playback aborted - retrying...');
               // Don't show error, just let user try again
+            } else if (error.name === 'NotSupportedError' || error.message?.includes('not supported')) {
+              // This happens on mobile Safari with certain audio formats or streaming issues
+              console.log('Audio format not supported on this device');
+              // Try to reload with local audio if available
+              if (track.fileUrl && (track.fileUrl.startsWith('blob:') || track.fileUrl.startsWith('data:'))) {
+                showToast('Retrying playback...', 'info');
+                setTimeout(() => loadAndPlayTrack(track), 500);
+              } else {
+                showToast('Audio format not supported. Try re-importing this track.', 'error');
+              }
             } else {
               showToast(`Playback error: ${error.message}`, 'error');
             }

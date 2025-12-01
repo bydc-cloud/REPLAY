@@ -500,10 +500,11 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
               </button>
             </div>
             <div className="flex items-center justify-center py-4">
-              <PremiumCoverArt 
-                isPlaying={previewPlaying} 
-                size="lg" 
+              <PremiumCoverArt
+                isPlaying={previewPlaying}
+                size="lg"
                 variant={selectedVisualizer}
+                demoMode={true}
               />
             </div>
           </div>
@@ -539,9 +540,10 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
                         </div>
                       ) : (
                         <PremiumCoverArt
-                          isPlaying={previewPlaying}
+                          isPlaying={true}
                           size="md"
                           variant={viz.variant}
+                          demoMode={true}
                         />
                       )}
                     </div>

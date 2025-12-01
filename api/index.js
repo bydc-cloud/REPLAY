@@ -369,6 +369,9 @@ app.get('/api/tracks/:id/stream', async (req, res) => {
     res.setHeader('Content-Length', buffer.length);
     res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+    // Ensure CORS headers are set for audio streaming on mobile
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
 
     // Handle range requests for seeking
     const range = req.headers.range;

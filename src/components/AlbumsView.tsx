@@ -411,10 +411,11 @@ export const AlbumsView = () => {
         </>
       )}
 
-      {/* Create Album Modal */}
+      {/* Create Album Modal - Redesigned for better mobile UX */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-[var(--replay-elevated)] rounded-2xl border border-[var(--replay-border)] p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
+          {/* Modal Container - scrollable on mobile */}
+          <div className="w-full h-full md:h-auto md:max-h-[90vh] max-w-lg mx-auto flex flex-col bg-[var(--replay-elevated)] md:rounded-3xl border-0 md:border border-[var(--replay-border)] overflow-hidden shadow-2xl md:m-4">
             {/* Hidden file input */}
             <input
               type="file"
@@ -424,19 +425,39 @@ export const AlbumsView = () => {
               className="hidden"
             />
 
-            <h3 className="text-xl font-bold text-[var(--replay-off-white)] mb-4">
-              Create New Album
-            </h3>
-
-            <div className="space-y-4">
-              {/* Cover Art Upload */}
+            {/* Header - Fixed */}
+            <div className="flex items-center justify-between p-5 border-b border-[var(--replay-border)] flex-shrink-0 bg-[var(--replay-elevated)]">
               <div>
-                <label className="block text-sm text-[var(--replay-mid-grey)] mb-2">
-                  Cover Art
+                <h3 className="text-2xl font-black text-[var(--replay-off-white)]">
+                  Create Album
+                </h3>
+                <p className="text-sm text-[var(--replay-mid-grey)] mt-1">
+                  Add a new album to your collection
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setNewAlbumName("");
+                  setNewAlbumDescription("");
+                  setNewAlbumCover(null);
+                }}
+                className="p-2 text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] hover:bg-white/10 rounded-full transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-6">
+              {/* Cover Art Upload - Centered */}
+              <div className="flex flex-col items-center">
+                <label className="block text-sm font-medium text-[var(--replay-off-white)] mb-3 text-center">
+                  Album Artwork
                 </label>
                 <div
                   onClick={() => coverInputRef.current?.click()}
-                  className="w-32 h-32 rounded-xl bg-[var(--replay-dark-grey)] border-2 border-dashed border-[var(--replay-border)] hover:border-white/30 cursor-pointer transition-colors overflow-hidden flex items-center justify-center group"
+                  className="w-40 h-40 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-2 border-dashed border-[var(--replay-border)] hover:border-purple-500/50 cursor-pointer transition-all overflow-hidden flex items-center justify-center group hover:scale-105 active:scale-95 shadow-xl"
                 >
                   {newAlbumCover ? (
                     <img
@@ -445,43 +466,54 @@ export const AlbumsView = () => {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="text-center">
-                      <Upload size={24} className="text-[var(--replay-mid-grey)] mx-auto mb-2 group-hover:text-[var(--replay-off-white)] transition-colors" />
-                      <span className="text-xs text-[var(--replay-mid-grey)] group-hover:text-[var(--replay-off-white)] transition-colors">Add Cover</span>
+                    <div className="text-center p-4">
+                      <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                        <Upload size={28} className="text-[var(--replay-mid-grey)] group-hover:text-[var(--replay-off-white)] transition-colors" />
+                      </div>
+                      <span className="text-sm text-[var(--replay-mid-grey)] group-hover:text-[var(--replay-off-white)] transition-colors font-medium">
+                        Tap to add artwork
+                      </span>
                     </div>
                   )}
                 </div>
+                <p className="text-xs text-[var(--replay-mid-grey)] mt-2 text-center">
+                  Recommended: 500x500 or larger
+                </p>
               </div>
 
+              {/* Album Name Input */}
               <div>
-                <label className="block text-sm text-[var(--replay-mid-grey)] mb-2">
-                  Album Name
+                <label className="block text-sm font-medium text-[var(--replay-off-white)] mb-2">
+                  Album Name <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   value={newAlbumName}
                   onChange={(e) => setNewAlbumName(e.target.value)}
-                  placeholder="My New Album"
-                  className="w-full px-4 py-3 bg-[var(--replay-dark-grey)] border border-[var(--replay-border)] rounded-xl text-[var(--replay-off-white)] placeholder-[var(--replay-mid-grey)] focus:border-white/30 focus:outline-none transition-colors"
+                  placeholder="Enter album name..."
+                  className="w-full px-4 py-4 bg-[var(--replay-dark-grey)] border border-[var(--replay-border)] rounded-xl text-[var(--replay-off-white)] placeholder-[var(--replay-mid-grey)] focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 focus:outline-none transition-all text-lg"
                   autoFocus
                 />
               </div>
 
+              {/* Description Input */}
               <div>
-                <label className="block text-sm text-[var(--replay-mid-grey)] mb-2">
-                  Description (optional)
+                <label className="block text-sm font-medium text-[var(--replay-off-white)] mb-2">
+                  Description
+                  <span className="text-[var(--replay-mid-grey)] ml-1 font-normal">(optional)</span>
                 </label>
                 <textarea
                   value={newAlbumDescription}
                   onChange={(e) => setNewAlbumDescription(e.target.value)}
-                  placeholder="Describe your album..."
+                  placeholder="What's this album about?"
                   rows={3}
-                  className="w-full px-4 py-3 bg-[var(--replay-dark-grey)] border border-[var(--replay-border)] rounded-xl text-[var(--replay-off-white)] placeholder-[var(--replay-mid-grey)] focus:border-white/30 focus:outline-none transition-colors resize-none"
+                  className="w-full px-4 py-4 bg-[var(--replay-dark-grey)] border border-[var(--replay-border)] rounded-xl text-[var(--replay-off-white)] placeholder-[var(--replay-mid-grey)] focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 focus:outline-none transition-all resize-none"
                 />
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
+            {/* Footer Buttons - Fixed at bottom */}
+            <div className="flex gap-3 p-5 border-t border-[var(--replay-border)] flex-shrink-0 bg-[var(--replay-elevated)]">
               <button
                 onClick={() => {
                   setShowCreateModal(false);
@@ -489,16 +521,16 @@ export const AlbumsView = () => {
                   setNewAlbumDescription("");
                   setNewAlbumCover(null);
                 }}
-                className="flex-1 px-4 py-3 border border-[var(--replay-border)] text-[var(--replay-off-white)] rounded-xl hover:bg-white/5 transition-colors"
+                className="flex-1 px-4 py-4 border border-[var(--replay-border)] text-[var(--replay-off-white)] rounded-xl hover:bg-white/5 transition-colors font-medium"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateAlbum}
                 disabled={!newAlbumName.trim()}
-                className="flex-1 px-4 py-3 bg-[var(--replay-off-white)] text-[var(--replay-black)] font-semibold rounded-xl hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-xl hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-purple-500/25"
               >
-                Create
+                Create Album
               </button>
             </div>
           </div>

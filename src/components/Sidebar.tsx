@@ -146,8 +146,8 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
           </button>
         </div>
 
-        {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pb-safe">
+        {/* Scrollable Content Area - with extra padding for mobile to ensure projects visible */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pb-safe" style={{ WebkitOverflowScrolling: 'touch' }}>
           {/* Primary Navigation */}
           <nav className="pt-6">
             <NavItem
@@ -223,10 +223,17 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
                 <Plus size={18} />
               </button>
             </div>
-            <div className="space-y-1 pb-6">
-              {projects.map((project) => (
-                <ProjectItem key={project.name} name={project.name} songCount={project.songCount} />
-              ))}
+            <div className="space-y-1 pb-24 md:pb-6">
+              {projects.length === 0 ? (
+                <div className="px-6 py-4 text-center">
+                  <p className="text-sm text-[var(--replay-mid-grey)]">No projects yet</p>
+                  <p className="text-xs text-[var(--replay-mid-grey)]/70 mt-1">Create albums to see them here</p>
+                </div>
+              ) : (
+                projects.map((project) => (
+                  <ProjectItem key={project.name} name={project.name} songCount={project.songCount} />
+                ))
+              )}
             </div>
           </div>
         </div>

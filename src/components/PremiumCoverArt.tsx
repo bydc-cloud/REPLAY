@@ -87,11 +87,41 @@ export const PremiumCoverArt = ({
     );
   }
 
-  // For small sizes (sm, md), use the optimized MiniVisualizer - always visible, goes dark when paused
-  if (size === "sm" || size === "md") {
+  // For small sizes (sm, md) WITHOUT demoMode, use the optimized MiniVisualizer - always visible, goes dark when paused
+  // For demoMode (settings previews), use the actual PerformantVisualizer to show real visualizer styles
+  if ((size === "sm" || size === "md") && !effectiveDemoMode) {
     return (
       <div className={`${sizeClasses[size]} bg-gradient-to-br from-[#0a0a12] to-[#15151f] rounded-xl overflow-hidden flex items-center justify-center relative border border-white/10 shadow-lg`}>
         <MiniVisualizer isPlaying={isPlaying} demoMode={effectiveDemoMode} />
+      </div>
+    );
+  }
+
+  // For demoMode at small sizes, use scaled-down actual visualizer
+  if ((size === "sm" || size === "md") && effectiveDemoMode) {
+    return (
+      <div className={`${sizeClasses[size]} bg-gradient-to-br from-[#050508] via-[#0f0f15] to-[#050508] rounded-xl overflow-hidden flex items-center justify-center relative border border-white/10 shadow-lg`}>
+        {/* Dynamic ambient background glow */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: isPlaying
+              ? `radial-gradient(circle at center,
+                  rgba(139, 92, 246, 0.15) 0%,
+                  rgba(59, 130, 246, 0.08) 40%,
+                  transparent 70%
+                )`
+              : `radial-gradient(circle at center,
+                  rgba(232, 232, 232, 0.05) 0%,
+                  transparent 70%
+                )`,
+            animation: isPlaying ? 'pulse 2s ease-in-out infinite' : 'none',
+          }}
+        />
+        {/* Actual visualizer component for demo preview */}
+        <div className="absolute inset-0 flex items-center justify-center p-1">
+          <PerformantVisualizer isPlaying={isPlaying} variant={variant === "lyrics" ? "bars" : variant} size={size} audioElement={audioElement} />
+        </div>
       </div>
     );
   }
