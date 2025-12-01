@@ -70,6 +70,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const pendingPlayRef = useRef<Track | null>(null);
   const lastTimeUpdateRef = useRef<number>(0);
   const wasPlayingBeforeHiddenRef = useRef<boolean>(false);
+  const currentLoadIdRef = useRef<number>(0); // Track current loading request to prevent race conditions
 
   // Initialize audio element
   useEffect(() => {
@@ -442,6 +443,12 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const loadAndPlayTrack = async (track: Track) => {
     if (!audioRef.current) return;
 
+    // Generate unique ID for this load request to prevent race conditions
+    const loadId = ++currentLoadIdRef.current;
+
+    // Helper to check if this request is still the current one
+    const isStale = () => loadId !== currentLoadIdRef.current;
+
     // Mark as unlocked since this is being called from a user gesture (play button click)
     audioUnlockedRef.current = true;
 
@@ -454,6 +461,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       console.log("Loading track for playback:", {
         id: track.id,
         title: track.title,
+        loadId,
         hasFileUrl: !!track.fileUrl,
         fileUrlLength: track.fileUrl?.length || 0,
         hasAudio: track.hasAudio,
@@ -469,6 +477,13 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         // Also try to get audio via the context method which checks current tracks state
         console.log("Trying to get audio via getTrackAudio...");
         const contextAudio = await getTrackAudio(track.id);
+
+        // Check if this request is still current after async operation
+        if (isStale()) {
+          console.log(`Load request ${loadId} is stale, aborting (after getTrackAudio)`);
+          return;
+        }
+
         if (contextAudio && (contextAudio.startsWith('blob:') || contextAudio.startsWith('data:'))) {
           audioUrl = contextAudio;
           console.log("Using audio from getTrackAudio, length:", contextAudio.length);
@@ -493,6 +508,13 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
               console.log("Mobile: Fetching audio as blob from streaming endpoint...");
 
               const response = await fetch(streamUrl);
+
+              // Check if this request is still current after async fetch
+              if (isStale()) {
+                console.log(`Load request ${loadId} is stale, aborting (after mobile fetch)`);
+                return;
+              }
+
               if (response.ok) {
                 const blob = await response.blob();
                 audioUrl = URL.createObjectURL(blob);
@@ -510,6 +532,13 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
             console.log("Mobile: Falling back to base64 data URL...");
             try {
               audioUrl = await getTrackAudio(track.id);
+
+              // Check if this request is still current after async operation
+              if (isStale()) {
+                console.log(`Load request ${loadId} is stale, aborting (after mobile fallback)`);
+                return;
+              }
+
               if (audioUrl) {
                 console.log("Mobile: Using base64 data URL, length:", audioUrl.length);
               }
@@ -530,6 +559,13 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
             try {
               audioUrl = await getTrackAudio(track.id);
+
+              // Check if this request is still current after async operation
+              if (isStale()) {
+                console.log(`Load request ${loadId} is stale, aborting (after desktop fallback)`);
+                return;
+              }
+
               if (audioUrl) {
                 console.log("Desktop: Audio fetched, size:", audioUrl.length);
               }
@@ -599,6 +635,17 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         audio.addEventListener('loadeddata', onLoadedData, { once: true });
       });
 
+      // CRITICAL: Check if this request is still current after waiting for audio to load
+      // This is the most important check - prevents playing wrong track's audio
+      if (isStale()) {
+        console.log(`Load request ${loadId} is stale, aborting before play (track: "${track.title}")`);
+        // Stop and clear the audio element since we're not going to play this track
+        audioRef.current.pause();
+        audioRef.current.removeAttribute('src');
+        audioRef.current.load();
+        return;
+      }
+
       console.log("Audio ready, attempting to play...");
 
       // Resume AudioContext if suspended (required for mobile)
@@ -612,8 +659,15 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
+            // Final staleness check - if track changed while play() was processing
+            if (isStale()) {
+              console.log(`Load request ${loadId} became stale during play, stopping`);
+              audioRef.current?.pause();
+              return;
+            }
+
             // Playback started successfully
-            console.log("Playback started successfully");
+            console.log("Playback started successfully for:", track.title);
             setIsPlaying(true);
             incrementPlayCount(track.id);
 

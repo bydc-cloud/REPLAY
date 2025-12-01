@@ -4,5 +4,9 @@ nixPkgs = ["nodejs_20"]
 [phases.install]
 cmds = ["npm install"]
 
+# Explicitly skip build phase - this is an API server, not a frontend
+[phases.build]
+cmds = []
+
 [start]
 cmd = "node index.js"

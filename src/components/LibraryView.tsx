@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Music, Disc, Users, ListMusic, Plus, Upload, Loader2, Trash2, FolderOpen, Folder, ChevronLeft, Edit2, Check, X, Heart } from "lucide-react";
+import { Music, Disc, Users, ListMusic, Plus, Upload, Loader2, Trash2, FolderOpen, Folder, ChevronLeft, Edit2, Check, X, Heart, FolderUp } from "lucide-react";
 import { AlbumCard } from "./AlbumCard";
 import { SongCard } from "./SongCard";
 import { useMusicLibrary, Track, ProjectFolder } from "../contexts/MusicLibraryContext";
@@ -172,7 +172,9 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
   const [newFolderName, setNewFolderName] = useState("");
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [openFolderId, setOpenFolderId] = useState<string | null>(null);
+  const [showImportMenu, setShowImportMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const {
     tracks,
@@ -210,9 +212,22 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
   const handleImportClick = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setShowImportMenu(!showImportMenu);
+  };
+
+  const handleFileImportClick = () => {
+    setShowImportMenu(false);
     // Small delay helps with iOS Safari
     setTimeout(() => {
       fileInputRef.current?.click();
+    }, 10);
+  };
+
+  const handleFolderImportClick = () => {
+    setShowImportMenu(false);
+    // Small delay helps with iOS Safari
+    setTimeout(() => {
+      folderInputRef.current?.click();
     }, 10);
   };
 
@@ -299,30 +314,78 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
         className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0"
         style={{ clip: 'rect(0, 0, 0, 0)' }}
       />
+      {/* Hidden folder input for bulk library import */}
+      <input
+        type="file"
+        ref={folderInputRef}
+        onChange={handleFileChange}
+        accept="audio/*,.mp3,.m4a,.wav,.ogg,.flac,.aac,.wma"
+        multiple
+        // @ts-expect-error webkitdirectory is not in standard types
+        webkitdirectory=""
+        directory=""
+        className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0"
+        style={{ clip: 'rect(0, 0, 0, 0)' }}
+      />
 
       <div className="flex items-center justify-between mb-6 md:mb-8">
         <h1 className="text-3xl md:text-4xl font-black text-[var(--replay-off-white)]">
           {showLikedOnly ? "Liked Songs" : "Your Library"}
         </h1>
 
-        <button
-          onClick={handleImportClick}
-          onTouchEnd={handleImportClick}
-          disabled={isImporting}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--replay-off-white)] text-[var(--replay-black)] font-semibold rounded-full hover:bg-white/90 transition-all disabled:opacity-50 touch-manipulation"
-        >
-          {isImporting ? (
+        <div className="relative">
+          <button
+            onClick={handleImportClick}
+            onTouchEnd={handleImportClick}
+            disabled={isImporting}
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--replay-off-white)] text-[var(--replay-black)] font-semibold rounded-full hover:bg-white/90 transition-all disabled:opacity-50 touch-manipulation"
+          >
+            {isImporting ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                Importing...
+              </>
+            ) : (
+              <>
+                <Upload size={18} />
+                Import
+              </>
+            )}
+          </button>
+
+          {/* Import dropdown menu */}
+          {showImportMenu && !isImporting && (
             <>
-              <Loader2 size={18} className="animate-spin" />
-              Importing...
-            </>
-          ) : (
-            <>
-              <Upload size={18} />
-              Import
+              {/* Backdrop to close menu */}
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowImportMenu(false)}
+              />
+              <div className="absolute right-0 top-full mt-2 w-56 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden">
+                <button
+                  onClick={handleFileImportClick}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/10 transition-colors text-[var(--replay-off-white)]"
+                >
+                  <Upload size={18} className="text-[var(--replay-mid-grey)]" />
+                  <div>
+                    <div className="font-medium">Import Files</div>
+                    <div className="text-xs text-[var(--replay-mid-grey)]">Select individual songs</div>
+                  </div>
+                </button>
+                <button
+                  onClick={handleFolderImportClick}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/10 transition-colors text-[var(--replay-off-white)] border-t border-white/5"
+                >
+                  <FolderUp size={18} className="text-[var(--replay-mid-grey)]" />
+                  <div>
+                    <div className="font-medium">Import Folder</div>
+                    <div className="text-xs text-[var(--replay-mid-grey)]">Import entire music library</div>
+                  </div>
+                </button>
+              </div>
             </>
           )}
-        </button>
+        </div>
       </div>
 
       {/* Import Progress - Modern animated UI */}
@@ -437,14 +500,22 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
               : "Import your music files to get started. We support MP3, M4A, WAV, FLAC, and more."}
           </p>
           {!showLikedOnly && (
-            <button
-              onClick={handleImportClick}
-              onTouchEnd={handleImportClick}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--replay-off-white)] text-[var(--replay-black)] font-semibold rounded-full hover:bg-white/90 transition-all touch-manipulation"
-            >
-              <Upload size={20} />
-              Import Music
-            </button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                onClick={handleFileImportClick}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--replay-off-white)] text-[var(--replay-black)] font-semibold rounded-full hover:bg-white/90 transition-all touch-manipulation"
+              >
+                <Upload size={20} />
+                Import Files
+              </button>
+              <button
+                onClick={handleFolderImportClick}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--replay-elevated)] text-[var(--replay-off-white)] font-semibold rounded-full hover:bg-white/10 transition-all touch-manipulation border border-white/10"
+              >
+                <FolderUp size={20} />
+                Import Folder
+              </button>
+            </div>
           )}
         </div>
       )}
