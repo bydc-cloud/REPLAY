@@ -440,9 +440,16 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
 
           {/* Current file indicator */}
           {importStats.total > 0 && importStats.completed < importStats.total && (
-            <p className="mt-3 text-xs text-[var(--replay-mid-grey)] truncate">
-              Processing batch {Math.min(Math.ceil((importStats.completed + 1) / 3), Math.ceil(importStats.total / 3))} of {Math.ceil(importStats.total / 3)}...
-            </p>
+            <div className="mt-3">
+              {importStats.currentFileName && (
+                <p className="text-xs text-[var(--replay-off-white)] truncate mb-1">
+                  {importStats.currentFileName.replace(/\.[^/.]+$/, "")}
+                </p>
+              )}
+              <p className="text-xs text-[var(--replay-mid-grey)]">
+                {importStats.completed + 1} of {importStats.total} • {Math.round((importStats.completed / importStats.total) * 100)}% complete
+              </p>
+            </div>
           )}
 
           <style>{`

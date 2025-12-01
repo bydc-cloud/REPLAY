@@ -96,6 +96,13 @@ interface ImportQueueItem {
   error?: string;
 }
 
+// Detect mobile for import optimization
+const isMobileDevice = () => {
+  if (typeof window === 'undefined') return false;
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+    (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+};
+
 interface MusicLibraryContextType {
   tracks: Track[];
   albums: Album[];
@@ -108,7 +115,7 @@ interface MusicLibraryContextType {
   isImporting: boolean;
   importProgress: number;
   importQueue: ImportQueueItem[];
-  importStats: { total: number; completed: number; failed: number };
+  importStats: { total: number; completed: number; failed: number; currentFileName?: string };
   addTrack: (track: Track) => void;
   removeTrack: (trackId: string) => Promise<void>;
   toggleLike: (trackId: string) => void;
@@ -745,33 +752,72 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
   const importFiles = async (files: FileList) => {
     if (importInProgressRef.current) {
       console.log('Import already in progress, adding to queue...');
+      showToast('Import already in progress', 'warning');
+      return;
     }
 
     importInProgressRef.current = true;
     setIsImporting(true);
 
-    const totalFiles = files.length;
+    // Filter to only audio files
+    const audioFiles = Array.from(files).filter(file => {
+      const isAudio = file.type.startsWith('audio/') ||
+        /\.(mp3|m4a|wav|ogg|flac|aac|wma)$/i.test(file.name);
+      return isAudio;
+    });
+
+    const totalFiles = audioFiles.length;
+
+    if (totalFiles === 0) {
+      showToast('No audio files found', 'warning');
+      setIsImporting(false);
+      importInProgressRef.current = false;
+      return;
+    }
+
+    // Show initial toast for large imports
+    if (totalFiles > 10) {
+      showToast(`Starting import of ${totalFiles} songs...`, 'info', 3000);
+    }
 
     // Initialize queue with all files
-    const newQueueItems: ImportQueueItem[] = Array.from(files).map(file => ({
+    const newQueueItems: ImportQueueItem[] = audioFiles.map(file => ({
       file,
       status: 'pending' as const,
       progress: 0
     }));
 
     setImportQueue(newQueueItems);
-    setImportStats({ total: totalFiles, completed: 0, failed: 0 });
+    setImportStats({ total: totalFiles, completed: 0, failed: 0, currentFileName: audioFiles[0]?.name });
     setImportProgress(0);
 
     const newTracks: Track[] = [];
     let completed = 0;
     let failed = 0;
 
-    // Process files in batches of 3 for better performance
-    const BATCH_SIZE = 3;
+    // On mobile, process ONE file at a time to prevent memory issues
+    // On desktop, process in small batches
+    const isMobile = isMobileDevice();
+    const BATCH_SIZE = isMobile ? 1 : 3;
+
+    console.log(`Starting import of ${totalFiles} files, batch size: ${BATCH_SIZE}, mobile: ${isMobile}`);
 
     for (let i = 0; i < totalFiles; i += BATCH_SIZE) {
       const batch = newQueueItems.slice(i, Math.min(i + BATCH_SIZE, totalFiles));
+
+      // Update current file name for display
+      const currentFile = batch[0]?.file;
+      if (currentFile) {
+        setImportStats(prev => ({ ...prev, currentFileName: currentFile.name }));
+      }
+
+      // On mobile, add a small delay between files to let the UI breathe
+      // and prevent memory pressure
+      if (isMobile && i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // Process batch (single file on mobile, up to 3 on desktop)
       const batchPromises = batch.map((item, batchIndex) =>
         processImportItem(item.file, i + batchIndex)
       );
@@ -787,17 +833,38 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
         }
       });
 
-      setImportStats({ total: totalFiles, completed, failed });
+      setImportStats(prev => ({ ...prev, total: totalFiles, completed, failed }));
       setImportProgress(Math.round(((completed + failed) / totalFiles) * 100));
+
+      // On mobile, periodically add tracks to state to show progress
+      // and free up memory from completed tracks
+      if (isMobile && newTracks.length >= 5 && newTracks.length % 5 === 0) {
+        const tracksToAdd = newTracks.splice(0, newTracks.length);
+        setTracks(prev => [...prev, ...tracksToAdd]);
+        console.log(`Added ${tracksToAdd.length} tracks to library (progressive)`);
+
+        // Allow garbage collection
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      // Show progress toast for large imports every 25 files
+      if (totalFiles > 25 && (completed + failed) % 25 === 0 && (completed + failed) < totalFiles) {
+        console.log(`Import progress: ${completed + failed}/${totalFiles}`);
+      }
     }
 
+    // Add any remaining tracks
     if (newTracks.length > 0) {
-      // Add to local state
       setTracks(prev => [...prev, ...newTracks]);
-      console.log(`Imported ${newTracks.length} tracks`);
+      console.log(`Added final ${newTracks.length} tracks to library`);
+    }
 
-      // Queue tracks for background BPM/key analysis
-      const tracksWithAudio = newTracks.filter(t => t.fileUrl && t.fileUrl.startsWith('data:'));
+    console.log(`Import complete: ${completed} successful, ${failed} failed`);
+
+    // Queue tracks for background BPM/key analysis (skip on mobile for large imports)
+    if (!isMobile || completed < 20) {
+      const allTracks = [...newTracks];
+      const tracksWithAudio = allTracks.filter(t => t.fileUrl && t.fileUrl.startsWith('data:'));
       if (tracksWithAudio.length > 0) {
         pendingAnalysisRef.current = [...pendingAnalysisRef.current, ...tracksWithAudio.map(t => t.id)];
         console.log(`Queued ${tracksWithAudio.length} tracks for BPM/key analysis`);
@@ -818,7 +885,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       setImportQueue([]);
       setIsImporting(false);
       setImportProgress(0);
-      setImportStats({ total: 0, completed: 0, failed: 0 });
+      setImportStats({ total: 0, completed: 0, failed: 0, currentFileName: undefined });
       importInProgressRef.current = false;
     }, 2000);
   };
