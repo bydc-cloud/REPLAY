@@ -2,6 +2,7 @@ import { Menu } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { PlayerBar } from "./components/PlayerBar";
+import { MobileBottomNav } from "./components/MobileBottomNav";
 import { HomeView } from "./components/HomeView";
 import { SearchView } from "./components/SearchView";
 import { LibraryView } from "./components/LibraryView";
@@ -190,7 +191,7 @@ function AppContent() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto overflow-x-hidden pb-32 md:pb-28 pt-[60px] md:pt-0 relative scroll-smooth" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+      <main className="flex-1 overflow-y-auto overflow-x-hidden pb-40 md:pb-28 pt-[60px] md:pt-0 relative scroll-smooth" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
 
         {/* Mobile Header - Glass Effect */}
         <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-[#0a0a0a]/90 via-[#111111]/85 to-[#1a1a1a]/80 backdrop-blur-2xl border-b border-white/[0.08] shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
@@ -266,6 +267,9 @@ function AppContent() {
         onQueueClick={() => setQueueDrawerOpen(true)}
         onMiniPlayerToggle={() => setMiniPlayerOpen(true)}
       />
+
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Queue Drawer */}
       <QueueDrawer isOpen={queueDrawerOpen} onClose={() => setQueueDrawerOpen(false)} />

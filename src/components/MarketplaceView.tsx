@@ -20,7 +20,6 @@ import {
   UploadCloud,
   BarChart3,
 } from "lucide-react";
-import { useSettings } from "../contexts/SettingsContext";
 import { useAuth } from "../contexts/PostgresAuthContext";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
 import { PremiumCoverArt } from "./PremiumCoverArt";
@@ -60,7 +59,6 @@ interface ProducerProfile {
 const API_URL = import.meta.env.VITE_API_URL || "https://sublime-light-production-53e3.up.railway.app";
 
 export const MarketplaceView = () => {
-  const { developerMode } = useSettings();
   const { token } = useAuth();
   const { isPlaying, togglePlayPause } = useAudioPlayer();
 
@@ -191,31 +189,7 @@ export const MarketplaceView = () => {
       beat.genre?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // If developer mode is off, show coming soon
-  if (!developerMode) {
-    return (
-      <div className="p-4 md:p-8 pt-4 md:pt-8 pb-32 md:pb-24">
-        <div className="max-w-2xl mx-auto text-center py-16">
-          <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-3xl flex items-center justify-center">
-            <Store className="text-purple-400" size={48} />
-          </div>
-          <h1 className="text-3xl font-black text-[var(--replay-off-white)] mb-4">
-            Producer Marketplace
-          </h1>
-          <p className="text-[var(--replay-mid-grey)] mb-8">
-            Enable Developer Mode in Settings to access the Producer Marketplace and sell your beats.
-          </p>
-          <div className="inline-flex items-center gap-2 text-sm text-purple-400">
-            <span>Settings</span>
-            <span>→</span>
-            <span>Developer Mode</span>
-            <span>→</span>
-            <span>Enable</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Marketplace is now available to all users
 
   return (
     <div className="p-4 md:p-8 pt-4 md:pt-8 pb-32 md:pb-24">
