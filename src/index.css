@@ -260,46 +260,101 @@ html {
 }
 
 /* ========================================
-   MP3 PLAYER THEME V4 - MODERN MATRIX BLACK/GREEN
-   Sleek, minimal, modern design with neon green accents
-   Mobile-first with smooth animations
+   MP3 PLAYER THEME V5 - PREMIUM HARDWARE
+   Realistic high-end portable audio player aesthetic
+   Metallic silver/gray body with LCD green display
+   Premium polish, smooth animations, mobile-first
+   Inspired by Astell&Kern, Sony Walkman, iPod Classic
    ======================================== */
 
-/* === SMOOTH ANIMATIONS === */
-@keyframes neon-pulse {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 1; }
+/* === PREMIUM ANIMATIONS === */
+@keyframes lcd-flicker {
+  0%, 100% { opacity: 1; }
+  98% { opacity: 1; }
+  99% { opacity: 0.97; }
 }
 
-@keyframes subtle-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 136, 0.15); }
-  50% { box-shadow: 0 0 30px rgba(0, 255, 136, 0.25); }
+@keyframes lcd-glow {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 30px rgba(0, 255, 136, 0.08),
+      0 0 20px rgba(0, 255, 136, 0.1);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 40px rgba(0, 255, 136, 0.12),
+      0 0 30px rgba(0, 255, 136, 0.15);
+  }
 }
 
-@keyframes bar-bounce {
-  0%, 100% { transform: scaleY(1); }
-  50% { transform: scaleY(1.1); }
+@keyframes button-press {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(2px); }
+  100% { transform: translateY(0); }
 }
 
-/* === ROOT VARIABLES === */
+@keyframes led-blink {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(0, 255, 136, 0.8); }
+  50% { opacity: 0.6; box-shadow: 0 0 4px rgba(0, 255, 136, 0.4); }
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+/* === ROOT VARIABLES - PREMIUM HARDWARE === */
 [data-theme="mp3player"] {
-  --mp3-bg: #0a0a0a;
-  --mp3-surface: #111111;
-  --mp3-elevated: #1a1a1a;
-  --mp3-border: #222222;
-  --mp3-green: #00ff88;
-  --mp3-green-dim: #00cc6a;
-  --mp3-green-glow: rgba(0, 255, 136, 0.4);
-  --mp3-text: #ffffff;
-  --mp3-text-secondary: #888888;
-  --mp3-radius: 16px;
-  --mp3-radius-sm: 12px;
-  --mp3-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Device body - Premium metallic silver/gunmetal */
+  --mp3-body-dark: #1a1d22;
+  --mp3-body-mid: #2a2f36;
+  --mp3-body-light: #3a4148;
+  --mp3-body-highlight: #4a5058;
+  --mp3-body-shine: #5a6068;
+
+  /* LCD Screen - Classic green phosphor */
+  --mp3-lcd-bg: #0a1810;
+  --mp3-lcd-active: #00ff88;
+  --mp3-lcd-dim: #00aa5c;
+  --mp3-lcd-faint: #005530;
+  --mp3-lcd-glow: rgba(0, 255, 136, 0.25);
+  --mp3-lcd-scanline: rgba(0, 0, 0, 0.03);
+
+  /* Screen bezel */
+  --mp3-bezel: #121518;
+  --mp3-bezel-inner: #0a0c0e;
+
+  /* Button styling */
+  --mp3-btn-surface: linear-gradient(180deg, #4a5058 0%, #2a2f36 50%, #3a4148 100%);
+  --mp3-btn-pressed: linear-gradient(180deg, #2a2f36 0%, #1a1d22 50%, #2a2f36 100%);
+  --mp3-btn-border: #555b63;
+  --mp3-btn-shadow: rgba(0, 0, 0, 0.5);
+
+  /* Text */
+  --mp3-text-primary: #00ff88;
+  --mp3-text-secondary: #00cc6a;
+  --mp3-text-dim: #008844;
+
+  /* Sizing */
+  --mp3-radius-device: 20px;
+  --mp3-radius-screen: 12px;
+  --mp3-radius-button: 50%;
+  --mp3-radius-rect-btn: 8px;
+
+  /* Transitions */
+  --mp3-transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --mp3-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --mp3-transition-slow: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* === BODY === */
+/* === BODY - DEVICE ENCLOSURE === */
 [data-theme="mp3player"] body {
-  background: var(--mp3-bg);
+  background: linear-gradient(145deg,
+    var(--mp3-body-mid) 0%,
+    var(--mp3-body-dark) 30%,
+    var(--mp3-body-dark) 70%,
+    var(--mp3-body-mid) 100%
+  );
   overflow-x: hidden;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch;
@@ -307,23 +362,50 @@ html {
 
 /* === ROOT CONTAINER === */
 [data-theme="mp3player"] #root {
-  background: var(--mp3-bg);
+  background: transparent;
   min-height: 100vh;
   position: relative;
   overflow-y: auto !important;
   overflow-x: hidden;
 }
 
-/* === MAIN CONTENT === */
+/* === MAIN CONTENT - LCD SCREEN AREA === */
 [data-theme="mp3player"] main {
-  background: var(--mp3-bg);
+  background: var(--mp3-lcd-bg);
+  border-radius: var(--mp3-radius-screen);
+  margin: 8px;
   position: relative;
-  overflow-y: auto !important;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
+  animation: lcd-glow 4s ease-in-out infinite;
+
+  /* LCD screen effect */
+  box-shadow:
+    inset 0 2px 10px rgba(0, 0, 0, 0.5),
+    inset 0 0 30px rgba(0, 255, 136, 0.05),
+    0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
-/* === TYPOGRAPHY === */
+/* Subtle scanline overlay for authentic LCD feel */
+[data-theme="mp3player"] main::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    var(--mp3-lcd-scanline) 2px,
+    var(--mp3-lcd-scanline) 4px
+  );
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.5;
+}
+
+/* === TYPOGRAPHY - LCD DISPLAY FONT === */
 [data-theme="mp3player"] h1,
 [data-theme="mp3player"] h2,
 [data-theme="mp3player"] h3,
@@ -331,311 +413,434 @@ html {
 [data-theme="mp3player"] .font-semibold,
 [data-theme="mp3player"] .font-bold,
 [data-theme="mp3player"] .font-black {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: 'Orbitron', 'SF Mono', monospace !important;
   font-weight: 600 !important;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
-/* Primary text - Clean white with subtle green tint */
+/* Primary LCD text */
 [data-theme="mp3player"] .text-\[var\(--replay-off-white\)\],
 [data-theme="mp3player"] h1, [data-theme="mp3player"] h2,
 [data-theme="mp3player"] h3, [data-theme="mp3player"] h4 {
-  color: var(--mp3-text) !important;
-  text-shadow: none;
+  color: var(--mp3-text-primary) !important;
+  text-shadow:
+    0 0 10px var(--mp3-lcd-glow),
+    0 0 20px rgba(0, 255, 136, 0.3);
+  animation: lcd-flicker 10s linear infinite;
 }
 
-/* Accent headings - Neon green */
+/* Main title - Brighter glow */
 [data-theme="mp3player"] .font-black.tracking-tight {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-  font-weight: 800 !important;
-  letter-spacing: -0.03em !important;
-  color: var(--mp3-green) !important;
-  text-shadow: 0 0 20px var(--mp3-green-glow);
+  font-family: 'Orbitron', monospace !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em !important;
+  font-size: 0.9em;
+  color: var(--mp3-text-primary) !important;
+  text-shadow:
+    0 0 15px var(--mp3-lcd-glow),
+    0 0 30px rgba(0, 255, 136, 0.4),
+    0 0 45px rgba(0, 255, 136, 0.2);
 }
 
-/* Secondary text */
+/* Secondary text - Dimmer LCD segments */
 [data-theme="mp3player"] .text-\[var\(--replay-mid-grey\)\],
 [data-theme="mp3player"] .text-\[var\(--replay-light-grey\)\],
 [data-theme="mp3player"] p {
   color: var(--mp3-text-secondary) !important;
-  text-shadow: none;
-  font-family: 'Inter', -apple-system, sans-serif;
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 1.1em;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 8px rgba(0, 255, 136, 0.2);
 }
 
-/* Time display */
+/* Time/Duration display - Seven-segment style */
 [data-theme="mp3player"] .tabular-nums {
-  font-family: 'SF Mono', 'Fira Code', monospace !important;
-  font-size: 1em;
-  letter-spacing: 0.5px;
-  color: var(--mp3-green) !important;
-  text-shadow: 0 0 10px var(--mp3-green-glow);
+  font-family: 'Orbitron', 'SF Mono', monospace !important;
+  font-size: 1.1em;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  color: var(--mp3-text-primary) !important;
+  text-shadow:
+    0 0 12px var(--mp3-lcd-glow),
+    0 0 25px rgba(0, 255, 136, 0.3);
 }
 
-/* === BUTTONS - MODERN GLASS MORPHISM === */
+/* === BUTTONS - PHYSICAL HARDWARE BUTTONS === */
 [data-theme="mp3player"] button {
-  background: var(--mp3-elevated) !important;
-  border: 1px solid var(--mp3-border) !important;
-  border-radius: var(--mp3-radius-sm) !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  transition: var(--mp3-transition) !important;
+  background: var(--mp3-btn-surface) !important;
+  border: 1px solid var(--mp3-btn-border) !important;
+  border-radius: var(--mp3-radius-rect-btn) !important;
+  box-shadow:
+    0 3px 0 var(--mp3-body-dark),
+    0 4px 8px var(--mp3-btn-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: var(--mp3-transition-fast) !important;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
+/* Metallic shine on buttons */
 [data-theme="mp3player"] button::before {
   content: '';
   position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 50%);
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  border-radius: var(--mp3-radius-rect-btn) var(--mp3-radius-rect-btn) 0 0;
   pointer-events: none;
 }
 
 [data-theme="mp3player"] button:hover {
-  background: var(--mp3-border) !important;
-  border-color: var(--mp3-green-dim) !important;
-  box-shadow: 0 0 20px rgba(0, 255, 136, 0.15);
-  transform: translateY(-1px);
+  background: var(--mp3-btn-surface) !important;
+  border-color: var(--mp3-lcd-dim) !important;
+  box-shadow:
+    0 3px 0 var(--mp3-body-dark),
+    0 4px 12px var(--mp3-btn-shadow),
+    0 0 20px rgba(0, 255, 136, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transform: translateY(0);
 }
 
 [data-theme="mp3player"] button:active {
-  transform: translateY(0) scale(0.98) !important;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4) !important;
+  background: var(--mp3-btn-pressed) !important;
+  box-shadow:
+    0 1px 0 var(--mp3-body-dark),
+    0 2px 4px var(--mp3-btn-shadow),
+    inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  transform: translateY(2px) !important;
 }
 
-/* Main play button - Glowing green accent */
+/* Main play button - Premium circular with LED ring */
 [data-theme="mp3player"] button.bg-\[var\(--replay-off-white\)\],
 [data-theme="mp3player"] button[class*="bg-white"],
 [data-theme="mp3player"] button[class*="from-\[var(--replay-off-white)"] {
-  background: linear-gradient(135deg, var(--mp3-green) 0%, var(--mp3-green-dim) 100%) !important;
-  border: none !important;
+  background: linear-gradient(180deg,
+    #4a5058 0%,
+    #2a2f36 40%,
+    #1a1d22 60%,
+    #2a2f36 100%
+  ) !important;
+  border: 3px solid var(--mp3-lcd-dim) !important;
+  border-radius: 50% !important;
   box-shadow:
-    0 4px 20px rgba(0, 255, 136, 0.3),
-    0 0 40px rgba(0, 255, 136, 0.15);
-  animation: subtle-glow 3s ease-in-out infinite;
+    0 4px 0 var(--mp3-body-dark),
+    0 6px 15px rgba(0, 0, 0, 0.5),
+    0 0 25px rgba(0, 255, 136, 0.2),
+    inset 0 2px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+  animation: none;
 }
 
 [data-theme="mp3player"] button.bg-\[var\(--replay-off-white\)\]:hover,
 [data-theme="mp3player"] button[class*="bg-white"]:hover {
+  border-color: var(--mp3-lcd-active) !important;
   box-shadow:
-    0 6px 30px rgba(0, 255, 136, 0.4),
-    0 0 60px rgba(0, 255, 136, 0.25);
-  transform: translateY(-2px) scale(1.02);
+    0 4px 0 var(--mp3-body-dark),
+    0 6px 20px rgba(0, 0, 0, 0.5),
+    0 0 35px rgba(0, 255, 136, 0.35),
+    inset 0 2px 0 rgba(255, 255, 255, 0.15);
+  transform: translateY(0);
 }
 
-/* Button icons */
+[data-theme="mp3player"] button.bg-\[var\(--replay-off-white\)\]:active,
+[data-theme="mp3player"] button[class*="bg-white"]:active {
+  box-shadow:
+    0 1px 0 var(--mp3-body-dark),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(0, 255, 136, 0.25),
+    inset 0 3px 6px rgba(0, 0, 0, 0.4);
+  transform: translateY(3px) !important;
+}
+
+/* Button icons - LCD green */
 [data-theme="mp3player"] button svg {
-  color: var(--mp3-green) !important;
-  filter: drop-shadow(0 0 6px var(--mp3-green-glow));
-  transition: var(--mp3-transition);
+  color: var(--mp3-text-primary) !important;
+  filter: drop-shadow(0 0 6px var(--mp3-lcd-glow));
+  transition: var(--mp3-transition-fast);
 }
 
 [data-theme="mp3player"] button.bg-\[var\(--replay-off-white\)\] svg,
 [data-theme="mp3player"] button[class*="bg-white"] svg {
-  color: var(--mp3-bg) !important;
-  filter: none;
+  color: var(--mp3-text-primary) !important;
+  filter: drop-shadow(0 0 10px var(--mp3-lcd-glow));
 }
 
-/* === ELEVATED CONTAINERS === */
+/* === ELEVATED CONTAINERS - SCREEN PANELS === */
 [data-theme="mp3player"] .bg-\[var\(--replay-elevated\)\],
 [data-theme="mp3player"] .bg-\[var\(--replay-dark-grey\)\] {
-  background: var(--mp3-surface) !important;
-  border: 1px solid var(--mp3-border) !important;
-  border-radius: var(--mp3-radius-sm) !important;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+  background: rgba(0, 20, 12, 0.6) !important;
+  border: 1px solid rgba(0, 255, 136, 0.15) !important;
+  border-radius: var(--mp3-radius-screen) !important;
+  box-shadow:
+    inset 0 0 20px rgba(0, 255, 136, 0.03),
+    0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
-/* === PROGRESS BAR - SLEEK MODERN === */
+/* === PROGRESS BAR - SEGMENTED LCD STYLE === */
 [data-theme="mp3player"] input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   background: transparent !important;
   cursor: pointer;
+  height: 24px;
 }
 
 [data-theme="mp3player"] input[type="range"]::-webkit-slider-runnable-track {
-  height: 6px;
-  background: var(--mp3-border);
-  border-radius: 3px;
-  border: none;
+  height: 8px;
+  background: linear-gradient(90deg,
+    var(--mp3-lcd-faint) 0%,
+    var(--mp3-lcd-faint) 100%
+  );
+  border-radius: 2px;
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 [data-theme="mp3player"] input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  background: var(--mp3-green);
-  border: none;
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(180deg,
+    var(--mp3-body-highlight) 0%,
+    var(--mp3-body-mid) 50%,
+    var(--mp3-body-dark) 100%
+  );
+  border: 2px solid var(--mp3-lcd-dim);
   border-radius: 50%;
-  margin-top: -5px;
-  box-shadow: 0 0 15px var(--mp3-green-glow);
-  transition: var(--mp3-transition);
+  margin-top: -7px;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.4),
+    0 0 15px rgba(0, 255, 136, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: var(--mp3-transition-fast);
 }
 
 [data-theme="mp3player"] input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
-  box-shadow: 0 0 25px var(--mp3-green-glow);
+  border-color: var(--mp3-lcd-active);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.5),
+    0 0 25px rgba(0, 255, 136, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transform: scale(1.1);
 }
 
 /* Firefox */
 [data-theme="mp3player"] input[type="range"]::-moz-range-track {
-  height: 6px;
-  background: var(--mp3-border);
-  border-radius: 3px;
+  height: 8px;
+  background: var(--mp3-lcd-faint);
+  border-radius: 2px;
+  border: 1px solid rgba(0, 255, 136, 0.2);
 }
 
 [data-theme="mp3player"] input[type="range"]::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  background: var(--mp3-green);
-  border: none;
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(180deg,
+    var(--mp3-body-highlight) 0%,
+    var(--mp3-body-mid) 50%,
+    var(--mp3-body-dark) 100%
+  );
+  border: 2px solid var(--mp3-lcd-dim);
   border-radius: 50%;
-  box-shadow: 0 0 15px var(--mp3-green-glow);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
-/* === TRACK LIST ITEMS === */
+/* === TRACK LIST ITEMS - LCD MENU STYLE === */
 [data-theme="mp3player"] [class*="hover:bg-white/5"],
 [data-theme="mp3player"] [class*="hover:bg-\[var(--replay-elevated)"] {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+  border-bottom: 1px solid rgba(0, 255, 136, 0.08) !important;
   transition: var(--mp3-transition) !important;
-  border-radius: var(--mp3-radius-sm);
-  margin: 2px 0;
+  border-radius: 4px;
+  margin: 1px 0;
+  padding-left: 8px;
 }
 
 [data-theme="mp3player"] [class*="hover:bg-white/5"]:hover,
 [data-theme="mp3player"] [class*="hover:bg-\[var(--replay-elevated)"]:hover {
-  background: rgba(0, 255, 136, 0.05) !important;
-  border-left: 3px solid var(--mp3-green) !important;
-  padding-left: calc(1rem - 3px) !important;
-  box-shadow: 0 0 20px rgba(0, 255, 136, 0.08);
+  background: rgba(0, 255, 136, 0.08) !important;
+  border-left: 3px solid var(--mp3-lcd-active) !important;
+  padding-left: 5px !important;
+  box-shadow:
+    inset 0 0 20px rgba(0, 255, 136, 0.05),
+    0 0 10px rgba(0, 255, 136, 0.1);
 }
 
-/* === MOBILE PLAYER BAR === */
+/* === MOBILE PLAYER BAR - BOTTOM CONTROL PANEL === */
 [data-theme="mp3player"] .fixed.bottom-0 {
-  background: rgba(10, 10, 10, 0.95) !important;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid var(--mp3-border) !important;
-  border-radius: 20px 20px 0 0;
-  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(180deg,
+    var(--mp3-body-light) 0%,
+    var(--mp3-body-mid) 20%,
+    var(--mp3-body-dark) 100%
+  ) !important;
+  backdrop-filter: none;
+  border-top: 2px solid var(--mp3-body-highlight) !important;
+  border-radius: 16px 16px 0 0;
+  box-shadow:
+    0 -4px 20px rgba(0, 0, 0, 0.5),
+    inset 0 2px 0 rgba(255, 255, 255, 0.05);
 }
 
-/* Mobile progress bar */
+/* Mobile progress bar - LED strip */
 [data-theme="mp3player"] .fixed.bottom-0 .absolute.top-0 {
-  background: var(--mp3-border);
-  height: 3px !important;
+  background: var(--mp3-body-dark);
+  height: 4px !important;
   border-radius: 0;
+  overflow: hidden;
 }
 
 [data-theme="mp3player"] .fixed.bottom-0 .absolute.top-0 > div {
-  background: linear-gradient(90deg, var(--mp3-green-dim) 0%, var(--mp3-green) 100%) !important;
-  box-shadow: 0 0 15px var(--mp3-green-glow);
-  border-radius: 0 2px 2px 0;
+  background: linear-gradient(90deg,
+    var(--mp3-lcd-dim) 0%,
+    var(--mp3-lcd-active) 100%
+  ) !important;
+  box-shadow:
+    0 0 10px var(--mp3-lcd-glow),
+    0 0 20px rgba(0, 255, 136, 0.3);
+  border-radius: 0;
 }
 
-/* === MOBILE HEADER === */
+/* === MOBILE HEADER - TOP BEZEL === */
 [data-theme="mp3player"] .md\\:hidden.fixed.top-0 {
-  background: rgba(10, 10, 10, 0.9) !important;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--mp3-border) !important;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+  background: linear-gradient(180deg,
+    var(--mp3-body-dark) 0%,
+    var(--mp3-body-mid) 80%,
+    var(--mp3-body-light) 100%
+  ) !important;
+  backdrop-filter: none;
+  border-bottom: 2px solid var(--mp3-body-highlight) !important;
+  box-shadow:
+    0 4px 15px rgba(0, 0, 0, 0.4),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
 }
 
-/* === ALBUM ART - MODERN ROUNDED === */
+/* === ALBUM ART - SCREEN WINDOW === */
 [data-theme="mp3player"] .rounded-xl,
 [data-theme="mp3player"] .rounded-2xl,
 [data-theme="mp3player"] .rounded-3xl {
-  border-radius: var(--mp3-radius) !important;
+  border-radius: 8px !important;
 }
 
 [data-theme="mp3player"] .rounded-lg {
-  border-radius: var(--mp3-radius-sm) !important;
+  border-radius: 6px !important;
 }
 
 [data-theme="mp3player"] .aspect-square {
-  border: none !important;
+  border: 2px solid rgba(0, 255, 136, 0.2) !important;
   box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.5),
-    0 0 40px rgba(0, 255, 136, 0.05);
+    inset 0 0 30px rgba(0, 255, 136, 0.05),
+    0 4px 20px rgba(0, 0, 0, 0.4),
+    0 0 30px rgba(0, 255, 136, 0.08);
   overflow: hidden;
-  border-radius: var(--mp3-radius) !important;
+  border-radius: 8px !important;
 }
 
-/* === SCROLLBAR - MINIMAL === */
+/* === SCROLLBAR - METALLIC === */
 [data-theme="mp3player"] ::-webkit-scrollbar {
-  width: 6px;
-  background: transparent;
+  width: 8px;
+  background: var(--mp3-body-dark);
+  border-radius: 4px;
 }
 
 [data-theme="mp3player"] ::-webkit-scrollbar-thumb {
-  background: var(--mp3-border);
-  border-radius: 3px;
+  background: linear-gradient(180deg,
+    var(--mp3-body-highlight) 0%,
+    var(--mp3-body-mid) 50%,
+    var(--mp3-body-light) 100%
+  );
+  border-radius: 4px;
+  border: 1px solid var(--mp3-body-highlight);
 }
 
 [data-theme="mp3player"] ::-webkit-scrollbar-thumb:hover {
-  background: var(--mp3-green-dim);
+  background: linear-gradient(180deg,
+    var(--mp3-body-shine) 0%,
+    var(--mp3-body-highlight) 50%,
+    var(--mp3-body-light) 100%
+  );
+  border-color: var(--mp3-lcd-dim);
 }
 
-/* === STATUS INDICATORS === */
+/* === STATUS INDICATORS - LED STYLE === */
 [data-theme="mp3player"] .text-red-500,
 [data-theme="mp3player"] button svg.fill-current {
   color: #ff4466 !important;
-  filter: drop-shadow(0 0 8px rgba(255, 68, 102, 0.5));
+  filter: drop-shadow(0 0 8px rgba(255, 68, 102, 0.6));
+  animation: led-blink 2s ease-in-out infinite;
 }
 
-/* === BADGES === */
+/* === BADGES - LCD SEGMENTS === */
 [data-theme="mp3player"] [class*="bg-purple-500"],
 [data-theme="mp3player"] [class*="bg-blue-500"],
 [data-theme="mp3player"] [class*="bg-pink-500"] {
   background: rgba(0, 255, 136, 0.1) !important;
-  color: var(--mp3-green) !important;
-  border: 1px solid rgba(0, 255, 136, 0.2);
-  font-size: 0.75em;
+  color: var(--mp3-text-primary) !important;
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  font-family: 'Orbitron', monospace;
+  font-size: 0.7em;
   font-weight: 500;
-  border-radius: 6px;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
+  text-shadow: 0 0 8px var(--mp3-lcd-glow);
 }
 
-/* === INPUT FIELDS === */
+/* === INPUT FIELDS - SCREEN INPUTS === */
 [data-theme="mp3player"] input[type="text"],
 [data-theme="mp3player"] input[type="search"] {
-  background: var(--mp3-surface) !important;
-  border: 1px solid var(--mp3-border) !important;
-  border-radius: var(--mp3-radius-sm) !important;
-  color: var(--mp3-text) !important;
-  font-family: 'Inter', -apple-system, sans-serif !important;
-  padding: 12px 16px;
+  background: rgba(0, 20, 12, 0.8) !important;
+  border: 1px solid rgba(0, 255, 136, 0.2) !important;
+  border-radius: 6px !important;
+  color: var(--mp3-text-primary) !important;
+  font-family: 'VT323', monospace !important;
+  font-size: 1.2em;
+  padding: 10px 14px;
   transition: var(--mp3-transition);
+  text-shadow: 0 0 8px var(--mp3-lcd-glow);
 }
 
 [data-theme="mp3player"] input[type="text"]::placeholder,
 [data-theme="mp3player"] input[type="search"]::placeholder {
-  color: var(--mp3-text-secondary) !important;
+  color: var(--mp3-text-dim) !important;
 }
 
 [data-theme="mp3player"] input[type="text"]:focus,
 [data-theme="mp3player"] input[type="search"]:focus {
-  border-color: var(--mp3-green) !important;
-  box-shadow: 0 0 20px rgba(0, 255, 136, 0.15);
+  border-color: var(--mp3-lcd-active) !important;
+  box-shadow:
+    inset 0 0 20px rgba(0, 255, 136, 0.1),
+    0 0 20px rgba(0, 255, 136, 0.2);
   outline: none;
 }
 
 /* === FULL SCREEN PLAYER === */
 [data-theme="mp3player"] [class*="fixed inset-0"][class*="z-"] {
-  background: var(--mp3-bg) !important;
+  background: var(--mp3-lcd-bg) !important;
 }
 
-/* === VISUALIZER BARS === */
+/* === VISUALIZER BARS - SPECTRUM ANALYZER === */
 [data-theme="mp3player"] [class*="visualizer"] div,
 [data-theme="mp3player"] .flex-1.rounded-t-sm {
-  background: linear-gradient(0deg, var(--mp3-green-dim) 0%, var(--mp3-green) 100%) !important;
-  box-shadow: 0 0 10px var(--mp3-green-glow);
-  border-radius: 2px 2px 0 0 !important;
-  transition: height 0.05s ease-out;
+  background: linear-gradient(0deg,
+    var(--mp3-lcd-faint) 0%,
+    var(--mp3-lcd-dim) 40%,
+    var(--mp3-lcd-active) 100%
+  ) !important;
+  box-shadow:
+    0 0 8px var(--mp3-lcd-glow),
+    0 -4px 12px rgba(0, 255, 136, 0.2);
+  border-radius: 1px 1px 0 0 !important;
 }
 
-/* === MOBILE SCROLL FIX === */
+/* === MOBILE OPTIMIZATIONS === */
 @media (max-width: 640px) {
   [data-theme="mp3player"] main {
+    margin: 4px;
+    border-radius: 10px;
     min-height: auto;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
@@ -647,10 +852,19 @@ html {
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Tighter spacing on mobile */
+  /* Smaller radii on mobile */
   [data-theme="mp3player"] {
-    --mp3-radius: 12px;
-    --mp3-radius-sm: 8px;
+    --mp3-radius-device: 14px;
+    --mp3-radius-screen: 8px;
+    --mp3-radius-rect-btn: 6px;
+  }
+
+  /* Tighter button shadows on mobile */
+  [data-theme="mp3player"] button {
+    box-shadow:
+      0 2px 0 var(--mp3-body-dark),
+      0 3px 6px var(--mp3-btn-shadow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 }
 
@@ -665,7 +879,7 @@ html {
 
 /* === LOADING STATES === */
 [data-theme="mp3player"] .animate-pulse {
-  animation: neon-pulse 2s ease-in-out infinite !important;
+  animation: lcd-flicker 1.5s ease-in-out infinite !important;
 }
 
 [data-theme="mp3player"] .animate-spin {
@@ -683,8 +897,25 @@ html {
   transition: var(--mp3-transition);
 }
 
-/* === GRADIENT OVERLAYS === */
+/* === GRADIENT OVERLAYS - LCD FADE === */
 [data-theme="mp3player"] .bg-gradient-to-t,
 [data-theme="mp3player"] .bg-gradient-to-b {
-  background: linear-gradient(to bottom, transparent 0%, var(--mp3-bg) 100%) !important;
+  background: linear-gradient(to bottom,
+    transparent 0%,
+    rgba(10, 24, 16, 0.9) 100%
+  ) !important;
+}
+
+/* === DEVICE FRAME EFFECT ON LARGER SCREENS === */
+@media (min-width: 768px) {
+  [data-theme="mp3player"] #root {
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  [data-theme="mp3player"] main {
+    margin: 12px;
+    border-radius: var(--mp3-radius-screen);
+  }
 }

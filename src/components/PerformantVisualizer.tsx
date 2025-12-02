@@ -111,7 +111,7 @@ export const PerformantVisualizer = ({
     return sum / 24 / 255;
   };
 
-  // Enhanced smoothing with momentum for fluid, reactive animations
+  // Ultra-smooth interpolation using exponential easing for buttery 60fps animations
   const smoothDataWithMomentum = (
     newValue: number,
     oldValue: number,
@@ -119,16 +119,24 @@ export const PerformantVisualizer = ({
     index: number,
     isRising: boolean
   ): { value: number; velocity: number } => {
-    // MUCH faster response when rising for punchy reactive feel
-    const attackFactor = 0.7; // Very quick response to increases
-    const releaseFactor = 0.12; // Smooth organic decay
+    // Adaptive smoothing: faster attack for punchy response, slower release for smooth decay
+    const attackFactor = 0.55; // Quick but not jarring response to increases
+    const releaseFactor = 0.08; // Very smooth organic decay for buttery feel
     const factor = isRising ? attackFactor : releaseFactor;
 
-    // Add momentum for smoother motion
-    const momentum = 0.25;
-    const targetVelocity = (newValue - oldValue) * factor;
+    // Exponential interpolation for smoother curves (less linear, more natural)
+    const diff = newValue - oldValue;
+    const eased = diff * factor;
+
+    // Momentum smoothing with higher inertia for fluid motion
+    const momentum = 0.35;
+    const targetVelocity = eased;
     const newVelocity = velocity * momentum + targetVelocity * (1 - momentum);
-    const smoothedValue = oldValue + newVelocity;
+
+    // Apply cubic easing for even smoother transitions
+    const cubicEase = (v: number) => v < 0 ? -Math.pow(-v, 0.8) : Math.pow(v, 0.8);
+    const smoothedVelocity = cubicEase(newVelocity);
+    const smoothedValue = oldValue + smoothedVelocity;
 
     return {
       value: Math.max(0, Math.min(1, smoothedValue)),
@@ -253,19 +261,24 @@ export const PerformantVisualizer = ({
         const lightness = isPlaying ? (50 + value * 25 + avgEnergy * 10) : 20;
 
         if (variant === "bars") {
-          // Vibrant bars with subtle reactive glow
-          const scale = Math.max(0.03, value * 1.1); // Slightly larger bars
+          // Vibrant bars with layered multi-color glow effects
+          const scale = Math.max(0.03, value * 1.15); // Slightly larger bars
           const barHue = (dynamicHue + position * 60) % 360;
           bar.style.transform = `scaleY(${scale})`;
           bar.style.background = `linear-gradient(to top,
             hsl(${barHue}, ${saturation}%, ${lightness - 15}%),
             hsl(${(barHue + 30) % 360}, ${saturation + 5}%, ${lightness}%),
             hsl(${(barHue + 50) % 360}, ${saturation}%, ${lightness + 10}%))`;
-          bar.style.boxShadow = isPlaying && value > 0.3 ?
-            `0 0 ${value * 8}px hsla(${barHue}, ${saturation}%, ${lightness}%, 0.4)` : 'none';
-          bar.style.opacity = isPlaying ? `${0.85 + value * 0.15}` : '0.25';
+          // Multi-layered glow for depth - more prominent on higher values
+          const glowIntensity = value * value; // Exponential for more dramatic effect
+          bar.style.boxShadow = isPlaying && value > 0.15 ?
+            `0 0 ${glowIntensity * 6}px hsla(${barHue}, 100%, 60%, ${0.5 + glowIntensity * 0.3}),
+             0 0 ${glowIntensity * 12}px hsla(${(barHue + 20) % 360}, 95%, 55%, ${0.3 + glowIntensity * 0.2}),
+             0 0 ${glowIntensity * 20}px hsla(${(barHue + 40) % 360}, 90%, 50%, ${0.15 + glowIntensity * 0.1}),
+             0 ${glowIntensity * 4}px ${glowIntensity * 8}px hsla(${barHue}, 100%, 40%, ${0.2 + glowIntensity * 0.15})` : 'none';
+          bar.style.opacity = isPlaying ? `${0.9 + value * 0.1}` : '0.25';
         } else if (variant === "wave") {
-          // Flowing wave with color gradients
+          // Flowing wave with color gradients and glow
           const wavePhase = position * Math.PI * 4 + timeRef.current * 3;
           const waveHeight = isPlaying ? Math.sin(wavePhase) * 30 * (0.3 + avgEnergy * 0.7 + bassEnergy * 0.5) : 0;
           const scale = Math.max(0.1, value * 1.2);
@@ -274,19 +287,28 @@ export const PerformantVisualizer = ({
           bar.style.background = `linear-gradient(to top,
             hsl(${waveHue}, ${saturation}%, ${lightness - 10}%),
             hsl(${(waveHue + 40) % 360}, ${saturation}%, ${lightness + 5}%))`;
-          bar.style.opacity = isPlaying ? `${0.8 + value * 0.2}` : '0.25';
+          // Soft flowing glow for wave
+          const waveGlow = value * value;
+          bar.style.boxShadow = isPlaying && value > 0.2 ?
+            `0 0 ${waveGlow * 8}px hsla(${waveHue}, 100%, 55%, ${0.4 + waveGlow * 0.2}),
+             0 0 ${waveGlow * 15}px hsla(${(waveHue + 30) % 360}, 90%, 50%, ${0.2 + waveGlow * 0.1})` : 'none';
+          bar.style.opacity = isPlaying ? `${0.85 + value * 0.15}` : '0.25';
         } else if (variant === "pulse") {
-          // Vibrant pulsing rings
+          // Vibrant pulsing rings with dramatic layered glow
           const breathe = isPlaying ? Math.sin(timeRef.current * 2.5 + i * 0.7) * 0.1 : 0;
           const scale = 0.8 + value * 0.6 + breathe + bassEnergy * 0.35;
           const ringHue = (dynamicHue + i * 60) % 360;
+          const pulseGlow = value * value;
           bar.style.transform = `scale(${scale})`;
           bar.style.borderColor = `hsla(${ringHue}, ${saturation}%, ${isPlaying ? 55 + value * 30 : 25}%, ${isPlaying ? 0.5 + value * 0.5 : 0.2})`;
-          bar.style.boxShadow = isPlaying && value > 0.2 ?
-            `0 0 ${value * 15}px hsla(${ringHue}, ${saturation}%, ${lightness}%, 0.3),
-             inset 0 0 ${value * 10}px hsla(${ringHue}, ${saturation}%, ${lightness}%, 0.1)` : 'none';
+          // Multi-layer glow for dramatic pulsing effect
+          bar.style.boxShadow = isPlaying && value > 0.15 ?
+            `0 0 ${pulseGlow * 12}px hsla(${ringHue}, 100%, 60%, ${0.4 + pulseGlow * 0.3}),
+             0 0 ${pulseGlow * 25}px hsla(${(ringHue + 30) % 360}, 95%, 55%, ${0.25 + pulseGlow * 0.15}),
+             0 0 ${pulseGlow * 40}px hsla(${(ringHue + 60) % 360}, 90%, 50%, ${0.1 + pulseGlow * 0.1}),
+             inset 0 0 ${pulseGlow * 15}px hsla(${ringHue}, 100%, 70%, ${0.15 + pulseGlow * 0.1})` : 'none';
         } else if (variant === "circle") {
-          // Orbital particles with color trails
+          // Orbital particles with color trails and ethereal glow
           const baseAngle = position * Math.PI * 2;
           const dynamicAngle = baseAngle + (isPlaying ? timeRef.current * 0.5 + bassEnergy * 0.5 : 0);
           const baseRadius = 35 + (size === "sm" || size === "md" ? 15 : 45);
@@ -295,39 +317,53 @@ export const PerformantVisualizer = ({
           const y = Math.sin(dynamicAngle) * dynamicRadius;
           const particleScale = 0.5 + value * 1.2 + bassEnergy * 0.3;
           const orbitHue = (dynamicHue + position * 120) % 360;
+          const orbitGlow = value * value;
           bar.style.transform = `translate(${x}px, ${y}px) scale(${particleScale})`;
           bar.style.background = `radial-gradient(circle,
             hsl(${orbitHue}, ${saturation}%, ${lightness + 15}%),
             hsl(${(orbitHue + 30) % 360}, ${saturation}%, ${lightness - 5}%))`;
-          bar.style.boxShadow = isPlaying ?
-            `0 0 ${value * 12}px hsla(${orbitHue}, ${saturation}%, ${lightness}%, 0.5)` : 'none';
-          bar.style.opacity = isPlaying ? `${0.7 + value * 0.3}` : '0.2';
+          // Multi-layered glow for ethereal orbital effect
+          bar.style.boxShadow = isPlaying && value > 0.1 ?
+            `0 0 ${orbitGlow * 10}px hsla(${orbitHue}, 100%, 65%, ${0.5 + orbitGlow * 0.3}),
+             0 0 ${orbitGlow * 18}px hsla(${(orbitHue + 25) % 360}, 95%, 55%, ${0.3 + orbitGlow * 0.2}),
+             0 0 ${orbitGlow * 28}px hsla(${(orbitHue + 50) % 360}, 90%, 50%, ${0.15 + orbitGlow * 0.1})` : 'none';
+          bar.style.opacity = isPlaying ? `${0.8 + value * 0.2}` : '0.2';
         } else if (variant === "dots") {
-          // Reactive grid with ripple effects
+          // Reactive grid with ripple effects and pulsing glow
           const gridX = i % Math.ceil(Math.sqrt(barCount));
           const gridY = Math.floor(i / Math.ceil(Math.sqrt(barCount)));
           const distFromCenter = Math.sqrt(Math.pow(gridX - Math.sqrt(barCount)/2, 2) + Math.pow(gridY - Math.sqrt(barCount)/2, 2));
           const ripple = isPlaying ? Math.sin(timeRef.current * 4 - distFromCenter * 0.5) * 0.15 : 0;
           const scale = 0.4 + value * 1.8 + ripple + bassEnergy * 0.5;
           const dotHue = (dynamicHue + i * 10 + distFromCenter * 15) % 360;
+          const dotGlow = value * value;
           bar.style.transform = `scale(${Math.max(0.3, scale)})`;
           bar.style.background = `radial-gradient(circle,
             hsl(${dotHue}, ${saturation}%, ${lightness + 20}%),
             hsl(${(dotHue + 40) % 360}, ${saturation}%, ${lightness}%))`;
-          bar.style.boxShadow = isPlaying && value > 0.25 ?
-            `0 0 ${value * 10}px hsla(${dotHue}, ${saturation}%, ${lightness}%, 0.4)` : 'none';
-          bar.style.opacity = isPlaying ? `${0.7 + value * 0.3}` : '0.2';
+          // Multi-layer glow for reactive grid
+          bar.style.boxShadow = isPlaying && value > 0.2 ?
+            `0 0 ${dotGlow * 8}px hsla(${dotHue}, 100%, 60%, ${0.5 + dotGlow * 0.3}),
+             0 0 ${dotGlow * 15}px hsla(${(dotHue + 30) % 360}, 95%, 55%, ${0.25 + dotGlow * 0.15}),
+             0 0 ${dotGlow * 22}px hsla(${(dotHue + 60) % 360}, 90%, 50%, ${0.1 + dotGlow * 0.1})` : 'none';
+          bar.style.opacity = isPlaying ? `${0.8 + value * 0.2}` : '0.2';
         } else if (variant === "lines") {
-          // Streaming spectrum lines
+          // Streaming spectrum lines with glowing trails
           const stream = isPlaying ? Math.sin(timeRef.current * 3 + i * 0.8) * 0.1 : 0;
           const scale = Math.max(0.08, value * 1.1 + stream + highEnergy * 0.2);
           const lineHue = (dynamicHue + i * 15) % 360;
+          const lineGlow = value * value;
           bar.style.transform = `scaleX(${scale})`;
           bar.style.background = `linear-gradient(to right,
             hsla(${lineHue}, ${saturation}%, ${lightness - 10}%, 0.8),
             hsl(${(lineHue + 30) % 360}, ${saturation}%, ${lightness}%),
             hsla(${(lineHue + 60) % 360}, ${saturation}%, ${lightness + 10}%, 0.8))`;
-          bar.style.opacity = isPlaying ? `${0.8 + value * 0.2}` : '0.2';
+          // Multi-layer glow for streaming effect
+          bar.style.boxShadow = isPlaying && value > 0.2 ?
+            `0 0 ${lineGlow * 6}px hsla(${lineHue}, 100%, 60%, ${0.4 + lineGlow * 0.3}),
+             0 0 ${lineGlow * 12}px hsla(${(lineHue + 25) % 360}, 95%, 55%, ${0.2 + lineGlow * 0.15}),
+             0 ${lineGlow * 3}px ${lineGlow * 8}px hsla(${lineHue}, 90%, 50%, ${0.15 + lineGlow * 0.1})` : 'none';
+          bar.style.opacity = isPlaying ? `${0.85 + value * 0.15}` : '0.2';
         }
       });
 

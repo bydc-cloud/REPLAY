@@ -154,6 +154,7 @@ interface MusicLibraryContextType {
   analyzeAllTracks: () => Promise<void>;
   getLocalOnlyTracks: () => Track[];
   syncLocalTracksToCloud: () => Promise<{ synced: number; failed: number }>;
+  tracksNeedingSync: Track[];
 }
 
 const MusicLibraryContext = createContext<MusicLibraryContextType | undefined>(undefined);
@@ -504,6 +505,78 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       saveToStorage(STORAGE_KEYS.PROJECT_FOLDERS, projectFolders, user.id);
     }
   }, [projectFolders, user, isLoading]);
+
+  // Compute tracks needing cloud sync (have blob URL but no fileKey)
+  const tracksNeedingSync = useMemo(() => {
+    return tracks.filter(track =>
+      track.fileUrl?.startsWith('blob:') && !track.fileKey && !track.hasAudio
+    );
+  }, [tracks]);
+
+  // Warn user before leaving if there are unsynced tracks
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Only warn if we have tracks with blob URLs that aren't synced to cloud
+      if (tracksNeedingSync.length > 0 || isImporting) {
+        const message = isImporting
+          ? 'Import in progress. Leaving will lose unfinished uploads.'
+          : `${tracksNeedingSync.length} track(s) not yet synced to cloud. You may lose these tracks.`;
+        e.preventDefault();
+        e.returnValue = message;
+        return message;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [tracksNeedingSync.length, isImporting]);
+
+  // Detect and warn about stale blob URLs on mount (tracks that reference blob URLs from previous sessions)
+  useEffect(() => {
+    const detectStaleTracks = async () => {
+      if (tracks.length === 0) return;
+
+      const staleTracks: Track[] = [];
+
+      for (const track of tracks) {
+        // Only check blob URLs that don't have cloud backup
+        if (track.fileUrl?.startsWith('blob:') && !track.fileKey && !track.hasAudio) {
+          try {
+            // Try to verify if the blob URL is still valid
+            const response = await fetch(track.fileUrl, { method: 'HEAD' });
+            if (!response.ok) {
+              staleTracks.push(track);
+            }
+          } catch {
+            // Blob URL is stale (from previous session)
+            staleTracks.push(track);
+          }
+        }
+      }
+
+      if (staleTracks.length > 0) {
+        console.warn(`Found ${staleTracks.length} tracks with stale blob URLs:`, staleTracks.map(t => t.title));
+        // Mark these tracks as needing reimport by clearing their invalid fileUrl
+        setTracks(prev => prev.map(track => {
+          const isStale = staleTracks.find(s => s.id === track.id);
+          if (isStale) {
+            return { ...track, fileUrl: '', needsReimport: true } as Track;
+          }
+          return track;
+        }));
+        showToast(
+          `${staleTracks.length} track(s) need to be re-imported (audio expired)`,
+          'warning',
+          5000
+        );
+      }
+    };
+
+    // Run stale detection after initial load
+    if (!isLoading && tracks.length > 0) {
+      detectStaleTracks();
+    }
+  }, [isLoading]); // Only run once after initial load
 
   // Compute derived data with memoization for performance
   const albums = useMemo((): Album[] => {
@@ -1780,7 +1853,8 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       analyzeTrack,
       analyzeAllTracks,
       getLocalOnlyTracks,
-      syncLocalTracksToCloud
+      syncLocalTracksToCloud,
+      tracksNeedingSync
     }}>
       {children}
     </MusicLibraryContext.Provider>
