@@ -15,7 +15,7 @@ interface SettingsViewProps {
 export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: SettingsViewProps) => {
   const [previewPlaying, setPreviewPlaying] = useState(true);
   const { themeMode, setThemeMode, developerMode, setDeveloperMode } = useSettings();
-  const { tracks, playlists, projectFolders, cleanupTracksWithoutAudio, getLocalOnlyTracks, syncLocalTracksToCloud, isSyncingToCloud, cloudSyncProgress, cloudSyncStats } = useMusicLibrary();
+  const { tracks, playlists, projectFolders, cleanupTracksWithoutAudio, deleteTracksNeedingReimport, getLocalOnlyTracks, syncLocalTracksToCloud, isSyncingToCloud, cloudSyncProgress, cloudSyncStats } = useMusicLibrary();
   const { user, updateProfile, error: authError, clearError } = useAuth();
   const [exportSuccess, setExportSuccess] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
@@ -54,12 +54,13 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
     setIsUpdatingProfile(false);
   };
 
-  // Cleanup tracks without audio data
+  // Cleanup tracks that need re-importing (stale blob URLs without cloud backup)
   const handleCleanupTracks = async () => {
     setIsCleaningUp(true);
     setCleanupResult(null);
     try {
-      const result = await cleanupTracksWithoutAudio();
+      // Use the new function that removes tracks with stale blob URLs that need re-importing
+      const result = await deleteTracksNeedingReimport();
       setCleanupResult(result);
       setTimeout(() => setCleanupResult(null), 5000);
     } catch (error) {

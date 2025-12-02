@@ -143,6 +143,8 @@ interface MusicLibraryContextType {
   transcribeTrack: (trackId: string) => Promise<TrackLyrics | null>;
   getLyrics: (trackId: string) => Promise<TrackLyrics | null>;
   cleanupTracksWithoutAudio: () => Promise<{ deleted: number; tracks: string[] }>;
+  getTracksNeedingReimport: () => Track[];
+  deleteTracksNeedingReimport: () => Promise<{ deleted: number; tracks: string[] }>;
   createProjectFolder: (name: string) => Promise<string>;
   deleteProjectFolder: (folderId: string) => Promise<void>;
   renameProjectFolder: (folderId: string, newName: string) => Promise<void>;
@@ -1473,6 +1475,53 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [tracks]);
 
+  // Get tracks that need re-importing (have blob URL but no cloud backup, and blob is likely stale)
+  // These are tracks where the audio data was lost after page refresh
+  const getTracksNeedingReimport = useCallback((): Track[] => {
+    return tracks.filter(track => {
+      // Track has a blob URL (not data URL) but no cloud file key
+      // Blob URLs become invalid after page refresh, so these tracks need re-importing
+      const hasBlobUrl = track.fileUrl && track.fileUrl.startsWith('blob:');
+      const hasNoCloudKey = !track.fileKey;
+      return hasBlobUrl && hasNoCloudKey;
+    });
+  }, [tracks]);
+
+  // Delete tracks that need re-importing (broken tracks with stale blob URLs)
+  const deleteTracksNeedingReimport = async (): Promise<{ deleted: number; tracks: string[] }> => {
+    const tracksToDelete = getTracksNeedingReimport();
+    if (tracksToDelete.length === 0) {
+      return { deleted: 0, tracks: [] };
+    }
+
+    const trackNames: string[] = [];
+    let deletedCount = 0;
+
+    for (const track of tracksToDelete) {
+      try {
+        // Delete from API if we have a token
+        if (token && !track.id.startsWith('local-')) {
+          await fetch(`${API_URL}/api/tracks/${track.id}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            }
+          });
+        }
+        trackNames.push(track.title);
+        deletedCount++;
+      } catch (error) {
+        console.error(`Failed to delete track ${track.title}:`, error);
+      }
+    }
+
+    // Remove deleted tracks from local state
+    const deletedIds = new Set(tracksToDelete.map(t => t.id));
+    setTracks(prev => prev.filter(track => !deletedIds.has(track.id)));
+
+    return { deleted: deletedCount, tracks: trackNames };
+  };
+
   // Sync local-only tracks to cloud storage
   const syncLocalTracksToCloud = async (): Promise<{ synced: number; failed: number }> => {
     if (cloudSyncInProgressRef.current) {
@@ -1721,6 +1770,8 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       transcribeTrack,
       getLyrics,
       cleanupTracksWithoutAudio,
+      getTracksNeedingReimport,
+      deleteTracksNeedingReimport,
       createProjectFolder,
       deleteProjectFolder,
       renameProjectFolder,
