@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useAudioAnalyzer } from "../hooks/useAudioAnalyzer";
+import { useSettings } from "../contexts/SettingsContext";
 
 interface PerformantVisualizerProps {
   isPlaying: boolean;
@@ -16,6 +17,8 @@ export const PerformantVisualizer = ({
 }: PerformantVisualizerProps) => {
   // Get audio data from real audio, or use demo mode if no audio element
   const { frequencyData: realFrequencyData } = useAudioAnalyzer(audioElement);
+  const { themeMode } = useSettings();
+  const isMP3Theme = themeMode === "mp3player";
   const demoMode = !audioElement;
   const demoTimeRef = useRef<number>(0);
 
@@ -34,6 +37,7 @@ export const PerformantVisualizer = ({
   const smoothedDataRef = useRef<number[]>([]);
   const hueRotationRef = useRef<number>(0);
   const velocityRef = useRef<number[]>([]); // For momentum-based smoothing
+  const peakRef = useRef<number[]>([]); // Track peaks for more dynamic visuals
 
   // Container size classes
   const containerClass = size === "full" || size === "xl"
@@ -47,13 +51,13 @@ export const PerformantVisualizer = ({
   // Optimized bar count based on device and variant
   const barCount = useMemo(() => {
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (variant === "bars") return isMobile ? 24 : 48;
-    if (variant === "circle") return isMobile ? 36 : 72;
-    if (variant === "dots") return isMobile ? 16 : 25;
-    if (variant === "lines") return isMobile ? 12 : 20;
-    if (variant === "wave") return isMobile ? 32 : 64;
-    if (variant === "pulse") return 5;
-    return 24;
+    if (variant === "bars") return isMobile ? 32 : 64;
+    if (variant === "circle") return isMobile ? 48 : 96;
+    if (variant === "dots") return isMobile ? 25 : 36;
+    if (variant === "lines") return isMobile ? 16 : 24;
+    if (variant === "wave") return isMobile ? 48 : 96;
+    if (variant === "pulse") return 6;
+    return 32;
   }, [variant]);
 
   // Initialize bars with refs
@@ -61,6 +65,7 @@ export const PerformantVisualizer = ({
     setIsReady(true);
     smoothedDataRef.current = new Array(barCount).fill(0);
     velocityRef.current = new Array(barCount).fill(0);
+    peakRef.current = new Array(barCount).fill(0);
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
@@ -76,14 +81,34 @@ export const PerformantVisualizer = ({
     return sum / 32 / 255;
   };
 
-  // Get bass energy (low frequencies)
+  // Get bass energy (low frequencies) - drives the "punch"
   const getBassEnergy = (data: Uint8Array): number => {
     if (!data || data.length === 0) return 0;
     let sum = 0;
-    for (let i = 0; i < Math.min(data.length, 8); i++) {
+    for (let i = 0; i < Math.min(data.length, 6); i++) {
       sum += data[i];
     }
-    return sum / 8 / 255;
+    return sum / 6 / 255;
+  };
+
+  // Get mid energy (vocals, melody)
+  const getMidEnergy = (data: Uint8Array): number => {
+    if (!data || data.length === 0) return 0;
+    let sum = 0;
+    for (let i = 8; i < Math.min(data.length, 24); i++) {
+      sum += data[i];
+    }
+    return sum / 16 / 255;
+  };
+
+  // Get high energy (hi-hats, cymbals)
+  const getHighEnergy = (data: Uint8Array): number => {
+    if (!data || data.length === 0) return 0;
+    let sum = 0;
+    for (let i = 24; i < Math.min(data.length, 48); i++) {
+      sum += data[i];
+    }
+    return sum / 24 / 255;
   };
 
   // Enhanced smoothing with momentum for fluid, reactive animations
@@ -94,13 +119,13 @@ export const PerformantVisualizer = ({
     index: number,
     isRising: boolean
   ): { value: number; velocity: number } => {
-    // Use faster response when rising, slower decay when falling
-    const attackFactor = 0.5; // Quick response to increases
-    const releaseFactor = 0.15; // Smooth decay
+    // MUCH faster response when rising for punchy reactive feel
+    const attackFactor = 0.7; // Very quick response to increases
+    const releaseFactor = 0.12; // Smooth organic decay
     const factor = isRising ? attackFactor : releaseFactor;
 
     // Add momentum for smoother motion
-    const momentum = 0.3;
+    const momentum = 0.25;
     const targetVelocity = (newValue - oldValue) * factor;
     const newVelocity = velocity * momentum + targetVelocity * (1 - momentum);
     const smoothedValue = oldValue + newVelocity;
@@ -111,17 +136,18 @@ export const PerformantVisualizer = ({
     };
   };
 
-  // Generate demo frequency data for preview mode
+  // Generate demo frequency data for preview mode - more dynamic
   const generateDemoData = (time: number): Uint8Array => {
     const data = new Uint8Array(64);
     for (let i = 0; i < 64; i++) {
-      // Create a dynamic wave pattern
-      const wave1 = Math.sin(time * 2 + i * 0.2) * 0.5 + 0.5;
-      const wave2 = Math.sin(time * 1.5 + i * 0.15 + 1) * 0.3 + 0.5;
-      const wave3 = Math.sin(time * 3 + i * 0.3 + 2) * 0.2 + 0.5;
-      const bass = i < 10 ? Math.sin(time * 4) * 0.4 + 0.6 : 0.5;
-      const combined = (wave1 * 0.4 + wave2 * 0.3 + wave3 * 0.2 + bass * 0.1);
-      data[i] = Math.floor(combined * 180 + Math.random() * 30);
+      // Create a more dynamic, music-like wave pattern
+      const bass = i < 8 ? (Math.sin(time * 3) * 0.5 + 0.5) * (Math.sin(time * 6) * 0.3 + 0.7) : 0;
+      const mid = i >= 8 && i < 24 ? Math.sin(time * 4 + i * 0.1) * 0.4 + 0.5 : 0;
+      const high = i >= 24 ? Math.sin(time * 5 + i * 0.15) * 0.3 + 0.4 : 0;
+      const wave = Math.sin(time * 2 + i * 0.2) * 0.3 + 0.5;
+      const beat = Math.sin(time * 8) > 0.7 ? 0.3 : 0;
+      const combined = (bass * 0.4 + mid * 0.25 + high * 0.15 + wave * 0.1 + beat * 0.1);
+      data[i] = Math.floor(combined * 220 + Math.random() * 35);
     }
     return data;
   };
@@ -153,10 +179,12 @@ export const PerformantVisualizer = ({
       const step = activeFrequencyData && activeFrequencyData.length > 0 ? Math.floor(activeFrequencyData.length / barCount) : 1;
       const avgEnergy = isPlaying && activeFrequencyData ? getAverageEnergy(activeFrequencyData) : 0;
       const bassEnergy = isPlaying && activeFrequencyData ? getBassEnergy(activeFrequencyData) : 0;
+      const midEnergy = isPlaying && activeFrequencyData ? getMidEnergy(activeFrequencyData) : 0;
+      const highEnergy = isPlaying && activeFrequencyData ? getHighEnergy(activeFrequencyData) : 0;
 
-      // Rotate hue based on energy (only when playing)
+      // Rotate hue based on energy (only when playing) - faster rotation for more dynamic colors
       if (isPlaying) {
-        hueRotationRef.current += avgEnergy * 0.5;
+        hueRotationRef.current += (avgEnergy * 1.5 + bassEnergy * 0.8);
       }
 
       barsRef.current.forEach((bar, i) => {
@@ -183,69 +211,123 @@ export const PerformantVisualizer = ({
         smoothedDataRef.current[i] = value;
         velocityRef.current[i] = velocity;
 
-        // Premium color palette - clean monochrome with subtle accent
-        const baseHue = (i / barCount) * 60 + hueRotationRef.current * 0.3; // Subtle hue shift
-        const dynamicHue = 220 + baseHue * 0.2 + avgEnergy * 20; // Cool blue-purple range
+        // Track peaks for extra visual punch
+        if (value > peakRef.current[i]) {
+          peakRef.current[i] = value;
+        } else {
+          peakRef.current[i] *= 0.98; // Slow decay of peak
+        }
 
-        // Premium muted colors - no harsh saturation
-        const saturation = isPlaying ? (40 + value * 25) : 10;
-        const lightness = isPlaying ? (55 + value * 20) : 25;
+        // For MP3 player theme - use vibrant green palette
+        if (isMP3Theme) {
+          const greenIntensity = 136 + value * 40; // 136-176 range for green
+          const brightness = 50 + value * 30;
+
+          if (variant === "bars") {
+            const scale = Math.max(0.03, value);
+            bar.style.transform = `scaleY(${scale})`;
+            bar.style.backgroundColor = `hsl(145, 100%, ${brightness}%)`;
+            bar.style.boxShadow = isPlaying ? `0 0 ${4 + value * 8}px rgba(0, ${greenIntensity}, 100, 0.5)` : 'none';
+            bar.style.opacity = isPlaying ? `${0.7 + value * 0.3}` : '0.3';
+          } else {
+            // Apply similar styling to other variants in MP3 theme
+            bar.style.backgroundColor = `hsl(145, 100%, ${brightness}%)`;
+          }
+          return;
+        }
+
+        // VIBRANT color palette - reactive rainbow spectrum
+        const position = i / barCount;
+        const baseHue = position * 280 + hueRotationRef.current; // Full rainbow spread
+
+        // Dynamic hue shifts based on frequency bands
+        const bassHueShift = bassEnergy * 30; // Bass pushes toward red/orange
+        const midHueShift = midEnergy * 20; // Mids affect purple/blue
+        const highHueShift = highEnergy * 15; // Highs affect cyan/green
+
+        // Create reactive hue that responds to music
+        const dynamicHue = (baseHue + bassHueShift - highHueShift + midHueShift * Math.sin(timeRef.current)) % 360;
+
+        // VIBRANT saturation - full color!
+        const saturation = isPlaying ? (75 + value * 25) : 15;
+        const lightness = isPlaying ? (50 + value * 25 + avgEnergy * 10) : 20;
 
         if (variant === "bars") {
-          // Clean bars without glow - premium minimal style
-          const scale = Math.max(0.03, value);
+          // Vibrant bars with subtle reactive glow
+          const scale = Math.max(0.03, value * 1.1); // Slightly larger bars
+          const barHue = (dynamicHue + position * 60) % 360;
           bar.style.transform = `scaleY(${scale})`;
-          bar.style.backgroundColor = `hsl(${dynamicHue % 360}, ${saturation}%, ${lightness}%)`;
-          bar.style.boxShadow = 'none'; // No glow
-          bar.style.opacity = isPlaying ? `${0.7 + value * 0.3}` : '0.3';
+          bar.style.background = `linear-gradient(to top,
+            hsl(${barHue}, ${saturation}%, ${lightness - 15}%),
+            hsl(${(barHue + 30) % 360}, ${saturation + 5}%, ${lightness}%),
+            hsl(${(barHue + 50) % 360}, ${saturation}%, ${lightness + 10}%))`;
+          bar.style.boxShadow = isPlaying && value > 0.3 ?
+            `0 0 ${value * 8}px hsla(${barHue}, ${saturation}%, ${lightness}%, 0.4)` : 'none';
+          bar.style.opacity = isPlaying ? `${0.85 + value * 0.15}` : '0.25';
         } else if (variant === "wave") {
-          // Fluid wave with smooth motion
-          const wavePhase = (i / barCount) * Math.PI * 4 + timeRef.current * 2.5;
-          const waveHeight = isPlaying ? Math.sin(wavePhase) * 25 * (0.4 + avgEnergy * 0.6) : 0;
-          const scale = Math.max(0.12, value);
+          // Flowing wave with color gradients
+          const wavePhase = position * Math.PI * 4 + timeRef.current * 3;
+          const waveHeight = isPlaying ? Math.sin(wavePhase) * 30 * (0.3 + avgEnergy * 0.7 + bassEnergy * 0.5) : 0;
+          const scale = Math.max(0.1, value * 1.2);
+          const waveHue = (dynamicHue + position * 80 + Math.sin(timeRef.current + i * 0.1) * 30) % 360;
           bar.style.transform = `translateY(${waveHeight}px) scaleY(${scale})`;
-          bar.style.backgroundColor = `hsl(${(dynamicHue + i * 2) % 360}, ${saturation}%, ${lightness}%)`;
-          bar.style.boxShadow = 'none'; // No glow
-          bar.style.opacity = isPlaying ? `${0.7 + value * 0.3}` : '0.3';
+          bar.style.background = `linear-gradient(to top,
+            hsl(${waveHue}, ${saturation}%, ${lightness - 10}%),
+            hsl(${(waveHue + 40) % 360}, ${saturation}%, ${lightness + 5}%))`;
+          bar.style.opacity = isPlaying ? `${0.8 + value * 0.2}` : '0.25';
         } else if (variant === "pulse") {
-          // Clean pulsing rings without heavy glow
-          const breathe = isPlaying ? Math.sin(timeRef.current * 2 + i * 0.5) * 0.08 : 0;
-          const scale = 0.85 + value * 0.5 + breathe + bassEnergy * 0.25;
-          const ringHue = (dynamicHue + i * 50) % 360;
+          // Vibrant pulsing rings
+          const breathe = isPlaying ? Math.sin(timeRef.current * 2.5 + i * 0.7) * 0.1 : 0;
+          const scale = 0.8 + value * 0.6 + breathe + bassEnergy * 0.35;
+          const ringHue = (dynamicHue + i * 60) % 360;
           bar.style.transform = `scale(${scale})`;
-          bar.style.borderColor = `hsla(${ringHue}, ${saturation}%, ${isPlaying ? 55 + value * 25 : 30}%, ${isPlaying ? 0.4 + value * 0.4 : 0.25})`;
-          bar.style.boxShadow = 'none'; // No glow - clean look
+          bar.style.borderColor = `hsla(${ringHue}, ${saturation}%, ${isPlaying ? 55 + value * 30 : 25}%, ${isPlaying ? 0.5 + value * 0.5 : 0.2})`;
+          bar.style.boxShadow = isPlaying && value > 0.2 ?
+            `0 0 ${value * 15}px hsla(${ringHue}, ${saturation}%, ${lightness}%, 0.3),
+             inset 0 0 ${value * 10}px hsla(${ringHue}, ${saturation}%, ${lightness}%, 0.1)` : 'none';
         } else if (variant === "circle") {
-          // Orbital particles with smooth motion
-          const angle = (i / barCount) * Math.PI * 2 + (isPlaying ? timeRef.current * 0.4 : 0);
-          const baseRadius = 35 + (size === "sm" || size === "md" ? 18 : 40);
-          const dynamicRadius = baseRadius + (isPlaying ? value * 40 + bassEnergy * 15 : 0);
-          const x = Math.cos(angle) * dynamicRadius;
-          const y = Math.sin(angle) * dynamicRadius;
-          const particleScale = 0.4 + value * 1.0;
-          const orbitHue = (dynamicHue + (i / barCount) * 100) % 360;
+          // Orbital particles with color trails
+          const baseAngle = position * Math.PI * 2;
+          const dynamicAngle = baseAngle + (isPlaying ? timeRef.current * 0.5 + bassEnergy * 0.5 : 0);
+          const baseRadius = 35 + (size === "sm" || size === "md" ? 15 : 45);
+          const dynamicRadius = baseRadius + (isPlaying ? value * 50 + bassEnergy * 20 : 0);
+          const x = Math.cos(dynamicAngle) * dynamicRadius;
+          const y = Math.sin(dynamicAngle) * dynamicRadius;
+          const particleScale = 0.5 + value * 1.2 + bassEnergy * 0.3;
+          const orbitHue = (dynamicHue + position * 120) % 360;
           bar.style.transform = `translate(${x}px, ${y}px) scale(${particleScale})`;
-          bar.style.backgroundColor = `hsl(${orbitHue}, ${saturation}%, ${lightness}%)`;
-          bar.style.boxShadow = 'none'; // No glow
-          bar.style.opacity = isPlaying ? `${0.6 + value * 0.4}` : '0.3';
+          bar.style.background = `radial-gradient(circle,
+            hsl(${orbitHue}, ${saturation}%, ${lightness + 15}%),
+            hsl(${(orbitHue + 30) % 360}, ${saturation}%, ${lightness - 5}%))`;
+          bar.style.boxShadow = isPlaying ?
+            `0 0 ${value * 12}px hsla(${orbitHue}, ${saturation}%, ${lightness}%, 0.5)` : 'none';
+          bar.style.opacity = isPlaying ? `${0.7 + value * 0.3}` : '0.2';
         } else if (variant === "dots") {
-          // Clean grid dots without heavy glow
-          const gridPulse = isPlaying ? Math.sin(timeRef.current * 3.5 + (i % 5) * 0.4 + Math.floor(i / 5) * 0.4) * 0.12 : 0;
-          const scale = 0.5 + value * 1.5 + gridPulse + bassEnergy * 0.4;
-          const dotHue = (dynamicHue + i * 12) % 360;
-          bar.style.transform = `scale(${Math.max(0.35, scale)})`;
-          bar.style.backgroundColor = `hsl(${dotHue}, ${saturation}%, ${lightness}%)`;
-          bar.style.boxShadow = 'none'; // No glow
-          bar.style.opacity = isPlaying ? `${0.6 + value * 0.4}` : '0.3';
+          // Reactive grid with ripple effects
+          const gridX = i % Math.ceil(Math.sqrt(barCount));
+          const gridY = Math.floor(i / Math.ceil(Math.sqrt(barCount)));
+          const distFromCenter = Math.sqrt(Math.pow(gridX - Math.sqrt(barCount)/2, 2) + Math.pow(gridY - Math.sqrt(barCount)/2, 2));
+          const ripple = isPlaying ? Math.sin(timeRef.current * 4 - distFromCenter * 0.5) * 0.15 : 0;
+          const scale = 0.4 + value * 1.8 + ripple + bassEnergy * 0.5;
+          const dotHue = (dynamicHue + i * 10 + distFromCenter * 15) % 360;
+          bar.style.transform = `scale(${Math.max(0.3, scale)})`;
+          bar.style.background = `radial-gradient(circle,
+            hsl(${dotHue}, ${saturation}%, ${lightness + 20}%),
+            hsl(${(dotHue + 40) % 360}, ${saturation}%, ${lightness}%))`;
+          bar.style.boxShadow = isPlaying && value > 0.25 ?
+            `0 0 ${value * 10}px hsla(${dotHue}, ${saturation}%, ${lightness}%, 0.4)` : 'none';
+          bar.style.opacity = isPlaying ? `${0.7 + value * 0.3}` : '0.2';
         } else if (variant === "lines") {
-          // Streaming lines with fluid motion
-          const stream = isPlaying ? Math.sin(timeRef.current * 2.5 + i * 0.6) * 0.08 : 0;
-          const scale = Math.max(0.1, value + stream);
-          const lineHue = (dynamicHue + i * 18) % 360;
+          // Streaming spectrum lines
+          const stream = isPlaying ? Math.sin(timeRef.current * 3 + i * 0.8) * 0.1 : 0;
+          const scale = Math.max(0.08, value * 1.1 + stream + highEnergy * 0.2);
+          const lineHue = (dynamicHue + i * 15) % 360;
           bar.style.transform = `scaleX(${scale})`;
-          bar.style.backgroundColor = `hsl(${lineHue}, ${saturation}%, ${lightness}%)`;
-          bar.style.boxShadow = 'none'; // No glow
-          bar.style.opacity = isPlaying ? `${0.7 + value * 0.3}` : '0.3';
+          bar.style.background = `linear-gradient(to right,
+            hsla(${lineHue}, ${saturation}%, ${lightness - 10}%, 0.8),
+            hsl(${(lineHue + 30) % 360}, ${saturation}%, ${lightness}%),
+            hsla(${(lineHue + 60) % 360}, ${saturation}%, ${lightness + 10}%, 0.8))`;
+          bar.style.opacity = isPlaying ? `${0.8 + value * 0.2}` : '0.2';
         }
       });
 
@@ -257,144 +339,174 @@ export const PerformantVisualizer = ({
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [frequencyData, barCount, variant, isReady, size, isPlaying, demoMode]);
+  }, [frequencyData, barCount, variant, isReady, size, isPlaying, demoMode, isMP3Theme]);
 
-  // Enhanced Bars Visualizer - Premium minimal style
+  // Enhanced Bars Visualizer - VIBRANT rainbow style
   if (variant === "bars") {
     return (
       <div ref={containerRef} className={`${containerClass} flex items-end justify-center gap-[2px] px-2 relative`}>
-        {Array.from({ length: barCount }).map((_, i) => (
-          <div
-            key={i}
-            ref={el => { if (el) barsRef.current[i] = el; }}
-            className="flex-1 max-w-[6px] h-full rounded-t-sm origin-bottom"
-            style={{
-              background: `linear-gradient(to top, hsl(${220 + (i / barCount) * 30}, 45%, 55%), hsl(${230 + (i / barCount) * 25}, 50%, 65%))`,
-              transform: 'scaleY(0.03)',
-              willChange: 'transform, opacity',
-              transition: 'none',
-            }}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  // Enhanced Wave Visualizer - Smooth flowing motion
-  if (variant === "wave") {
-    return (
-      <div ref={containerRef} className={`${containerClass} flex items-center justify-center gap-[1px] relative overflow-hidden`}>
-        {Array.from({ length: barCount }).map((_, i) => (
-          <div
-            key={i}
-            ref={el => { if (el) barsRef.current[i] = el; }}
-            className="w-[3px] md:w-1 h-16 md:h-24 rounded-sm origin-center"
-            style={{
-              background: `linear-gradient(to top, hsl(${220 + (i / barCount) * 25}, 40%, 50%), hsl(${230 + (i / barCount) * 20}, 45%, 60%))`,
-              transform: 'translateY(0) scaleY(0.12)',
-              willChange: 'transform, opacity',
-              transition: 'none',
-            }}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  // Enhanced Pulse Visualizer - Clean concentric rings
-  if (variant === "pulse") {
-    return (
-      <div ref={containerRef} className={`${containerClass} relative flex items-center justify-center`}>
-        {/* Subtle central accent */}
-        <div className="absolute w-1/6 h-1/6 bg-white/15 rounded-full" />
-        {[0, 1, 2, 3, 4].map((ring) => (
-          <div
-            key={ring}
-            ref={el => { if (el) barsRef.current[ring] = el; }}
-            className="absolute rounded-full border"
-            style={{
-              width: `${20 + ring * 16}%`,
-              height: `${20 + ring * 16}%`,
-              borderColor: `hsla(${220 + ring * 25}, 40%, 55%, ${0.5 - ring * 0.08})`,
-              borderWidth: '1.5px',
-              background: 'transparent',
-              transform: 'scale(1)',
-              willChange: 'transform, border-color',
-              transition: 'none',
-            }}
-          />
-        ))}
-      </div>
-    );
-  }
-
-  // Enhanced Circle Visualizer - Orbital particles
-  if (variant === "circle") {
-    return (
-      <div ref={containerRef} className={`${containerClass} relative flex items-center justify-center`}>
-        {/* Clean central core */}
-        <div className="absolute w-4 h-4 md:w-5 md:h-5 bg-white/40 rounded-full" />
-        <div className="absolute w-full h-full flex items-center justify-center">
-          {Array.from({ length: barCount }).map((_, i) => (
+        {Array.from({ length: barCount }).map((_, i) => {
+          const hue = (i / barCount) * 280; // Full rainbow spread
+          return (
             <div
               key={i}
               ref={el => { if (el) barsRef.current[i] = el; }}
-              className="absolute w-1.5 h-1.5 md:w-2 md:h-2 rounded-full origin-center"
+              className="flex-1 max-w-[5px] h-full rounded-t-sm origin-bottom"
               style={{
-                background: `hsl(${220 + (i / barCount) * 40}, 45%, 60%)`,
-                transform: 'translate(0, 0) scale(0.4)',
-                willChange: 'transform, opacity',
+                background: `linear-gradient(to top,
+                  hsl(${hue}, 85%, 45%),
+                  hsl(${(hue + 30) % 360}, 90%, 55%),
+                  hsl(${(hue + 50) % 360}, 85%, 65%))`,
+                transform: 'scaleY(0.03)',
+                willChange: 'transform, opacity, background, box-shadow',
                 transition: 'none',
               }}
             />
-          ))}
-        </div>
-        {/* Subtle outer ring */}
-        <div className="absolute w-[80%] h-[80%] rounded-full border border-white/8" />
+          );
+        })}
       </div>
     );
   }
 
-  // Enhanced Dots Visualizer - Clean grid
+  // Enhanced Wave Visualizer - Flowing rainbow
+  if (variant === "wave") {
+    return (
+      <div ref={containerRef} className={`${containerClass} flex items-center justify-center gap-[1px] relative overflow-hidden`}>
+        {Array.from({ length: barCount }).map((_, i) => {
+          const hue = (i / barCount) * 300;
+          return (
+            <div
+              key={i}
+              ref={el => { if (el) barsRef.current[i] = el; }}
+              className="w-[2px] md:w-[3px] h-20 md:h-28 rounded-sm origin-center"
+              style={{
+                background: `linear-gradient(to top,
+                  hsl(${hue}, 80%, 45%),
+                  hsl(${(hue + 40) % 360}, 85%, 60%))`,
+                transform: 'translateY(0) scaleY(0.1)',
+                willChange: 'transform, opacity, background',
+                transition: 'none',
+              }}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Enhanced Pulse Visualizer - Vibrant concentric rings
+  if (variant === "pulse") {
+    return (
+      <div ref={containerRef} className={`${containerClass} relative flex items-center justify-center`}>
+        {/* Central glowing core */}
+        <div className="absolute w-1/5 h-1/5 bg-gradient-to-br from-purple-400/40 to-pink-400/40 rounded-full blur-sm" />
+        <div className="absolute w-1/8 h-1/8 bg-white/30 rounded-full" />
+        {Array.from({ length: barCount }).map((_, ring) => {
+          const ringHue = ring * 50;
+          return (
+            <div
+              key={ring}
+              ref={el => { if (el) barsRef.current[ring] = el; }}
+              className="absolute rounded-full border-2"
+              style={{
+                width: `${15 + ring * 14}%`,
+                height: `${15 + ring * 14}%`,
+                borderColor: `hsla(${ringHue}, 80%, 60%, ${0.6 - ring * 0.08})`,
+                background: 'transparent',
+                transform: 'scale(1)',
+                willChange: 'transform, border-color, box-shadow',
+                transition: 'none',
+              }}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Enhanced Circle Visualizer - Orbital rainbow particles
+  if (variant === "circle") {
+    return (
+      <div ref={containerRef} className={`${containerClass} relative flex items-center justify-center`}>
+        {/* Glowing central core */}
+        <div className="absolute w-5 h-5 md:w-6 md:h-6 bg-gradient-to-br from-purple-400/50 to-cyan-400/50 rounded-full blur-sm" />
+        <div className="absolute w-3 h-3 md:w-4 md:h-4 bg-white/50 rounded-full" />
+        <div className="absolute w-full h-full flex items-center justify-center">
+          {Array.from({ length: barCount }).map((_, i) => {
+            const hue = (i / barCount) * 360;
+            return (
+              <div
+                key={i}
+                ref={el => { if (el) barsRef.current[i] = el; }}
+                className="absolute w-2 h-2 md:w-2.5 md:h-2.5 rounded-full origin-center"
+                style={{
+                  background: `radial-gradient(circle, hsl(${hue}, 90%, 65%), hsl(${(hue + 30) % 360}, 85%, 50%))`,
+                  transform: 'translate(0, 0) scale(0.4)',
+                  willChange: 'transform, opacity, background, box-shadow',
+                  transition: 'none',
+                }}
+              />
+            );
+          })}
+        </div>
+        {/* Subtle outer rings */}
+        <div className="absolute w-[85%] h-[85%] rounded-full border border-white/10" />
+        <div className="absolute w-[95%] h-[95%] rounded-full border border-white/5" />
+      </div>
+    );
+  }
+
+  // Enhanced Dots Visualizer - Reactive rainbow grid
   if (variant === "dots") {
     const gridSize = Math.sqrt(barCount);
     return (
       <div ref={containerRef} className={`${containerClass} relative flex items-center justify-center`}>
-        <div className={`grid gap-3 md:gap-4`} style={{ gridTemplateColumns: `repeat(${Math.ceil(gridSize)}, 1fr)` }}>
-          {Array.from({ length: barCount }).map((_, i) => (
-            <div
-              key={i}
-              ref={el => { if (el) barsRef.current[i] = el; }}
-              className="w-3 h-3 md:w-4 md:h-4 rounded-full"
-              style={{
-                background: `hsl(${220 + (i / barCount) * 35}, 40%, 55%)`,
-                transform: 'scale(0.5)',
-                willChange: 'transform, opacity',
-                transition: 'none',
-              }}
-            />
-          ))}
+        <div className={`grid gap-2 md:gap-3`} style={{ gridTemplateColumns: `repeat(${Math.ceil(gridSize)}, 1fr)` }}>
+          {Array.from({ length: barCount }).map((_, i) => {
+            const hue = (i / barCount) * 320;
+            return (
+              <div
+                key={i}
+                ref={el => { if (el) barsRef.current[i] = el; }}
+                className="w-3 h-3 md:w-4 md:h-4 rounded-full"
+                style={{
+                  background: `radial-gradient(circle,
+                    hsl(${hue}, 90%, 70%),
+                    hsl(${(hue + 40) % 360}, 85%, 50%))`,
+                  transform: 'scale(0.4)',
+                  willChange: 'transform, opacity, background, box-shadow',
+                  transition: 'none',
+                }}
+              />
+            );
+          })}
         </div>
       </div>
     );
   }
 
-  // Enhanced Lines Visualizer - Streaming bars
+  // Enhanced Lines Visualizer - Streaming spectrum
   return (
-    <div ref={containerRef} className={`${containerClass} flex flex-col items-center justify-center gap-1.5 md:gap-2 relative`}>
-      {Array.from({ length: barCount }).map((_, i) => (
-        <div
-          key={i}
-          ref={el => { if (el) barsRef.current[i] = el; }}
-          className="h-1 md:h-1.5 w-full rounded-sm origin-left"
-          style={{
-            background: `linear-gradient(to right, hsl(${220 + (i / barCount) * 30}, 40%, 50%), hsl(${230 + (i / barCount) * 25}, 45%, 60%))`,
-            transform: 'scaleX(0.1)',
-            willChange: 'transform, opacity',
-            transition: 'none',
-          }}
-        />
-      ))}
+    <div ref={containerRef} className={`${containerClass} flex flex-col items-center justify-center gap-1 md:gap-1.5 relative`}>
+      {Array.from({ length: barCount }).map((_, i) => {
+        const hue = (i / barCount) * 280;
+        return (
+          <div
+            key={i}
+            ref={el => { if (el) barsRef.current[i] = el; }}
+            className="h-1.5 md:h-2 w-full rounded-sm origin-left"
+            style={{
+              background: `linear-gradient(to right,
+                hsla(${hue}, 85%, 45%, 0.8),
+                hsl(${(hue + 30) % 360}, 90%, 55%),
+                hsla(${(hue + 60) % 360}, 85%, 65%, 0.8))`,
+              transform: 'scaleX(0.08)',
+              willChange: 'transform, opacity, background',
+              transition: 'none',
+            }}
+          />
+        );
+      })}
     </div>
   );
 };

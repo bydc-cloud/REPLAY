@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=VT323&family=Orbitron:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -259,415 +260,497 @@ html {
 }
 
 /* ========================================
-   MP3 PLAYER THEME - COMPLETE EXPERIENCE
-   Realistic hardware device simulation
+   MP3 PLAYER THEME V2 - PREMIUM 2025 EXPERIENCE
+   Mobile-first, visually stunning hardware simulation
    ======================================== */
 
-/* MP3 Player Theme - Body Styling */
+/* === MP3 PLAYER BODY === */
 [data-theme="mp3player"] body {
-  background: linear-gradient(145deg, var(--mp3-body-gradient-start), var(--mp3-body-gradient-end));
-  font-family: 'Courier New', 'Lucida Console', monospace;
+  background: #0a0a0a;
+  overflow-x: hidden;
 }
 
-/* MP3 Player Device Frame - Wraps entire app */
+/* === DEVICE FRAME - THE ACTUAL MP3 PLAYER BODY === */
 [data-theme="mp3player"] #root {
-  background: linear-gradient(180deg,
-    #5a5f67 0%,
-    #4a4f57 5%,
-    #3a3f47 50%,
-    #2a2f37 95%,
-    #1a1f27 100%
+  --device-radius: 32px;
+  --device-padding: 16px;
+  background: linear-gradient(165deg,
+    #52565e 0%,
+    #45494f 8%,
+    #3a3e44 20%,
+    #32363c 40%,
+    #2a2e34 60%,
+    #24282e 80%,
+    #1e2228 100%
   );
-  border-radius: 24px;
+  border-radius: var(--device-radius);
   margin: 8px;
-  padding: 12px;
-  box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.6),
-    inset 0 2px 4px rgba(255, 255, 255, 0.1),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(255, 255, 255, 0.05);
+  padding: var(--device-padding);
   min-height: calc(100vh - 16px);
   position: relative;
+  box-shadow:
+    /* Deep shadow for 3D depth */
+    0 25px 50px rgba(0, 0, 0, 0.7),
+    0 10px 20px rgba(0, 0, 0, 0.5),
+    /* Inner bevels for metallic feel */
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+    inset 1px 0 0 rgba(255, 255, 255, 0.08),
+    inset -1px 0 0 rgba(0, 0, 0, 0.3),
+    /* Outer rim */
+    0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
-/* Metallic edge highlight */
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  [data-theme="mp3player"] #root {
+    --device-radius: 24px;
+    --device-padding: 10px;
+    margin: 4px;
+    min-height: calc(100vh - 8px);
+  }
+}
+
+/* Top metallic shine strip */
 [data-theme="mp3player"] #root::before {
   content: '';
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
+  left: 10%;
+  right: 10%;
+  height: 2px;
   background: linear-gradient(90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.3) 20%,
-    rgba(255, 255, 255, 0.5) 50%,
-    rgba(255, 255, 255, 0.3) 80%,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0.4) 70%,
     transparent 100%
   );
-  border-radius: 24px 24px 0 0;
+  border-radius: 0 0 50% 50%;
+  filter: blur(0.5px);
 }
 
-/* LCD Screen Effect - All cards and elevated elements */
-[data-theme="mp3player"] .bg-\[var\(--replay-elevated\)\],
-[data-theme="mp3player"] [class*="bg-\[var(--replay-elevated)"],
-[data-theme="mp3player"] [class*="bg-\[var(--replay-dark-grey)"] {
+/* === LCD SCREEN CONTAINER === */
+[data-theme="mp3player"] main {
   background: linear-gradient(180deg,
-    #0f1a14 0%,
-    var(--mp3-lcd-bg) 10%,
-    var(--mp3-lcd-bg) 90%,
-    #0a1510 100%
-  ) !important;
-  border: 2px solid #0a0f0c !important;
-  border-radius: 4px !important;
-  box-shadow:
-    inset 0 2px 8px rgba(0, 0, 0, 0.6),
-    inset 0 -1px 2px rgba(0, 255, 136, 0.05),
-    0 1px 2px rgba(255, 255, 255, 0.05);
-  position: relative;
-}
-
-/* LCD Scanline Effect */
-[data-theme="mp3player"] .bg-\[var\(--replay-elevated\)\]::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent 0px,
-    transparent 2px,
-    rgba(0, 0, 0, 0.15) 2px,
-    rgba(0, 0, 0, 0.15) 4px
+    #0d1a12 0%,
+    #0f1f15 5%,
+    #0a1810 50%,
+    #081510 95%,
+    #061008 100%
   );
-  pointer-events: none;
-  border-radius: 4px;
-}
-
-/* LCD Text Glow - All text in MP3 mode */
-[data-theme="mp3player"] .text-\[var\(--replay-off-white\)\],
-[data-theme="mp3player"] [class*="text-\[var(--replay-off-white)"] {
-  color: var(--mp3-lcd-text) !important;
-  text-shadow:
-    0 0 8px var(--mp3-lcd-text),
-    0 0 16px rgba(0, 255, 136, 0.5),
-    0 0 24px rgba(0, 255, 136, 0.3);
-  font-family: 'Courier New', 'Lucida Console', monospace !important;
-}
-
-/* Dim text - secondary info */
-[data-theme="mp3player"] .text-\[var\(--replay-mid-grey\)\],
-[data-theme="mp3player"] [class*="text-\[var(--replay-mid-grey)"] {
-  color: var(--mp3-lcd-dim) !important;
-  text-shadow: 0 0 4px rgba(0, 68, 34, 0.5);
-}
-
-/* MP3 Player Buttons */
-[data-theme="mp3player"] button {
-  background: linear-gradient(180deg,
-    #4a4f57 0%,
-    #3a3f47 50%,
-    #2a2f37 100%
-  ) !important;
-  border: 1px solid #555a62 !important;
-  border-radius: 50% !important;
+  border-radius: 8px;
+  border: 3px solid #050a07;
   box-shadow:
-    0 4px 8px rgba(0, 0, 0, 0.4),
-    inset 0 1px 2px rgba(255, 255, 255, 0.1),
-    inset 0 -1px 2px rgba(0, 0, 0, 0.2);
-  transition: all 0.1s ease !important;
-}
-
-[data-theme="mp3player"] button:active {
-  transform: translateY(2px) !important;
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.4),
-    inset 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-/* Play/Pause Main Button - Extra prominent */
-[data-theme="mp3player"] button.bg-white,
-[data-theme="mp3player"] [class*="bg-white"] button {
-  background: linear-gradient(180deg,
-    #606670 0%,
-    #505560 50%,
-    #404550 100%
-  ) !important;
-  border: 2px solid #707580 !important;
-  box-shadow:
-    0 6px 12px rgba(0, 0, 0, 0.5),
-    inset 0 2px 4px rgba(255, 255, 255, 0.15),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.2),
-    0 0 20px rgba(0, 255, 136, 0.2);
-}
-
-/* Progress Bar - LCD Style */
-[data-theme="mp3player"] input[type="range"] {
-  background: transparent !important;
-}
-
-[data-theme="mp3player"] input[type="range"]::-webkit-slider-runnable-track {
-  background: linear-gradient(90deg,
-    var(--mp3-lcd-text) 0%,
-    var(--mp3-lcd-text) var(--progress, 50%),
-    var(--mp3-lcd-dim) var(--progress, 50%),
-    var(--mp3-lcd-dim) 100%
-  ) !important;
-  height: 8px !important;
-  border-radius: 2px !important;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
-}
-
-[data-theme="mp3player"] input[type="range"]::-webkit-slider-thumb {
-  background: linear-gradient(180deg, #606670, #404550) !important;
-  border: 2px solid #808590 !important;
-  width: 16px !important;
-  height: 16px !important;
-  border-radius: 3px !important;
-  box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.4),
-    inset 0 1px 1px rgba(255, 255, 255, 0.2);
-}
-
-/* Scrollbar - Hardware Look */
-[data-theme="mp3player"] ::-webkit-scrollbar {
-  width: 6px;
-  background: var(--mp3-lcd-bg);
-}
-
-[data-theme="mp3player"] ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #505560, #303540);
-  border-radius: 2px;
-  border: 1px solid #404550;
-}
-
-/* Track List Items - LCD Segments */
-[data-theme="mp3player"] [class*="hover:bg-white/5"],
-[data-theme="mp3player"] [class*="hover:bg-\[var(--replay-elevated)"] {
-  border-bottom: 1px dotted var(--mp3-lcd-dim) !important;
-  transition: all 0.1s ease !important;
-}
-
-[data-theme="mp3player"] [class*="hover:bg-white/5"]:hover,
-[data-theme="mp3player"] [class*="hover:bg-\[var(--replay-elevated)"]:hover {
-  background: rgba(0, 255, 136, 0.1) !important;
-  box-shadow: inset 0 0 20px rgba(0, 255, 136, 0.1);
-}
-
-/* Album Art Container - LCD Window */
-[data-theme="mp3player"] .rounded-xl,
-[data-theme="mp3player"] .rounded-2xl,
-[data-theme="mp3player"] .rounded-3xl {
-  border-radius: 4px !important;
-}
-
-/* Icons - Glowing LCD style */
-[data-theme="mp3player"] svg {
-  filter: drop-shadow(0 0 4px var(--mp3-lcd-text));
-}
-
-/* Heart/Like Button - Special glow when active */
-[data-theme="mp3player"] .text-red-500 {
-  color: #ff4466 !important;
-  filter: drop-shadow(0 0 8px #ff4466);
-}
-
-/* Time Display - Digital Clock Style */
-[data-theme="mp3player"] .tabular-nums {
-  font-family: 'Courier New', 'Lucida Console', monospace !important;
-  letter-spacing: 2px;
-  font-weight: bold;
-}
-
-/* Navigation/Tabs - Physical Buttons */
-[data-theme="mp3player"] nav button,
-[data-theme="mp3player"] [role="tablist"] button {
-  border-radius: 6px !important;
-  margin: 2px;
-}
-
-/* Volume Bar - LED Indicator Style */
-[data-theme="mp3player"] [class*="bg-gradient-to-r"] {
-  background: linear-gradient(90deg,
-    var(--mp3-lcd-text) 0%,
-    #00cc66 50%,
-    #009944 100%
-  ) !important;
-  box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
-}
-
-/* Cards with special borders */
-[data-theme="mp3player"] [class*="border-\[var(--replay-border)"] {
-  border-color: #0a0f0c !important;
-  border-width: 2px !important;
-}
-
-/* Visualizer Container - CRT Monitor Effect */
-[data-theme="mp3player"] [class*="PremiumCoverArt"],
-[data-theme="mp3player"] .aspect-square {
-  border: 3px solid #0a0f0c !important;
-  box-shadow:
-    inset 0 0 30px rgba(0, 0, 0, 0.8),
-    0 0 20px rgba(0, 255, 136, 0.1);
+    inset 0 3px 15px rgba(0, 0, 0, 0.8),
+    inset 0 -2px 8px rgba(0, 255, 136, 0.03),
+    0 1px 0 rgba(255, 255, 255, 0.1);
   position: relative;
   overflow: hidden;
 }
 
-/* CRT Scanlines overlay */
-[data-theme="mp3player"] .aspect-square::before {
+/* Subtle LCD pixel texture */
+[data-theme="mp3player"] main::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent 0px,
-    transparent 1px,
-    rgba(0, 0, 0, 0.1) 1px,
-    rgba(0, 0, 0, 0.1) 2px
-  );
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 2px,
+      rgba(0, 0, 0, 0.08) 2px,
+      rgba(0, 0, 0, 0.08) 3px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 2px,
+      rgba(0, 0, 0, 0.04) 2px,
+      rgba(0, 0, 0, 0.04) 3px
+    );
   pointer-events: none;
-  z-index: 10;
+  z-index: 1;
+  opacity: 0.6;
 }
 
-/* Brand Logo Area - Embossed Look */
-[data-theme="mp3player"] h1 {
+/* === TYPOGRAPHY - LCD DIGITAL STYLE === */
+[data-theme="mp3player"] h1,
+[data-theme="mp3player"] h2,
+[data-theme="mp3player"] h3,
+[data-theme="mp3player"] h4,
+[data-theme="mp3player"] .font-semibold,
+[data-theme="mp3player"] .font-bold,
+[data-theme="mp3player"] .font-black {
+  font-family: 'Orbitron', 'VT323', monospace !important;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
-  letter-spacing: 4px;
-  font-size: 0.9em;
-  text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.1),
-    0 -1px 0 rgba(0, 0, 0, 0.3),
-    0 0 20px var(--mp3-lcd-text);
 }
 
-/* Input Fields - Recessed LCD Entry */
+/* Primary text - Bright LCD green */
+[data-theme="mp3player"] .text-\[var\(--replay-off-white\)\],
+[data-theme="mp3player"] h1, [data-theme="mp3player"] h2,
+[data-theme="mp3player"] h3, [data-theme="mp3player"] h4 {
+  color: #00ff88 !important;
+  text-shadow:
+    0 0 10px rgba(0, 255, 136, 0.8),
+    0 0 20px rgba(0, 255, 136, 0.4),
+    0 0 30px rgba(0, 255, 136, 0.2);
+}
+
+/* Secondary text - Dim LCD */
+[data-theme="mp3player"] .text-\[var\(--replay-mid-grey\)\],
+[data-theme="mp3player"] .text-\[var\(--replay-light-grey\)\],
+[data-theme="mp3player"] p {
+  color: #00aa55 !important;
+  text-shadow: 0 0 6px rgba(0, 170, 85, 0.4);
+  font-family: 'Orbitron', monospace;
+}
+
+/* Time display - Digital clock */
+[data-theme="mp3player"] .tabular-nums {
+  font-family: 'VT323', 'Courier New', monospace !important;
+  font-size: 1.1em;
+  letter-spacing: 3px;
+  color: #00ff88 !important;
+  text-shadow: 0 0 12px rgba(0, 255, 136, 0.9);
+}
+
+/* === BUTTONS - PHYSICAL TACTILE FEEL === */
+[data-theme="mp3player"] button {
+  background: linear-gradient(180deg,
+    #4a4e54 0%,
+    #3a3e44 40%,
+    #2a2e34 100%
+  ) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-bottom-color: rgba(0, 0, 0, 0.4) !important;
+  border-radius: 8px !important;
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  transition: all 0.1s ease !important;
+  position: relative;
+}
+
+[data-theme="mp3player"] button:hover {
+  background: linear-gradient(180deg,
+    #55595f 0%,
+    #45494f 40%,
+    #35393f 100%
+  ) !important;
+}
+
+[data-theme="mp3player"] button:active {
+  transform: translateY(2px) scale(0.98) !important;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    inset 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Main play button - Larger, more prominent */
+[data-theme="mp3player"] button.bg-\[var\(--replay-off-white\)\],
+[data-theme="mp3player"] button[class*="bg-white"],
+[data-theme="mp3player"] button[class*="from-\[var(--replay-off-white)"] {
+  background: linear-gradient(180deg,
+    #5a5e64 0%,
+    #4a4e54 30%,
+    #3a3e44 70%,
+    #2a2e34 100%
+  ) !important;
+  border: 2px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.5),
+    0 3px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 2px rgba(255, 255, 255, 0.15),
+    0 0 20px rgba(0, 255, 136, 0.15);
+}
+
+[data-theme="mp3player"] button.bg-\[var\(--replay-off-white\)\]:active {
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.4),
+    inset 0 3px 8px rgba(0, 0, 0, 0.4),
+    0 0 15px rgba(0, 255, 136, 0.2) !important;
+}
+
+/* Button icons - LCD glow */
+[data-theme="mp3player"] button svg {
+  color: #00ff88 !important;
+  filter: drop-shadow(0 0 4px rgba(0, 255, 136, 0.6));
+}
+
+/* === ELEVATED CONTAINERS === */
+[data-theme="mp3player"] .bg-\[var\(--replay-elevated\)\],
+[data-theme="mp3player"] .bg-\[var\(--replay-dark-grey\)\] {
+  background: linear-gradient(180deg,
+    rgba(15, 30, 20, 0.9) 0%,
+    rgba(10, 25, 16, 0.95) 100%
+  ) !important;
+  border: 1px solid rgba(0, 255, 136, 0.1) !important;
+  border-radius: 6px !important;
+  box-shadow:
+    inset 0 1px 8px rgba(0, 0, 0, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* === PROGRESS BAR - LED SEGMENT STYLE === */
+[data-theme="mp3player"] input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent !important;
+  cursor: pointer;
+}
+
+[data-theme="mp3player"] input[type="range"]::-webkit-slider-runnable-track {
+  height: 10px;
+  background: linear-gradient(90deg,
+    #003322 0%,
+    #002816 100%
+  );
+  border-radius: 3px;
+  border: 1px solid #001a0d;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="mp3player"] input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  background: linear-gradient(180deg,
+    #55595f 0%,
+    #3a3e44 50%,
+    #25292f 100%
+  );
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  margin-top: -4px;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
+
+/* === TRACK LIST ITEMS === */
+[data-theme="mp3player"] [class*="hover:bg-white/5"],
+[data-theme="mp3player"] [class*="hover:bg-\[var(--replay-elevated)"] {
+  border-bottom: 1px solid rgba(0, 255, 136, 0.08) !important;
+  transition: all 0.15s ease !important;
+}
+
+[data-theme="mp3player"] [class*="hover:bg-white/5"]:hover,
+[data-theme="mp3player"] [class*="hover:bg-\[var(--replay-elevated)"]:hover {
+  background: linear-gradient(90deg,
+    rgba(0, 255, 136, 0.08) 0%,
+    rgba(0, 255, 136, 0.04) 100%
+  ) !important;
+  border-left: 2px solid #00ff88 !important;
+  padding-left: calc(1rem - 2px) !important;
+}
+
+/* === MOBILE PLAYER BAR === */
+[data-theme="mp3player"] .fixed.bottom-0 {
+  background: linear-gradient(180deg,
+    #3a3e44 0%,
+    #2a2e34 50%,
+    #1e2228 100%
+  ) !important;
+  border-top: 2px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 16px 16px 0 0;
+  box-shadow:
+    0 -4px 20px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Mobile progress bar at top of player */
+[data-theme="mp3player"] .fixed.bottom-0 .absolute.top-0 {
+  background: linear-gradient(90deg,
+    #003322 0%,
+    #002816 100%
+  );
+  height: 4px !important;
+}
+
+[data-theme="mp3player"] .fixed.bottom-0 .absolute.top-0 > div {
+  background: linear-gradient(90deg,
+    #00ff88 0%,
+    #00cc66 50%,
+    #00ff88 100%
+  ) !important;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.6);
+}
+
+/* === MOBILE HEADER === */
+[data-theme="mp3player"] .md\\:hidden.fixed.top-0 {
+  background: linear-gradient(180deg,
+    #3a3e44 0%,
+    #2e3238 100%
+  ) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Brand name styling */
+[data-theme="mp3player"] .font-black.tracking-tight {
+  font-family: 'Orbitron', sans-serif !important;
+  font-weight: 700 !important;
+  letter-spacing: 3px !important;
+  color: #00ff88 !important;
+  text-shadow:
+    0 0 10px rgba(0, 255, 136, 0.7),
+    0 0 20px rgba(0, 255, 136, 0.4);
+}
+
+/* === ALBUM ART / VISUALIZER CONTAINER === */
+[data-theme="mp3player"] .rounded-xl,
+[data-theme="mp3player"] .rounded-2xl,
+[data-theme="mp3player"] .rounded-3xl,
+[data-theme="mp3player"] .rounded-lg {
+  border-radius: 6px !important;
+}
+
+[data-theme="mp3player"] .aspect-square {
+  border: 2px solid #0a1a10 !important;
+  box-shadow:
+    inset 0 0 30px rgba(0, 0, 0, 0.7),
+    0 0 15px rgba(0, 255, 136, 0.08);
+  overflow: hidden;
+}
+
+/* === SCROLLBAR === */
+[data-theme="mp3player"] ::-webkit-scrollbar {
+  width: 8px;
+  background: rgba(10, 25, 16, 0.8);
+}
+
+[data-theme="mp3player"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg,
+    #3a4040 0%,
+    #2a3030 100%
+  );
+  border-radius: 4px;
+  border: 1px solid rgba(0, 255, 136, 0.1);
+}
+
+[data-theme="mp3player"] ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg,
+    #4a5050 0%,
+    #3a4040 100%
+  );
+}
+
+/* === HEART / LIKE BUTTON === */
+[data-theme="mp3player"] .text-red-500,
+[data-theme="mp3player"] button svg.fill-current {
+  color: #ff6688 !important;
+  filter: drop-shadow(0 0 6px rgba(255, 102, 136, 0.6));
+}
+
+/* === BADGES === */
+[data-theme="mp3player"] [class*="bg-purple-500"],
+[data-theme="mp3player"] [class*="bg-blue-500"],
+[data-theme="mp3player"] [class*="bg-pink-500"] {
+  background: rgba(0, 255, 136, 0.15) !important;
+  color: #00ff88 !important;
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  font-family: 'Orbitron', monospace !important;
+  font-size: 0.7em;
+  text-shadow: 0 0 4px rgba(0, 255, 136, 0.5);
+}
+
+/* === INPUT FIELDS === */
 [data-theme="mp3player"] input[type="text"],
 [data-theme="mp3player"] input[type="search"] {
-  background: var(--mp3-lcd-bg) !important;
-  border: 2px inset #0a0f0c !important;
-  border-radius: 2px !important;
-  color: var(--mp3-lcd-text) !important;
-  font-family: 'Courier New', monospace !important;
-  text-shadow: 0 0 8px var(--mp3-lcd-text);
+  background: rgba(10, 25, 16, 0.8) !important;
+  border: 2px solid rgba(0, 255, 136, 0.15) !important;
+  border-radius: 6px !important;
+  color: #00ff88 !important;
+  font-family: 'Orbitron', monospace !important;
+  padding: 10px 14px;
 }
 
 [data-theme="mp3player"] input[type="text"]::placeholder,
 [data-theme="mp3player"] input[type="search"]::placeholder {
-  color: var(--mp3-lcd-dim) !important;
+  color: rgba(0, 170, 85, 0.5) !important;
 }
 
-/* Battery/Status Indicator Style for badges */
-[data-theme="mp3player"] [class*="rounded-full"][class*="bg-"] {
-  border-radius: 2px !important;
-  font-family: 'Courier New', monospace;
-  font-size: 0.7em;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+[data-theme="mp3player"] input[type="text"]:focus,
+[data-theme="mp3player"] input[type="search"]:focus {
+  border-color: rgba(0, 255, 136, 0.4) !important;
+  box-shadow: 0 0 15px rgba(0, 255, 136, 0.15);
+  outline: none;
 }
 
-/* Menu Items - Selection Highlight */
+/* === ANIMATIONS === */
+@keyframes mp3-glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+  }
+}
+
+[data-theme="mp3player"] .animate-pulse {
+  animation: mp3-glow-pulse 2s ease-in-out infinite !important;
+}
+
+/* === FULL SCREEN PLAYER === */
+[data-theme="mp3player"] [class*="fixed inset-0"][class*="z-"] {
+  background: linear-gradient(180deg,
+    #2a2e34 0%,
+    #1e2228 30%,
+    #0f1510 70%,
+    #0a100c 100%
+  ) !important;
+}
+
+/* === DISABLE PROBLEMATIC OVERRIDES === */
 [data-theme="mp3player"] [class*="hover:scale"] {
-  transition: background 0.1s ease !important;
   transform: none !important;
 }
 
 [data-theme="mp3player"] [class*="hover:scale"]:hover {
   transform: none !important;
-  background: rgba(0, 255, 136, 0.15) !important;
-  box-shadow: inset 0 0 20px rgba(0, 255, 136, 0.1);
 }
 
-/* Device Speaker Grille Decoration */
+/* === VISUALIZER ENHANCEMENTS FOR MP3 THEME === */
+[data-theme="mp3player"] [class*="visualizer"] div,
+[data-theme="mp3player"] .flex-1.rounded-t-sm {
+  background: linear-gradient(0deg,
+    #00ff88 0%,
+    #00cc66 50%,
+    #00ff88 100%
+  ) !important;
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+/* === SPEAKER GRILLE AT BOTTOM === */
 [data-theme="mp3player"] #root::after {
   content: '';
   position: absolute;
-  bottom: 16px;
+  bottom: 8px;
   left: 50%;
   transform: translateX(-50%);
-  width: 60px;
-  height: 6px;
+  width: 80px;
+  height: 4px;
   background: repeating-linear-gradient(
     90deg,
-    #2a2f37 0px,
-    #2a2f37 2px,
-    #1a1f27 2px,
-    #1a1f27 4px
+    #1e2228 0px,
+    #1e2228 3px,
+    #35393f 3px,
+    #35393f 6px
   );
   border-radius: 2px;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
-/* Pulsing Now Playing Indicator */
-@keyframes lcd-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
-[data-theme="mp3player"] .animate-pulse {
-  animation: lcd-pulse 1.5s ease-in-out infinite !important;
-}
-
-/* Equalizer Bars - Segmented LED Style */
-[data-theme="mp3player"] [class*="visualizer"] div,
-[data-theme="mp3player"] .flex-1[class*="bg-gradient"] {
-  background: linear-gradient(0deg,
-    var(--mp3-lcd-text) 0%,
-    var(--mp3-lcd-text) 20%,
-    transparent 20%,
-    transparent 25%,
-    var(--mp3-lcd-text) 25%,
-    var(--mp3-lcd-text) 45%,
-    transparent 45%,
-    transparent 50%,
-    var(--mp3-lcd-text) 50%,
-    var(--mp3-lcd-text) 70%,
-    transparent 70%,
-    transparent 75%,
-    var(--mp3-lcd-text) 75%,
-    var(--mp3-lcd-text) 100%
-  ) !important;
-  box-shadow: 0 0 8px var(--mp3-lcd-text);
-}
-
-/* Mobile Navigation Bar - Control Panel */
-[data-theme="mp3player"] nav[class*="fixed bottom"] {
-  background: linear-gradient(180deg,
-    #4a4f57 0%,
-    #3a3f47 50%,
-    #2a2f37 100%
-  ) !important;
-  border-top: 2px solid #555a62 !important;
-  box-shadow:
-    0 -4px 12px rgba(0, 0, 0, 0.4),
-    inset 0 2px 4px rgba(255, 255, 255, 0.1);
-}
-
-/* Active nav item glow */
-[data-theme="mp3player"] nav button.text-\[var\(--replay-off-white\)\] {
-  background: radial-gradient(circle, rgba(0, 255, 136, 0.2) 0%, transparent 70%) !important;
-}
-
-/* Full Screen Player - Complete Device Simulation */
-[data-theme="mp3player"] [class*="fixed inset-0"][class*="z-\[100\]"] {
-  background: linear-gradient(180deg,
-    #5a5f67 0%,
-    #4a4f57 10%,
-    #3a3f47 50%,
-    #2a2f37 90%,
-    #1a1f27 100%
-  ) !important;
-  border-radius: 0 !important;
-}
-
-/* Header in full screen - Recessed display */
-[data-theme="mp3player"] [class*="fixed inset-0"] [class*="backdrop-blur"] {
-  background: var(--mp3-lcd-bg) !important;
-  border: 2px solid #0a0f0c !important;
-  margin: 8px !important;
-  border-radius: 4px !important;
+@media (max-width: 640px) {
+  [data-theme="mp3player"] #root::after {
+    width: 60px;
+    height: 3px;
+    bottom: 4px;
+  }
 }
