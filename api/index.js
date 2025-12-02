@@ -376,12 +376,31 @@ app.get('/api/tracks/:id/stream', async (req, res) => {
   try {
     const db = getPool();
     const result = await db.query(
-      'SELECT file_data FROM tracks WHERE id = $1 AND user_id = $2',
+      'SELECT file_data, file_key FROM tracks WHERE id = $1 AND user_id = $2',
       [req.params.id, req.user.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
 
-    const fileData = result.rows[0].file_data;
+    const { file_data: fileData, file_key: fileKey } = result.rows[0];
+
+    // If track is stored in B2, redirect to signed URL
+    if (fileKey) {
+      const client = getS3Client();
+      if (!client) {
+        return res.status(500).json({ error: 'Cloud storage not configured' });
+      }
+
+      const command = new GetObjectCommand({
+        Bucket: B2_BUCKET,
+        Key: fileKey,
+      });
+
+      const streamUrl = await getSignedUrl(client, command, { expiresIn: 3600 });
+
+      // Redirect to B2 signed URL for direct streaming
+      return res.redirect(302, streamUrl);
+    }
+
     if (!fileData) return res.status(404).json({ error: 'No audio data' });
 
     // Parse the data URL to get mime type and base64 data
