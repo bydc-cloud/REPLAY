@@ -117,15 +117,24 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       console.error("Audio error:", audioError);
       // Provide helpful error message based on error code
       if (audioError) {
-        const errorMessages: Record<number, string> = {
-          1: 'Audio loading aborted',
-          2: 'Network error loading audio',
-          3: 'Audio decoding error - file may be corrupted',
-          4: 'Audio format not supported on this device'
-        };
-        const message = errorMessages[audioError.code] || 'Unknown audio error';
-        console.error(`Audio error code ${audioError.code}: ${message}`);
-        showToast(message, 'error');
+        // For error code 4 (format not supported), this usually means:
+        // - Audio data is missing from the cloud (needs re-import)
+        // - Server returned JSON error instead of audio
+        // - Actual codec issue (rare)
+        // Show a more helpful message
+        if (audioError.code === 4) {
+          console.error('Audio error code 4: Format not supported or audio data missing');
+          showToast('Unable to play this track. Please try re-importing it.', 'error');
+        } else {
+          const errorMessages: Record<number, string> = {
+            1: 'Audio loading aborted',
+            2: 'Network error loading audio',
+            3: 'Audio decoding error - file may be corrupted',
+          };
+          const message = errorMessages[audioError.code] || 'Unknown audio error';
+          console.error(`Audio error code ${audioError.code}: ${message}`);
+          showToast(message, 'error');
+        }
       }
     });
 
