@@ -1,4 +1,4 @@
-import { Settings as SettingsIcon, Sparkles, Check, Sun, Moon, Palette, Keyboard, Info, Heart, Download, Upload, FileJson, CheckCircle2, User, Loader2, Code2, Zap, Trash2, EyeOff, Cloud, CloudOff } from "lucide-react";
+import { Settings as SettingsIcon, Sparkles, Check, Sun, Moon, Palette, Keyboard, Info, Heart, Download, Upload, FileJson, CheckCircle2, User, Loader2, Code2, Zap, Trash2, EyeOff, Cloud, CloudOff, Radio } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { PremiumCoverArt } from "./PremiumCoverArt";
 import { useSettings } from "../contexts/SettingsContext";
@@ -304,7 +304,7 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {/* Dark Mode Button */}
             <button
               onClick={() => setThemeMode("dark")}
@@ -319,7 +319,7 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
                   <Check size={16} strokeWidth={3} />
                 </div>
               )}
-              
+
               <div className="flex flex-col items-center justify-center gap-4">
                 <div className="w-16 h-16 bg-gradient-to-br from-black to-slate-900 rounded-2xl border border-white/20 flex items-center justify-center shadow-2xl">
                   <Moon className="text-white" size={32} />
@@ -349,7 +349,7 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
                   <Check size={16} strokeWidth={3} />
                 </div>
               )}
-              
+
               <div className="flex flex-col items-center justify-center gap-4">
                 <div className="w-16 h-16 bg-gradient-to-br from-white to-gray-100 rounded-2xl border border-gray-300 flex items-center justify-center shadow-2xl">
                   <Sun className="text-gray-900" size={32} />
@@ -360,6 +360,39 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
                   </h3>
                   <p className="text-xs text-[var(--replay-mid-grey)]">
                     Clean white minimalist theme
+                  </p>
+                </div>
+              </div>
+            </button>
+
+            {/* MP3 Player Mode Button */}
+            <button
+              onClick={() => setThemeMode("mp3player")}
+              className={`group relative text-left bg-[var(--replay-dark-grey)]/60 backdrop-blur-sm rounded-2xl p-6 border-2 transition-all duration-300 hover:scale-105 hover:shadow-2xl col-span-2 md:col-span-1 ${
+                themeMode === "mp3player"
+                  ? "border-[#00ff88] ring-2 ring-[#00ff88]/20"
+                  : "border-[var(--replay-border)] hover:border-[var(--replay-mid-grey)]"
+              }`}
+            >
+              {themeMode === "mp3player" && (
+                <div className="absolute top-3 right-3 bg-[#00ff88] text-black rounded-full p-1.5 shadow-lg">
+                  <Check size={16} strokeWidth={3} />
+                </div>
+              )}
+
+              <div className="flex flex-col items-center justify-center gap-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-[#4a4f57] to-[#2a2d32] rounded-lg border-2 border-[#555a62] flex items-center justify-center shadow-2xl relative overflow-hidden">
+                  {/* LCD Screen simulation */}
+                  <div className="absolute inset-1 bg-[#1a2820] rounded flex items-center justify-center">
+                    <Radio className="text-[#00ff88]" size={24} style={{ filter: 'drop-shadow(0 0 4px #00ff88)' }} />
+                  </div>
+                </div>
+                <div className="text-center">
+                  <h3 className="font-black text-[var(--replay-off-white)] mb-1">
+                    MP3 Player
+                  </h3>
+                  <p className="text-xs text-[var(--replay-mid-grey)]">
+                    Realistic hardware device look
                   </p>
                 </div>
               </div>

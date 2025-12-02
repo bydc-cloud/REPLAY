@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 type VisualizerVariant = "none" | "bars" | "wave" | "pulse" | "circle" | "dots" | "lines" | "lyrics";
-type ThemeMode = "dark" | "light";
+type ThemeMode = "dark" | "light" | "mp3player";
 
 interface SettingsContextType {
   visualizerVariant: VisualizerVariant;
@@ -30,7 +30,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     // Load from localStorage on initial mount
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("replay-theme");
-      if (saved && ["dark", "light"].includes(saved)) {
+      if (saved && ["dark", "light", "mp3player"].includes(saved)) {
         return saved as ThemeMode;
       }
     }
