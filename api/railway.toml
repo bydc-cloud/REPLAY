@@ -1,6 +1,10 @@
 [build]
 builder = "nixpacks"
 
+[build.nixpacks]
+installCommand = "npm install"
+buildCommand = ""
+
 [deploy]
 startCommand = "node index.js"
 restartPolicyType = "on_failure"

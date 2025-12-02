@@ -267,7 +267,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
   const [importProgress, setImportProgress] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
   const [importQueue, setImportQueue] = useState<ImportQueueItem[]>([]);
-  const [importStats, setImportStats] = useState({ total: 0, completed: 0, failed: 0 });
+  const [importStats, setImportStats] = useState<{ total: number; completed: number; failed: number; currentFileName?: string }>({ total: 0, completed: 0, failed: 0 });
   const [recentlyPlayed, setRecentlyPlayed] = useState<Track[]>([]);
   const syncInProgressRef = useRef(false);
   const importInProgressRef = useRef(false);
