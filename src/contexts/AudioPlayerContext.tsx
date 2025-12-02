@@ -496,9 +496,28 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       // First check the passed track object
       if (track.fileUrl && track.fileUrl.length > 0 &&
           (track.fileUrl.startsWith('blob:') || track.fileUrl.startsWith('data:'))) {
-        audioUrl = track.fileUrl;
-        console.log("Using local audio from track object");
-      } else {
+        // For blob URLs, verify they're still valid (they expire after page refresh)
+        if (track.fileUrl.startsWith('blob:')) {
+          try {
+            // Quick HEAD request to check if blob is still accessible
+            const blobResponse = await fetch(track.fileUrl, { method: 'HEAD' });
+            if (blobResponse.ok) {
+              audioUrl = track.fileUrl;
+              console.log("Using local blob URL from track object (verified valid)");
+            } else {
+              console.log("Blob URL is stale/invalid, will try cloud fallback");
+            }
+          } catch (blobError) {
+            console.log("Blob URL expired or invalid, will try cloud fallback:", blobError);
+          }
+        } else {
+          // Data URLs don't expire, use directly
+          audioUrl = track.fileUrl;
+          console.log("Using local data URL from track object");
+        }
+      }
+
+      if (!audioUrl) {
         // Also try to get audio via the context method which checks current tracks state
         console.log("Trying to get audio via getTrackAudio...");
         const contextAudio = await getTrackAudio(track.id);
@@ -510,8 +529,23 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         }
 
         if (contextAudio && (contextAudio.startsWith('blob:') || contextAudio.startsWith('data:'))) {
-          audioUrl = contextAudio;
-          console.log("Using audio from getTrackAudio, length:", contextAudio.length);
+          // For blob URLs, verify they're still valid
+          if (contextAudio.startsWith('blob:')) {
+            try {
+              const blobResponse = await fetch(contextAudio, { method: 'HEAD' });
+              if (blobResponse.ok) {
+                audioUrl = contextAudio;
+                console.log("Using blob URL from getTrackAudio (verified valid)");
+              } else {
+                console.log("Context blob URL is stale/invalid");
+              }
+            } catch {
+              console.log("Context blob URL expired, trying cloud fallback");
+            }
+          } else {
+            audioUrl = contextAudio;
+            console.log("Using data URL from getTrackAudio, length:", contextAudio.length);
+          }
         }
       }
 
