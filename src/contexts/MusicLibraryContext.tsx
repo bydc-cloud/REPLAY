@@ -926,21 +926,95 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    const totalFiles = audioFiles.length;
-
     // Show warning about skipped files if any
     if (skippedFiles.length > 0) {
       const skippedCount = skippedFiles.length;
       const examples = skippedFiles.slice(0, 3).join(', ');
       const suffix = skippedCount > 3 ? ` and ${skippedCount - 3} more` : '';
       console.log(`Skipped ${skippedCount} non-audio files: ${examples}${suffix}`);
-      if (totalFiles > 0) {
+      if (audioFiles.length > 0) {
         showToast(`Skipped ${skippedCount} non-audio file${skippedCount > 1 ? 's' : ''}`, 'info', 3000);
       }
     }
 
+    // --- DUPLICATE DETECTION ---
+    // Create a set of existing track identifiers to detect duplicates
+    // We use multiple matching strategies: title+artist combo AND filename
+    const existingTrackKeys = new Set<string>();
+    const existingFilenames = new Set<string>();
+
+    tracks.forEach(track => {
+      // Key by title + artist (case-insensitive, trimmed)
+      const titleArtistKey = `${(track.title || '').toLowerCase().trim()}|${(track.artist || '').toLowerCase().trim()}`;
+      if (titleArtistKey !== '|') {
+        existingTrackKeys.add(titleArtistKey);
+      }
+      // Also key by filename if available
+      if (track.filePath) {
+        const existingFilename = track.filePath.replace(/\.[^/.]+$/, '').toLowerCase().trim();
+        existingFilenames.add(existingFilename);
+      }
+    });
+
+    // Filter out potential duplicates based on filename matching existing titles or filenames
+    const duplicateFiles: string[] = [];
+    const nonDuplicateFiles = audioFiles.filter(file => {
+      const filenameWithoutExt = file.name.replace(/\.[^/.]+$/, '').toLowerCase().trim();
+
+      // Check if filename matches an existing track's filename
+      if (existingFilenames.has(filenameWithoutExt)) {
+        duplicateFiles.push(file.name);
+        return false;
+      }
+
+      // Check if filename closely matches an existing title (handles "Artist - Title" format)
+      // Parse common filename formats
+      const parts = filenameWithoutExt.split(/\s*[-–—]\s*/);
+      if (parts.length >= 2) {
+        // Try "Artist - Title" format
+        const possibleArtist = parts[0].toLowerCase().trim();
+        const possibleTitle = parts.slice(1).join(' - ').toLowerCase().trim();
+        const key1 = `${possibleTitle}|${possibleArtist}`;
+        if (existingTrackKeys.has(key1)) {
+          duplicateFiles.push(file.name);
+          return false;
+        }
+        // Try "Title - Artist" format
+        const key2 = `${possibleArtist}|${possibleTitle}`;
+        if (existingTrackKeys.has(key2)) {
+          duplicateFiles.push(file.name);
+          return false;
+        }
+      }
+
+      // Check if filename directly matches a title
+      for (const key of existingTrackKeys) {
+        const existingTitle = key.split('|')[0];
+        if (existingTitle && filenameWithoutExt.includes(existingTitle) && existingTitle.length > 3) {
+          duplicateFiles.push(file.name);
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    // Show duplicate notification
+    if (duplicateFiles.length > 0) {
+      console.log(`Skipped ${duplicateFiles.length} duplicate files:`, duplicateFiles.slice(0, 5));
+      showToast(`Skipped ${duplicateFiles.length} duplicate song${duplicateFiles.length > 1 ? 's' : ''} already in library`, 'info', 4000);
+    }
+
+    // Use filtered list
+    const filesToImport = nonDuplicateFiles;
+    const totalFiles = filesToImport.length;
+    // --- END DUPLICATE DETECTION ---
+
     if (totalFiles === 0) {
-      showToast('No audio files found. Supported formats: MP3, M4A, WAV, FLAC, AAC, OGG, WMA', 'warning', 4000);
+      const message = duplicateFiles.length > 0
+        ? `All ${duplicateFiles.length} songs already exist in your library`
+        : 'No audio files found. Supported formats: MP3, M4A, WAV, FLAC, AAC, OGG, WMA';
+      showToast(message, duplicateFiles.length > 0 ? 'info' : 'warning', 4000);
       setIsImporting(false);
       setImportProgress(0);
       setImportStats({ total: 0, completed: 0, failed: 0, currentFileName: undefined });
@@ -949,7 +1023,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     }
 
     // Show count and first file immediately
-    setImportStats({ total: totalFiles, completed: 0, failed: 0, currentFileName: audioFiles[0]?.name });
+    setImportStats({ total: totalFiles, completed: 0, failed: 0, currentFileName: filesToImport[0]?.name });
 
     // Force UI update
     await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
@@ -977,7 +1051,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       for (let i = 0; i < totalFiles; i += BATCH_SIZE) {
-        const batchFiles = audioFiles.slice(i, Math.min(i + BATCH_SIZE, totalFiles));
+        const batchFiles = filesToImport.slice(i, Math.min(i + BATCH_SIZE, totalFiles));
 
         // Update current file name for display
         if (batchFiles[0]) {

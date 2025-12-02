@@ -566,38 +566,67 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         console.log("No local audio, fetching from cloud. Mobile:", isMobile, "hasAudio:", track.hasAudio);
 
         if (isMobile) {
-          // MOBILE STRATEGY: Fetch binary audio and create blob URL
-          // This avoids both base64 memory issues AND streaming URL compatibility issues
+          // MOBILE STRATEGY: First get the direct B2 signed URL, then fetch as blob
+          // This avoids CORS issues with 302 redirects to B2
           // Blob URLs work reliably on iOS Safari
-          const streamUrl = getStreamUrl(track.id);
-          if (streamUrl) {
+          if (token) {
             try {
               showToast(`Loading "${track.title}"...`, 'info', 3000);
-              console.log("Mobile: Fetching audio as blob from streaming endpoint...");
+              console.log("Mobile: Getting direct B2 URL via /stream-url endpoint...");
 
-              const response = await fetch(streamUrl);
+              // Step 1: Get the direct B2 signed URL
+              const streamUrlResponse = await fetch(`${API_URL}/api/tracks/${track.id}/stream-url`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                }
+              });
 
               // Check if this request is still current after async fetch
               if (isStale()) {
-                console.log(`Load request ${loadId} is stale, aborting (after mobile fetch)`);
+                console.log(`Load request ${loadId} is stale, aborting (after getting stream URL)`);
                 return;
               }
 
-              // Check content type - if it's JSON, the server returned an error
-              const contentType = response.headers.get('content-type');
-              if (response.ok && contentType && contentType.startsWith('audio/')) {
-                const blob = await response.blob();
-                if (blob.size > 0) {
-                  audioUrl = URL.createObjectURL(blob);
-                  console.log("Mobile: Created blob URL, size:", blob.size);
-                } else {
-                  console.error("Mobile: Got empty audio blob");
+              if (streamUrlResponse.ok) {
+                const streamUrlData = await streamUrlResponse.json();
+                const directUrl = streamUrlData.url;
+                console.log("Mobile: Got direct URL, source:", streamUrlData.source);
+
+                // Step 2: Fetch audio directly from B2 signed URL (or base64 stream endpoint)
+                // B2 signed URLs are public - no CORS issues
+                let audioFetchUrl = directUrl;
+                // If it's a relative URL (base64 fallback), prepend API_URL
+                if (directUrl.startsWith('/')) {
+                  audioFetchUrl = `${API_URL}${directUrl}`;
                 }
-              } else if (contentType && contentType.includes('application/json')) {
-                // Server returned JSON error - audio is not available
-                console.log("Mobile: Server returned JSON error (no audio in cloud)");
+
+                console.log("Mobile: Fetching audio as blob from direct URL...");
+                const response = await fetch(audioFetchUrl);
+
+                // Check if this request is still current after async fetch
+                if (isStale()) {
+                  console.log(`Load request ${loadId} is stale, aborting (after mobile fetch)`);
+                  return;
+                }
+
+                // Check content type - if it's JSON, the server returned an error
+                const contentType = response.headers.get('content-type');
+                if (response.ok && contentType && (contentType.startsWith('audio/') || contentType === 'application/octet-stream')) {
+                  const blob = await response.blob();
+                  if (blob.size > 0) {
+                    audioUrl = URL.createObjectURL(blob);
+                    console.log("Mobile: Created blob URL, size:", blob.size);
+                  } else {
+                    console.error("Mobile: Got empty audio blob");
+                  }
+                } else if (contentType && contentType.includes('application/json')) {
+                  // Server returned JSON error - audio is not available
+                  console.log("Mobile: Server returned JSON error (no audio in cloud)");
+                } else {
+                  console.error("Mobile: Stream fetch failed:", response.status, "content-type:", contentType);
+                }
               } else {
-                console.error("Mobile: Stream fetch failed:", response.status, "content-type:", contentType);
+                console.log("Mobile: Failed to get stream URL, status:", streamUrlResponse.status);
               }
             } catch (fetchError) {
               console.error("Mobile: Error fetching audio stream:", fetchError);
