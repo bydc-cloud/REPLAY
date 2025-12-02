@@ -919,3 +919,156 @@ html {
     border-radius: var(--mp3-radius-screen);
   }
 }
+
+/* === SIDEBAR / HAMBURGER MENU - MODERN DARK DESIGN === */
+[data-theme="mp3player"] aside {
+  background: #0a0a0a !important;
+  border-right: 1px solid rgba(0, 255, 136, 0.15) !important;
+  backdrop-filter: none !important;
+}
+
+/* Sidebar header */
+[data-theme="mp3player"] aside > div:first-child {
+  background: #0a0a0a !important;
+  border-bottom: 1px solid rgba(0, 255, 136, 0.1) !important;
+}
+
+/* Sidebar navigation buttons - override hardware button styling */
+[data-theme="mp3player"] aside button {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+}
+
+[data-theme="mp3player"] aside button::before {
+  display: none !important;
+}
+
+/* Nav item text - high contrast */
+[data-theme="mp3player"] aside button span {
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 0.95rem !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  text-shadow: none !important;
+}
+
+/* Nav item icons */
+[data-theme="mp3player"] aside button svg {
+  color: rgba(255, 255, 255, 0.7) !important;
+  filter: none !important;
+}
+
+/* Active nav item */
+[data-theme="mp3player"] aside button.text-\[var\(--replay-off-white\)\],
+[data-theme="mp3player"] aside nav button[class*="border-l-4"] {
+  background: rgba(0, 255, 136, 0.08) !important;
+  border-left: 3px solid var(--mp3-lcd-active) !important;
+}
+
+[data-theme="mp3player"] aside nav button[class*="border-l-4"] span,
+[data-theme="mp3player"] aside nav button[class*="border-l-4"] svg {
+  color: var(--mp3-lcd-active) !important;
+}
+
+/* Hover states for nav items */
+[data-theme="mp3player"] aside button:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  transform: none !important;
+}
+
+[data-theme="mp3player"] aside button:hover span {
+  color: #fff !important;
+}
+
+[data-theme="mp3player"] aside button:hover svg {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+[data-theme="mp3player"] aside button:active {
+  background: rgba(255, 255, 255, 0.1) !important;
+  transform: none !important;
+}
+
+/* Sidebar section headers */
+[data-theme="mp3player"] aside .text-xs.uppercase {
+  color: rgba(255, 255, 255, 0.4) !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.08em !important;
+  text-shadow: none !important;
+}
+
+/* Sidebar dividers */
+[data-theme="mp3player"] aside .border-t,
+[data-theme="mp3player"] aside .border-b {
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Import button in sidebar footer */
+[data-theme="mp3player"] aside > div:last-child button {
+  background: transparent !important;
+  border: 1px solid rgba(0, 255, 136, 0.5) !important;
+  color: var(--mp3-lcd-active) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="mp3player"] aside > div:last-child button:hover {
+  background: rgba(0, 255, 136, 0.1) !important;
+  border-color: var(--mp3-lcd-active) !important;
+  box-shadow: 0 0 15px rgba(0, 255, 136, 0.2) !important;
+}
+
+/* Project items in sidebar */
+[data-theme="mp3player"] aside .space-y-1 button {
+  padding: 8px 12px !important;
+}
+
+[data-theme="mp3player"] aside .space-y-1 button p {
+  color: rgba(255, 255, 255, 0.8) !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  text-shadow: none !important;
+  font-size: 0.9rem !important;
+}
+
+[data-theme="mp3player"] aside .space-y-1 button p.text-xs {
+  color: rgba(255, 255, 255, 0.4) !important;
+  font-size: 0.75rem !important;
+}
+
+/* Project creation input */
+[data-theme="mp3player"] aside input[type="text"] {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #fff !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  text-shadow: none !important;
+}
+
+/* Mobile overlay */
+[data-theme="mp3player"] aside + div[class*="bg-black"] {
+  background: rgba(0, 0, 0, 0.75) !important;
+}
+
+/* Close button in sidebar */
+[data-theme="mp3player"] aside button svg.lucide-x {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Logo text in sidebar */
+[data-theme="mp3player"] aside h1 {
+  color: #fff !important;
+  text-shadow: none !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.02em !important;
+}
+
+/* Logo circle */
+[data-theme="mp3player"] aside svg circle,
+[data-theme="mp3player"] aside svg path {
+  color: var(--mp3-lcd-active) !important;
+}
