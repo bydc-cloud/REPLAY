@@ -71,6 +71,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const lastTimeUpdateRef = useRef<number>(0);
   const wasPlayingBeforeHiddenRef = useRef<boolean>(false);
   const currentLoadIdRef = useRef<number>(0); // Track current loading request to prevent race conditions
+  const retryCountRef = useRef<Map<string, number>>(new Map()); // Track retry counts per track to prevent infinite loops
 
   // Initialize audio element
   useEffect(() => {
@@ -690,7 +691,8 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
               return;
             }
 
-            // Playback started successfully
+            // Playback started successfully - reset retry count for this track
+            retryCountRef.current.delete(track.id);
             console.log("Playback started successfully for:", track.title);
             setIsPlaying(true);
             incrementPlayCount(track.id);
@@ -715,11 +717,19 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
             } else if (error.name === 'NotSupportedError' || error.message?.includes('not supported')) {
               // This happens on mobile Safari with certain audio formats or streaming issues
               console.log('Audio format not supported on this device');
-              // Try to reload with local audio if available
-              if (track.fileUrl && (track.fileUrl.startsWith('blob:') || track.fileUrl.startsWith('data:'))) {
+
+              // Check retry count to prevent infinite loops
+              const currentRetries = retryCountRef.current.get(track.id) || 0;
+              const MAX_RETRIES = 1; // Only retry once
+
+              if (currentRetries < MAX_RETRIES && track.fileUrl && (track.fileUrl.startsWith('blob:') || track.fileUrl.startsWith('data:'))) {
+                retryCountRef.current.set(track.id, currentRetries + 1);
+                console.log(`Retrying playback for ${track.title} (attempt ${currentRetries + 1})`);
                 showToast('Retrying playback...', 'info');
                 setTimeout(() => loadAndPlayTrack(track), 500);
               } else {
+                // Don't retry - show error and reset retry count
+                retryCountRef.current.delete(track.id);
                 showToast('Audio format not supported. Try re-importing this track.', 'error');
               }
             } else {
