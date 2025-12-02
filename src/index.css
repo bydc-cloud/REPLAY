@@ -305,15 +305,15 @@ html {
 
 /* === ROOT VARIABLES - PREMIUM HARDWARE === */
 [data-theme="mp3player"] {
-  /* Device body - Premium metallic silver/gunmetal */
-  --mp3-body-dark: #1a1d22;
-  --mp3-body-mid: #2a2f36;
-  --mp3-body-light: #3a4148;
-  --mp3-body-highlight: #4a5058;
-  --mp3-body-shine: #5a6068;
+  /* Device body - Premium deep black with subtle depth */
+  --mp3-body-dark: #050505;
+  --mp3-body-mid: #0a0a0a;
+  --mp3-body-light: #0f0f0f;
+  --mp3-body-highlight: #151515;
+  --mp3-body-shine: #1a1a1a;
 
   /* LCD Screen - Classic green phosphor */
-  --mp3-lcd-bg: #0a1810;
+  --mp3-lcd-bg: #020804;
   --mp3-lcd-active: #00ff88;
   --mp3-lcd-dim: #00aa5c;
   --mp3-lcd-faint: #005530;
@@ -321,14 +321,14 @@ html {
   --mp3-lcd-scanline: rgba(0, 0, 0, 0.03);
 
   /* Screen bezel */
-  --mp3-bezel: #121518;
-  --mp3-bezel-inner: #0a0c0e;
+  --mp3-bezel: #080808;
+  --mp3-bezel-inner: #040404;
 
-  /* Button styling */
-  --mp3-btn-surface: linear-gradient(180deg, #4a5058 0%, #2a2f36 50%, #3a4148 100%);
-  --mp3-btn-pressed: linear-gradient(180deg, #2a2f36 0%, #1a1d22 50%, #2a2f36 100%);
-  --mp3-btn-border: #555b63;
-  --mp3-btn-shadow: rgba(0, 0, 0, 0.5);
+  /* Button styling - darker with subtle gradient */
+  --mp3-btn-surface: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 50%, #111111 100%);
+  --mp3-btn-pressed: linear-gradient(180deg, #0a0a0a 0%, #050505 50%, #0a0a0a 100%);
+  --mp3-btn-border: #252525;
+  --mp3-btn-shadow: rgba(0, 0, 0, 0.7);
 
   /* Text */
   --mp3-text-primary: #00ff88;
@@ -521,19 +521,19 @@ html {
 [data-theme="mp3player"] button[class*="bg-white"],
 [data-theme="mp3player"] button[class*="from-\[var(--replay-off-white)"] {
   background: linear-gradient(180deg,
-    #4a5058 0%,
-    #2a2f36 40%,
-    #1a1d22 60%,
-    #2a2f36 100%
+    #181818 0%,
+    #0a0a0a 40%,
+    #050505 60%,
+    #0a0a0a 100%
   ) !important;
   border: 3px solid var(--mp3-lcd-dim) !important;
   border-radius: 50% !important;
   box-shadow:
     0 4px 0 var(--mp3-body-dark),
-    0 6px 15px rgba(0, 0, 0, 0.5),
-    0 0 25px rgba(0, 255, 136, 0.2),
-    inset 0 2px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+    0 6px 15px rgba(0, 0, 0, 0.7),
+    0 0 25px rgba(0, 255, 136, 0.25),
+    inset 0 2px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.4);
   animation: none;
 }
 
