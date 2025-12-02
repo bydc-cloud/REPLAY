@@ -1,4 +1,4 @@
-import { Heart, Music, Upload, Loader2, LogOut, User } from "lucide-react";
+import { Heart, Music, Upload, Loader2, LogOut, User, FolderOpen } from "lucide-react";
 import { useRef, useState } from "react";
 import { QuickAccessCard } from "./QuickAccessCard";
 import { AlbumCard } from "./AlbumCard";
@@ -24,6 +24,7 @@ export const HomeView = ({ onTabChange }: HomeViewProps) => {
   } = useMusicLibrary();
   const { setQueue } = useAudioPlayer();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const getGreeting = () => {
@@ -37,6 +38,13 @@ export const HomeView = ({ onTabChange }: HomeViewProps) => {
     // Small delay helps with iOS Safari
     setTimeout(() => {
       fileInputRef.current?.click();
+    }, 10);
+  };
+
+  const handleFolderImportClick = () => {
+    // Small delay helps with iOS Safari
+    setTimeout(() => {
+      folderInputRef.current?.click();
     }, 10);
   };
 
@@ -74,6 +82,18 @@ export const HomeView = ({ onTabChange }: HomeViewProps) => {
         onChange={handleFileChange}
         accept="audio/*,.mp3,.m4a,.wav,.ogg,.flac,.aac,.wma"
         multiple
+        className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0"
+        style={{ clip: 'rect(0, 0, 0, 0)' }}
+      />
+      {/* Hidden folder input */}
+      <input
+        type="file"
+        ref={folderInputRef}
+        onChange={handleFileChange}
+        accept="audio/*,.mp3,.m4a,.wav,.ogg,.flac,.aac,.wma"
+        multiple
+        // @ts-expect-error webkitdirectory is not in standard types
+        webkitdirectory=""
         className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0"
         style={{ clip: 'rect(0, 0, 0, 0)' }}
       />
@@ -189,7 +209,7 @@ export const HomeView = ({ onTabChange }: HomeViewProps) => {
       )}
 
       {/* Quick Access Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-8 md:mb-12">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8 md:mb-12">
         <QuickAccessCard
           icon={Heart}
           title="Liked Songs"
@@ -204,9 +224,15 @@ export const HomeView = ({ onTabChange }: HomeViewProps) => {
         />
         <QuickAccessCard
           icon={isImporting ? Loader2 : Upload}
-          title="Import Music"
-          description={isImporting ? "Importing..." : "Add new tracks"}
+          title="Import Files"
+          description={isImporting ? "Importing..." : "Select files"}
           onClick={handleImportClick}
+        />
+        <QuickAccessCard
+          icon={isImporting ? Loader2 : FolderOpen}
+          title="Import Folder"
+          description={isImporting ? "Importing..." : "Bulk import"}
+          onClick={handleFolderImportClick}
         />
       </div>
 
@@ -222,13 +248,22 @@ export const HomeView = ({ onTabChange }: HomeViewProps) => {
           <p className="text-[var(--replay-mid-grey)] mb-6 max-w-md mx-auto">
             Import your music files to get started. We support MP3, M4A, WAV, FLAC, and more.
           </p>
-          <button
-            onClick={handleImportClick}
-            className="w-full md:w-auto md:inline-flex items-center justify-center gap-2 px-6 py-4 bg-[var(--replay-off-white)] text-[var(--replay-black)] font-semibold rounded-xl md:rounded-full hover:bg-white/90 transition-all active:scale-95"
-          >
-            <Upload size={20} />
-            Import Music
-          </button>
+          <div className="flex flex-col md:flex-row gap-3 justify-center">
+            <button
+              onClick={handleImportClick}
+              className="flex items-center justify-center gap-2 px-6 py-4 bg-[var(--replay-off-white)] text-[var(--replay-black)] font-semibold rounded-xl md:rounded-full hover:bg-white/90 transition-all active:scale-95"
+            >
+              <Upload size={20} />
+              Import Files
+            </button>
+            <button
+              onClick={handleFolderImportClick}
+              className="flex items-center justify-center gap-2 px-6 py-4 bg-[var(--replay-elevated)] text-[var(--replay-off-white)] font-semibold rounded-xl md:rounded-full border border-[var(--replay-border)] hover:border-[var(--replay-mid-grey)] transition-all active:scale-95"
+            >
+              <FolderOpen size={20} />
+              Import Folder
+            </button>
+          </div>
         </div>
       )}
 

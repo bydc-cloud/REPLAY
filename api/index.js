@@ -6,8 +6,36 @@ const { Pool } = pkg;
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 dotenv.config();
+
+// Backblaze B2 Configuration (S3-compatible)
+const B2_KEY_ID = process.env.B2_KEY_ID;
+const B2_APP_KEY = process.env.B2_APP_KEY;
+const B2_BUCKET = process.env.B2_BUCKET || 'replay-music';
+const B2_ENDPOINT = process.env.B2_ENDPOINT || 'https://s3.us-west-004.backblazeb2.com';
+const B2_REGION = process.env.B2_REGION || 'us-west-004';
+
+// Initialize S3 client for Backblaze B2
+let s3Client = null;
+function getS3Client() {
+  if (!s3Client && B2_KEY_ID && B2_APP_KEY) {
+    s3Client = new S3Client({
+      endpoint: B2_ENDPOINT,
+      region: B2_REGION,
+      credentials: {
+        accessKeyId: B2_KEY_ID,
+        secretAccessKey: B2_APP_KEY,
+      },
+    });
+    console.log('Backblaze B2 client initialized');
+  }
+  return s3Client;
+}
+
+console.log('B2 configured:', !!B2_KEY_ID && !!B2_APP_KEY);
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -605,6 +633,418 @@ app.delete('/api/tracks/:id', auth, async (req, res) => {
   }
 });
 
+// ============ CHUNKED UPLOAD ENDPOINTS FOR LARGE FILES ============
+
+// In-memory storage for chunks (in production, use Redis or temp files)
+const uploadSessions = new Map();
+
+// Initialize chunked upload session
+app.post('/api/tracks/upload/init', auth, async (req, res) => {
+  try {
+    const { title, artist, album, duration, cover_url, total_chunks, file_size, mime_type } = req.body;
+
+    // Generate a unique upload session ID
+    const sessionId = `upload-${req.user.id}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+    // Create track record first (without file_data)
+    const db = getPool();
+    const result = await db.query(
+      `INSERT INTO tracks (user_id, title, artist, album, duration, cover_url, lyrics_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [req.user.id, title, artist, album, duration || 0, cover_url, 'pending']
+    );
+
+    const track = result.rows[0];
+
+    // Store session info
+    uploadSessions.set(sessionId, {
+      trackId: track.id,
+      userId: req.user.id,
+      totalChunks: total_chunks,
+      fileSize: file_size,
+      mimeType: mime_type || 'audio/mpeg',
+      receivedChunks: new Map(),
+      createdAt: Date.now()
+    });
+
+    console.log(`Chunked upload initialized: ${sessionId}, track: ${track.id}, chunks: ${total_chunks}, size: ${Math.round(file_size / 1024 / 1024)}MB`);
+
+    res.json({
+      session_id: sessionId,
+      track_id: track.id,
+      message: `Ready to receive ${total_chunks} chunks`
+    });
+  } catch (e) {
+    console.error('Init upload error:', e.message);
+    res.status(500).json({ error: 'Failed to initialize upload' });
+  }
+});
+
+// Upload a chunk
+app.post('/api/tracks/upload/chunk', auth, async (req, res) => {
+  try {
+    const { session_id, chunk_index, chunk_data } = req.body;
+
+    const session = uploadSessions.get(session_id);
+    if (!session) {
+      return res.status(404).json({ error: 'Upload session not found or expired' });
+    }
+
+    if (session.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Store the chunk
+    session.receivedChunks.set(chunk_index, chunk_data);
+
+    const received = session.receivedChunks.size;
+    const total = session.totalChunks;
+
+    console.log(`Chunk ${chunk_index + 1}/${total} received for session ${session_id}`);
+
+    res.json({
+      received: received,
+      total: total,
+      complete: received === total
+    });
+  } catch (e) {
+    console.error('Chunk upload error:', e.message);
+    res.status(500).json({ error: 'Failed to upload chunk' });
+  }
+});
+
+// Finalize chunked upload - assemble and save
+app.post('/api/tracks/upload/finalize', auth, async (req, res) => {
+  try {
+    const { session_id } = req.body;
+
+    const session = uploadSessions.get(session_id);
+    if (!session) {
+      return res.status(404).json({ error: 'Upload session not found or expired' });
+    }
+
+    if (session.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Check all chunks received
+    if (session.receivedChunks.size !== session.totalChunks) {
+      return res.status(400).json({
+        error: `Missing chunks: received ${session.receivedChunks.size}/${session.totalChunks}`
+      });
+    }
+
+    // Assemble chunks in order
+    console.log(`Assembling ${session.totalChunks} chunks for track ${session.trackId}`);
+    const chunks = [];
+    for (let i = 0; i < session.totalChunks; i++) {
+      const chunk = session.receivedChunks.get(i);
+      if (!chunk) {
+        return res.status(400).json({ error: `Missing chunk ${i}` });
+      }
+      chunks.push(chunk);
+    }
+
+    // Combine into full base64 data URL
+    const fullBase64 = chunks.join('');
+    const fileData = `data:${session.mimeType};base64,${fullBase64}`;
+
+    console.log(`Assembled file: ${Math.round(fileData.length / 1024 / 1024)}MB for track ${session.trackId}`);
+
+    // Update track with file data
+    const db = getPool();
+    await db.query(
+      'UPDATE tracks SET file_data = $1 WHERE id = $2 AND user_id = $3',
+      [fileData, session.trackId, req.user.id]
+    );
+
+    // Clean up session
+    uploadSessions.delete(session_id);
+
+    // Start auto-transcription in background
+    if (openai) {
+      console.log(`Starting auto-transcription for chunked upload track: ${session.trackId}`);
+      db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['processing', session.trackId]);
+
+      transcribeAudio(fileData, session.trackId).then(async (transcription) => {
+        if (transcription) {
+          await db.query(
+            'UPDATE tracks SET lyrics_text = $1, lyrics_segments = $2, lyrics_status = $3 WHERE id = $4',
+            [transcription.text, JSON.stringify({ segments: transcription.segments, words: transcription.words }), 'completed', session.trackId]
+          );
+          console.log(`Auto-transcription completed for track: ${session.trackId}`);
+        } else {
+          await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', session.trackId]);
+        }
+      }).catch((err) => {
+        console.error(`Auto-transcription error for track ${session.trackId}:`, err.message);
+        db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', session.trackId]);
+      });
+    }
+
+    console.log(`Chunked upload complete for track ${session.trackId}`);
+
+    res.json({
+      success: true,
+      track_id: session.trackId,
+      message: 'Upload complete'
+    });
+  } catch (e) {
+    console.error('Finalize upload error:', e.message);
+    res.status(500).json({ error: 'Failed to finalize upload' });
+  }
+});
+
+// Clean up expired upload sessions periodically
+setInterval(() => {
+  const now = Date.now();
+  const expireTime = 30 * 60 * 1000; // 30 minutes
+  for (const [sessionId, session] of uploadSessions.entries()) {
+    if (now - session.createdAt > expireTime) {
+      console.log(`Cleaning up expired upload session: ${sessionId}`);
+      uploadSessions.delete(sessionId);
+    }
+  }
+}, 5 * 60 * 1000); // Check every 5 minutes
+
+// ============ DIRECT-TO-B2 UPLOAD (SCALABLE FOR 400+ SONGS) ============
+
+// Get presigned URL for direct browser-to-B2 upload
+// This bypasses the API for file data - much more scalable
+app.post('/api/upload/presign', auth, async (req, res) => {
+  try {
+    const client = getS3Client();
+    if (!client) {
+      return res.status(400).json({
+        error: 'Cloud storage not configured',
+        fallback: 'base64' // Tell frontend to use base64 fallback
+      });
+    }
+
+    const { filename, contentType, fileSize } = req.body;
+
+    // Generate unique file key
+    const fileExt = filename.split('.').pop()?.toLowerCase() || 'mp3';
+    const fileKey = `${req.user.id}/${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+
+    // Generate presigned URL for PUT (upload)
+    const command = new PutObjectCommand({
+      Bucket: B2_BUCKET,
+      Key: fileKey,
+      ContentType: contentType || 'audio/mpeg',
+    });
+
+    const uploadUrl = await getSignedUrl(client, command, { expiresIn: 3600 }); // 1 hour
+
+    console.log(`Presigned URL generated for: ${filename} (${Math.round(fileSize / 1024 / 1024)}MB)`);
+
+    res.json({
+      uploadUrl,
+      fileKey,
+      expiresIn: 3600,
+      bucket: B2_BUCKET
+    });
+  } catch (e) {
+    console.error('Presign error:', e.message);
+    res.status(500).json({ error: 'Failed to generate upload URL' });
+  }
+});
+
+// Batch presign - get multiple upload URLs at once (for bulk imports)
+app.post('/api/upload/presign-batch', auth, async (req, res) => {
+  try {
+    const client = getS3Client();
+    if (!client) {
+      return res.status(400).json({
+        error: 'Cloud storage not configured',
+        fallback: 'base64'
+      });
+    }
+
+    const { files } = req.body; // Array of { filename, contentType, fileSize }
+
+    if (!Array.isArray(files) || files.length === 0) {
+      return res.status(400).json({ error: 'Files array required' });
+    }
+
+    if (files.length > 500) {
+      return res.status(400).json({ error: 'Maximum 500 files per batch' });
+    }
+
+    console.log(`Generating ${files.length} presigned URLs for bulk upload`);
+
+    const results = await Promise.all(files.map(async (file, index) => {
+      const fileExt = file.filename.split('.').pop()?.toLowerCase() || 'mp3';
+      const fileKey = `${req.user.id}/${Date.now()}-${index}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+
+      const command = new PutObjectCommand({
+        Bucket: B2_BUCKET,
+        Key: fileKey,
+        ContentType: file.contentType || 'audio/mpeg',
+      });
+
+      const uploadUrl = await getSignedUrl(client, command, { expiresIn: 3600 });
+
+      return {
+        originalFilename: file.filename,
+        uploadUrl,
+        fileKey,
+        fileSize: file.fileSize
+      };
+    }));
+
+    console.log(`Generated ${results.length} presigned URLs`);
+
+    res.json({
+      uploads: results,
+      expiresIn: 3600,
+      bucket: B2_BUCKET
+    });
+  } catch (e) {
+    console.error('Batch presign error:', e.message);
+    res.status(500).json({ error: 'Failed to generate upload URLs' });
+  }
+});
+
+// Create track record after successful B2 upload
+app.post('/api/tracks/from-b2', auth, async (req, res) => {
+  try {
+    const { title, artist, album, duration, fileKey, cover_url } = req.body;
+
+    if (!fileKey) {
+      return res.status(400).json({ error: 'fileKey required' });
+    }
+
+    const db = getPool();
+
+    // Insert track with file_key (not file_data)
+    const result = await db.query(
+      `INSERT INTO tracks (user_id, title, artist, album, duration, file_key, cover_url, lyrics_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [req.user.id, title, artist, album, duration || 0, fileKey, cover_url, 'pending']
+    );
+
+    const track = result.rows[0];
+    console.log(`Track created from B2 upload: ${title} (${fileKey})`);
+
+    res.json(track);
+  } catch (e) {
+    console.error('Create track from B2 error:', e.message);
+    res.status(500).json({ error: 'Failed to create track' });
+  }
+});
+
+// Bulk create tracks after B2 uploads
+app.post('/api/tracks/from-b2-batch', auth, async (req, res) => {
+  try {
+    const { tracks } = req.body; // Array of { title, artist, album, duration, fileKey, cover_url }
+
+    if (!Array.isArray(tracks) || tracks.length === 0) {
+      return res.status(400).json({ error: 'Tracks array required' });
+    }
+
+    const db = getPool();
+    const inserted = [];
+    const failed = [];
+
+    for (const track of tracks) {
+      try {
+        const result = await db.query(
+          `INSERT INTO tracks (user_id, title, artist, album, duration, file_key, cover_url, lyrics_status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+          [req.user.id, track.title, track.artist, track.album, track.duration || 0, track.fileKey, track.cover_url, 'pending']
+        );
+        inserted.push(result.rows[0]);
+      } catch (err) {
+        failed.push({ title: track.title, error: err.message });
+      }
+    }
+
+    console.log(`Bulk created ${inserted.length} tracks from B2, ${failed.length} failed`);
+
+    res.json({
+      inserted: inserted.length,
+      failed: failed.length,
+      tracks: inserted,
+      errors: failed
+    });
+  } catch (e) {
+    console.error('Bulk create tracks from B2 error:', e.message);
+    res.status(500).json({ error: 'Failed to create tracks' });
+  }
+});
+
+// Get streaming URL for a track stored in B2
+app.get('/api/tracks/:id/stream-url', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const result = await db.query(
+      'SELECT file_key, file_data FROM tracks WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    const track = result.rows[0];
+
+    // If track has file_key (B2 storage), generate signed URL
+    if (track.file_key) {
+      const client = getS3Client();
+      if (!client) {
+        return res.status(500).json({ error: 'Cloud storage not configured' });
+      }
+
+      const command = new GetObjectCommand({
+        Bucket: B2_BUCKET,
+        Key: track.file_key,
+      });
+
+      const streamUrl = await getSignedUrl(client, command, { expiresIn: 3600 });
+
+      return res.json({
+        url: streamUrl,
+        expiresIn: 3600,
+        source: 'b2'
+      });
+    }
+
+    // Fallback: track has base64 data, return streaming endpoint
+    if (track.file_data) {
+      const token = req.headers.authorization?.split(' ')[1];
+      return res.json({
+        url: `/api/tracks/${req.params.id}/stream?token=${token}`,
+        source: 'base64'
+      });
+    }
+
+    return res.status(404).json({ error: 'No audio data available' });
+  } catch (e) {
+    console.error('Get stream URL error:', e.message);
+    res.status(500).json({ error: 'Failed to get stream URL' });
+  }
+});
+
+// Add file_key column to tracks table if needed
+async function addFileKeyColumn() {
+  const db = getPool();
+  if (!db) return;
+  try {
+    await db.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tracks' AND column_name = 'file_key') THEN
+          ALTER TABLE tracks ADD COLUMN file_key TEXT;
+        END IF;
+      END $$;
+    `);
+    console.log('file_key column ready');
+  } catch (e) {
+    console.error('Error adding file_key column:', e.message);
+  }
+}
+
 // Get playlists
 app.get('/api/playlists', auth, async (req, res) => {
   try {
@@ -705,8 +1145,53 @@ app.post('/api/transcribe-all', auth, async (req, res) => {
   }
 });
 
+// ============ PROXY UPLOAD TO B2 (Bypasses CORS) ============
+// Browser → API → B2 (avoids CORS issues with direct browser-to-B2 uploads)
+app.post('/api/upload/proxy', auth, express.raw({ type: '*/*', limit: '200mb' }), async (req, res) => {
+  try {
+    const client = getS3Client();
+    if (!client) {
+      return res.status(400).json({ error: 'Cloud storage not configured', fallback: 'base64' });
+    }
+
+    const filename = req.headers['x-filename'] || 'audio.mp3';
+    const contentType = req.headers['content-type'] || 'audio/mpeg';
+    const fileSize = req.body.length;
+
+    // Generate unique file key
+    const fileExt = filename.split('.').pop()?.toLowerCase() || 'mp3';
+    const fileKey = `${req.user.id}/${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+
+    console.log(`Proxy upload: ${filename} (${Math.round(fileSize / 1024 / 1024)}MB) -> ${fileKey}`);
+
+    // Upload to B2
+    const command = new PutObjectCommand({
+      Bucket: B2_BUCKET,
+      Key: fileKey,
+      Body: req.body,
+      ContentType: contentType,
+    });
+
+    await client.send(command);
+
+    console.log(`Proxy upload complete: ${fileKey}`);
+
+    res.json({
+      success: true,
+      fileKey,
+      fileSize,
+      bucket: B2_BUCKET
+    });
+  } catch (e) {
+    console.error('Proxy upload error:', e.message);
+    res.status(500).json({ error: 'Upload failed: ' + e.message });
+  }
+});
+
 // Start server
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server running on port ${port}`);
-  initDB();
+  initDB().then(() => {
+    addFileKeyColumn();
+  });
 });

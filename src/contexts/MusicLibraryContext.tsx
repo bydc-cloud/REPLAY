@@ -612,6 +612,30 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     throw lastError!;
   };
 
+  // Upload file via proxy (Browser → API → B2) - bypasses CORS issues
+  const uploadViaProxy = async (file: File): Promise<{ success: boolean; fileKey?: string }> => {
+    try {
+      const response = await fetch(`${API_URL}/api/upload/proxy`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': file.type || 'audio/mpeg',
+          'X-Filename': file.name,
+        },
+        body: file,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return { success: true, fileKey: data.fileKey };
+      }
+      return { success: false };
+    } catch (error) {
+      console.error('Proxy upload failed:', error);
+      return { success: false };
+    }
+  };
+
   // Process a single file in the import queue
   const processImportItem = async (file: File, index: number): Promise<Track | null> => {
     try {
@@ -654,45 +678,70 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
         i === index ? { ...item, progress: 30 } : item
       ));
 
-      // Convert file to base64 for storage with timeout
-      const fileDataPromise = new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (reader.result) {
-            resolve(reader.result as string);
-          } else {
-            reject(new Error('FileReader returned no result'));
-          }
-        };
-        reader.onerror = () => reject(new Error('FileReader error'));
-        reader.readAsDataURL(file);
-
-        // Timeout for large files on mobile
-        setTimeout(() => reject(new Error('File read timeout')), 60000);
-      });
+      // Create blob URL for local playback (always, for all file sizes)
+      const blobUrl = URL.createObjectURL(file);
+      track.fileUrl = blobUrl;
 
       setImportQueue(prev => prev.map((item, i) =>
-        i === index ? { ...item, status: 'uploading' as const, progress: 50 } : item
+        i === index ? { ...item, status: 'uploading' as const, progress: 40 } : item
       ));
 
-      const fileData = await fileDataPromise;
-      console.log(`File converted to base64, length: ${fileData.length}`);
-      track.fileUrl = fileData;
-
-      setImportQueue(prev => prev.map((item, i) =>
-        i === index ? { ...item, progress: 70 } : item
-      ));
-
-      // Save to API if authenticated
+      // Try proxy upload to B2 if authenticated (Browser → API → B2, bypasses CORS)
       if (token) {
         try {
-          console.log(`Uploading to cloud: ${track.title}, data size: ${fileData.length}`);
+          console.log(`Uploading via proxy: ${track.title} (${Math.round(file.size / 1024 / 1024)}MB)`);
 
-          const savedTrack = await retryWithBackoff(async () => {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+          setImportQueue(prev => prev.map((item, i) =>
+            i === index ? { ...item, progress: 50 } : item
+          ));
 
-            try {
+          // Upload via proxy (API handles B2 upload server-side)
+          const uploadResult = await uploadViaProxy(file);
+
+          if (uploadResult.success && uploadResult.fileKey) {
+            setImportQueue(prev => prev.map((item, i) =>
+              i === index ? { ...item, progress: 80 } : item
+            ));
+
+            // Create track record with file key
+            console.log(`Creating track record with file key: ${uploadResult.fileKey}`);
+            const trackResponse = await fetch(`${API_URL}/api/tracks/from-b2`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                title: track.title,
+                artist: track.artist,
+                album: track.album,
+                duration: Math.round(track.duration),
+                fileKey: uploadResult.fileKey,
+                cover_url: track.artworkUrl || null
+              })
+            });
+
+            if (trackResponse.ok) {
+              const savedTrack = await trackResponse.json();
+              track.id = savedTrack.id;
+              track.fileKey = uploadResult.fileKey;
+              track.hasAudio = true;
+              console.log(`Saved to B2 cloud: ${track.title}`);
+            } else {
+              throw new Error('Failed to create track record');
+            }
+          } else {
+            // Fallback to base64 for small files if proxy fails
+            console.log('Proxy upload failed, trying base64 fallback for small files');
+            const FALLBACK_THRESHOLD = 20 * 1024 * 1024; // 20MB
+            if (file.size <= FALLBACK_THRESHOLD) {
+              const fileData = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = () => reject(new Error('FileReader error'));
+                reader.readAsDataURL(file);
+              });
+
               const trackResponse = await fetch(`${API_URL}/api/tracks`, {
                 method: 'POST',
                 headers: {
@@ -704,33 +753,24 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
                   artist: track.artist,
                   album: track.album,
                   duration: Math.round(track.duration),
-                  genre: track.genre,
                   file_data: fileData,
                   cover_url: track.artworkUrl || null
-                }),
-                signal: controller.signal
+                })
               });
 
-              clearTimeout(timeoutId);
-
-              if (!trackResponse.ok) {
-                const errorText = await trackResponse.text();
-                throw new Error(`Track save failed: ${trackResponse.status} - ${errorText}`);
+              if (trackResponse.ok) {
+                const savedTrack = await trackResponse.json();
+                track.id = savedTrack.id;
+                track.hasAudio = true;
+                console.log(`Saved via base64 fallback: ${track.title}`);
               }
-
-              return trackResponse.json();
-            } catch (fetchError) {
-              clearTimeout(timeoutId);
-              throw fetchError;
+            } else {
+              console.log(`Large file ${track.title} - local only (proxy upload failed)`);
             }
-          }, 2, 2000); // 2 retries with 2 second delay
-
-          track.id = savedTrack.id; // Use server-generated ID
-          track.hasAudio = true; // Mark that audio is in cloud
-          console.log(`Saved to cloud: ${track.title}`);
+          }
         } catch (saveError) {
-          console.error(`Error saving ${file.name}:`, saveError);
-          // Still allow local playback even if cloud save fails
+          console.error(`Cloud upload failed for ${file.name}:`, saveError);
+          // Track is still playable locally via blob URL
           showToast(`Saved locally: "${track.title}" (cloud sync failed)`, 'warning');
         }
       }
@@ -758,70 +798,90 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     }
 
     importInProgressRef.current = true;
-    setIsImporting(true);
 
-    // Filter to only audio files
-    const audioFiles = Array.from(files).filter(file => {
-      const isAudio = file.type.startsWith('audio/') ||
-        /\.(mp3|m4a|wav|ogg|flac|aac|wma)$/i.test(file.name);
-      return isAudio;
-    });
+    // IMMEDIATELY show UI before any processing
+    setIsImporting(true);
+    setImportProgress(0);
+    setImportStats({ total: 0, completed: 0, failed: 0, currentFileName: 'Scanning files...' });
+
+    // Force UI to render before continuing
+    await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+
+    // Filter to only audio files - do this in chunks to not block UI
+    const allFiles = Array.from(files);
+    const audioFiles: File[] = [];
+
+    // Process file filtering in chunks
+    const FILTER_CHUNK = 50;
+    for (let i = 0; i < allFiles.length; i += FILTER_CHUNK) {
+      const chunk = allFiles.slice(i, i + FILTER_CHUNK);
+      for (const file of chunk) {
+        const isAudio = file.type.startsWith('audio/') ||
+          /\.(mp3|m4a|wav|ogg|flac|aac|wma)$/i.test(file.name);
+        if (isAudio) {
+          audioFiles.push(file);
+        }
+      }
+      // Let UI breathe
+      if (i + FILTER_CHUNK < allFiles.length) {
+        setImportStats(prev => ({ ...prev, currentFileName: `Scanning... ${audioFiles.length} audio files found` }));
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+    }
 
     const totalFiles = audioFiles.length;
 
     if (totalFiles === 0) {
       showToast('No audio files found', 'warning');
       setIsImporting(false);
+      setImportProgress(0);
+      setImportStats({ total: 0, completed: 0, failed: 0, currentFileName: undefined });
       importInProgressRef.current = false;
       return;
     }
+
+    // Show count and first file immediately
+    setImportStats({ total: totalFiles, completed: 0, failed: 0, currentFileName: audioFiles[0]?.name });
+
+    // Force UI update
+    await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
 
     // Show initial toast for large imports
     if (totalFiles > 10) {
       showToast(`Starting import of ${totalFiles} songs...`, 'info', 3000);
     }
 
-    // Initialize queue with all files
-    const newQueueItems: ImportQueueItem[] = audioFiles.map(file => ({
-      file,
-      status: 'pending' as const,
-      progress: 0
-    }));
-
-    setImportQueue(newQueueItems);
-    setImportStats({ total: totalFiles, completed: 0, failed: 0, currentFileName: audioFiles[0]?.name });
-    setImportProgress(0);
+    // DON'T create all queue items upfront - just set an empty queue
+    // We'll update progress based on completed/failed counts
+    setImportQueue([]);
 
     const newTracks: Track[] = [];
     let completed = 0;
     let failed = 0;
 
-    // On mobile, process ONE file at a time to prevent memory issues
-    // On desktop, process in small batches
+    // On mobile or very large imports, process ONE file at a time
+    // On desktop with moderate imports, process in small batches
     const isMobile = isMobileDevice();
-    const BATCH_SIZE = isMobile ? 1 : 3;
+    const isLargeImport = totalFiles > 100;
+    const BATCH_SIZE = (isMobile || isLargeImport) ? 1 : 2;
 
-    console.log(`Starting import of ${totalFiles} files, batch size: ${BATCH_SIZE}, mobile: ${isMobile}`);
+    console.log(`Starting import of ${totalFiles} files, batch size: ${BATCH_SIZE}, mobile: ${isMobile}, large: ${isLargeImport}`);
 
     try {
       for (let i = 0; i < totalFiles; i += BATCH_SIZE) {
-        const batch = newQueueItems.slice(i, Math.min(i + BATCH_SIZE, totalFiles));
+        const batchFiles = audioFiles.slice(i, Math.min(i + BATCH_SIZE, totalFiles));
 
         // Update current file name for display
-        const currentFile = batch[0]?.file;
-        if (currentFile) {
-          setImportStats(prev => ({ ...prev, currentFileName: currentFile.name }));
+        if (batchFiles[0]) {
+          setImportStats(prev => ({ ...prev, currentFileName: batchFiles[0].name }));
         }
 
-        // On mobile, add a small delay between files to let the UI breathe
-        // and prevent memory pressure
-        if (isMobile && i > 0) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
+        // CRITICAL: Let UI update between files
+        await new Promise(resolve => setTimeout(resolve, 10));
 
-        // Process batch (single file on mobile, up to 3 on desktop)
-        const batchPromises = batch.map((item, batchIndex) =>
-          processImportItem(item.file, i + batchIndex)
+        // Process batch (single file for large imports, up to 2 on desktop)
+        const batchPromises = batchFiles.map((file, batchIndex) =>
+          processImportItem(file, i + batchIndex)
         );
 
         const results = await Promise.allSettled(batchPromises);
@@ -835,18 +895,20 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
           }
         });
 
+        const progress = Math.round(((completed + failed) / totalFiles) * 100);
         setImportStats(prev => ({ ...prev, total: totalFiles, completed, failed }));
-        setImportProgress(Math.round(((completed + failed) / totalFiles) * 100));
+        setImportProgress(progress);
 
-        // On mobile, periodically add tracks to state to show progress
-        // and free up memory from completed tracks
-        if (isMobile && newTracks.length >= 5 && newTracks.length % 5 === 0) {
+        // Periodically add tracks to library and free memory
+        // More aggressive for large imports
+        const addThreshold = isLargeImport ? 3 : 5;
+        if (newTracks.length >= addThreshold) {
           const tracksToAdd = newTracks.splice(0, newTracks.length);
           setTracks(prev => [...prev, ...tracksToAdd]);
           console.log(`Added ${tracksToAdd.length} tracks to library (progressive)`);
 
           // Allow garbage collection
-          await new Promise(resolve => setTimeout(resolve, 50));
+          await new Promise(resolve => setTimeout(resolve, 20));
         }
 
         // Show progress toast for large imports every 25 files
@@ -863,10 +925,10 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
 
       console.log(`Import complete: ${completed} successful, ${failed} failed`);
 
-      // Queue tracks for background BPM/key analysis (skip on mobile for large imports)
-      if (!isMobile || completed < 20) {
+      // Queue tracks for background BPM/key analysis (skip for large imports)
+      if (!isLargeImport && (!isMobile || completed < 20)) {
         const allTracks = [...newTracks];
-        const tracksWithAudio = allTracks.filter(t => t.fileUrl && t.fileUrl.startsWith('data:'));
+        const tracksWithAudio = allTracks.filter(t => t.fileUrl && (t.fileUrl.startsWith('data:') || t.fileUrl.startsWith('blob:')));
         if (tracksWithAudio.length > 0) {
           pendingAnalysisRef.current = [...pendingAnalysisRef.current, ...tracksWithAudio.map(t => t.id)];
           console.log(`Queued ${tracksWithAudio.length} tracks for BPM/key analysis`);
@@ -933,6 +995,33 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
 
     // Fetch from API
     if (token) {
+      // First try to get a stream URL (for B2-stored tracks)
+      try {
+        console.log('Trying to get stream URL for track:', trackId);
+        const streamResponse = await fetch(`${API_URL}/api/tracks/${trackId}/stream-url`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          }
+        });
+
+        if (streamResponse.ok) {
+          const data = await streamResponse.json();
+          if (data.url) {
+            console.log('Got stream URL from:', data.source);
+            // For B2 tracks, return the signed URL directly
+            if (data.source === 'b2') {
+              setTracks(prev => prev.map(t =>
+                t.id === trackId ? { ...t, fileUrl: data.url } : t
+              ));
+              return data.url;
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Stream URL fetch failed, falling back to audio endpoint:', error);
+      }
+
+      // Fallback to legacy audio endpoint (for base64 stored tracks)
       console.log('Fetching audio from API for track:', trackId);
       const audioData = await fetchTrackAudio(trackId, token);
       if (audioData) {
