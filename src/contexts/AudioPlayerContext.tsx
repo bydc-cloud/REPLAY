@@ -606,14 +606,63 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
             }
           }
         } else {
-          // DESKTOP STRATEGY: Use streaming URL directly for instant playback
+          // DESKTOP STRATEGY: Use streaming URL, but verify it first
           const streamUrl = getStreamUrl(track.id);
           if (streamUrl) {
-            audioUrl = streamUrl;
-            console.log("Desktop: Using streaming URL for instant playback");
-          } else {
-            // Fallback to full download if streaming not available
-            console.log("Desktop: Streaming not available, fetching full audio...");
+            // Pre-check if the stream URL will return valid audio
+            // Do a HEAD request first to check content-type
+            try {
+              console.log("Desktop: Checking streaming URL availability...");
+              const headResponse = await fetch(streamUrl, { method: 'HEAD' });
+
+              // Check if this request is still current after async operation
+              if (isStale()) {
+                console.log(`Load request ${loadId} is stale, aborting (after HEAD check)`);
+                return;
+              }
+
+              const contentType = headResponse.headers.get('content-type');
+
+              if (headResponse.ok && contentType && contentType.startsWith('audio/')) {
+                audioUrl = streamUrl;
+                console.log("Desktop: Using streaming URL for instant playback");
+              } else if (contentType && contentType.includes('application/json')) {
+                // Server returned JSON error - audio data is missing
+                console.log("Desktop: Streaming endpoint returned JSON error, audio missing in cloud");
+                // Don't set audioUrl - let it fall through to show error message
+              } else {
+                // Some other error
+                console.log("Desktop: Streaming check failed, status:", headResponse.status);
+              }
+            } catch (headError) {
+              console.log("Desktop: HEAD request failed, trying GET...", headError);
+              // If HEAD fails, try fetching as blob to check
+              try {
+                const response = await fetch(streamUrl);
+
+                if (isStale()) {
+                  console.log(`Load request ${loadId} is stale, aborting (after stream fetch)`);
+                  return;
+                }
+
+                const contentType = response.headers.get('content-type');
+                if (response.ok && contentType && contentType.startsWith('audio/')) {
+                  // Got valid audio - create blob URL
+                  const blob = await response.blob();
+                  audioUrl = URL.createObjectURL(blob);
+                  console.log("Desktop: Created blob URL from stream, size:", blob.size);
+                } else {
+                  console.log("Desktop: Stream returned non-audio content type:", contentType);
+                }
+              } catch (fetchError) {
+                console.error("Desktop: Stream fetch failed:", fetchError);
+              }
+            }
+          }
+
+          // Fallback to full download if streaming failed or not available
+          if (!audioUrl) {
+            console.log("Desktop: Streaming not available or failed, fetching full audio...");
             showToast(`Loading "${track.title}"...`, 'info', 2000);
 
             try {
@@ -637,7 +686,13 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
       if (!audioUrl) {
         console.error("Could not get audio URL for track:", track.title);
-        showToast(`"${track.title}" needs to be re-imported - audio not found in cloud`, 'error');
+        // Check if track has hasAudio flag to give more specific message
+        if (track.hasAudio === false) {
+          showToast(`"${track.title}" audio not synced to cloud. Please re-import this track.`, 'error');
+        } else {
+          showToast(`Unable to play "${track.title}". Try re-importing this track.`, 'error');
+        }
+        setIsPlaying(false);
         return;
       }
 
