@@ -802,92 +802,111 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
 
     console.log(`Starting import of ${totalFiles} files, batch size: ${BATCH_SIZE}, mobile: ${isMobile}`);
 
-    for (let i = 0; i < totalFiles; i += BATCH_SIZE) {
-      const batch = newQueueItems.slice(i, Math.min(i + BATCH_SIZE, totalFiles));
+    try {
+      for (let i = 0; i < totalFiles; i += BATCH_SIZE) {
+        const batch = newQueueItems.slice(i, Math.min(i + BATCH_SIZE, totalFiles));
 
-      // Update current file name for display
-      const currentFile = batch[0]?.file;
-      if (currentFile) {
-        setImportStats(prev => ({ ...prev, currentFileName: currentFile.name }));
-      }
-
-      // On mobile, add a small delay between files to let the UI breathe
-      // and prevent memory pressure
-      if (isMobile && i > 0) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-
-      // Process batch (single file on mobile, up to 3 on desktop)
-      const batchPromises = batch.map((item, batchIndex) =>
-        processImportItem(item.file, i + batchIndex)
-      );
-
-      const results = await Promise.allSettled(batchPromises);
-
-      results.forEach((result) => {
-        if (result.status === 'fulfilled' && result.value) {
-          newTracks.push(result.value);
-          completed++;
-        } else {
-          failed++;
+        // Update current file name for display
+        const currentFile = batch[0]?.file;
+        if (currentFile) {
+          setImportStats(prev => ({ ...prev, currentFileName: currentFile.name }));
         }
-      });
 
-      setImportStats(prev => ({ ...prev, total: totalFiles, completed, failed }));
-      setImportProgress(Math.round(((completed + failed) / totalFiles) * 100));
+        // On mobile, add a small delay between files to let the UI breathe
+        // and prevent memory pressure
+        if (isMobile && i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
 
-      // On mobile, periodically add tracks to state to show progress
-      // and free up memory from completed tracks
-      if (isMobile && newTracks.length >= 5 && newTracks.length % 5 === 0) {
-        const tracksToAdd = newTracks.splice(0, newTracks.length);
-        setTracks(prev => [...prev, ...tracksToAdd]);
-        console.log(`Added ${tracksToAdd.length} tracks to library (progressive)`);
+        // Process batch (single file on mobile, up to 3 on desktop)
+        const batchPromises = batch.map((item, batchIndex) =>
+          processImportItem(item.file, i + batchIndex)
+        );
 
-        // Allow garbage collection
-        await new Promise(resolve => setTimeout(resolve, 50));
+        const results = await Promise.allSettled(batchPromises);
+
+        results.forEach((result) => {
+          if (result.status === 'fulfilled' && result.value) {
+            newTracks.push(result.value);
+            completed++;
+          } else {
+            failed++;
+          }
+        });
+
+        setImportStats(prev => ({ ...prev, total: totalFiles, completed, failed }));
+        setImportProgress(Math.round(((completed + failed) / totalFiles) * 100));
+
+        // On mobile, periodically add tracks to state to show progress
+        // and free up memory from completed tracks
+        if (isMobile && newTracks.length >= 5 && newTracks.length % 5 === 0) {
+          const tracksToAdd = newTracks.splice(0, newTracks.length);
+          setTracks(prev => [...prev, ...tracksToAdd]);
+          console.log(`Added ${tracksToAdd.length} tracks to library (progressive)`);
+
+          // Allow garbage collection
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
+        // Show progress toast for large imports every 25 files
+        if (totalFiles > 25 && (completed + failed) % 25 === 0 && (completed + failed) < totalFiles) {
+          console.log(`Import progress: ${completed + failed}/${totalFiles}`);
+        }
       }
 
-      // Show progress toast for large imports every 25 files
-      if (totalFiles > 25 && (completed + failed) % 25 === 0 && (completed + failed) < totalFiles) {
-        console.log(`Import progress: ${completed + failed}/${totalFiles}`);
+      // Add any remaining tracks
+      if (newTracks.length > 0) {
+        setTracks(prev => [...prev, ...newTracks]);
+        console.log(`Added final ${newTracks.length} tracks to library`);
       }
-    }
 
-    // Add any remaining tracks
-    if (newTracks.length > 0) {
-      setTracks(prev => [...prev, ...newTracks]);
-      console.log(`Added final ${newTracks.length} tracks to library`);
-    }
+      console.log(`Import complete: ${completed} successful, ${failed} failed`);
 
-    console.log(`Import complete: ${completed} successful, ${failed} failed`);
-
-    // Queue tracks for background BPM/key analysis (skip on mobile for large imports)
-    if (!isMobile || completed < 20) {
-      const allTracks = [...newTracks];
-      const tracksWithAudio = allTracks.filter(t => t.fileUrl && t.fileUrl.startsWith('data:'));
-      if (tracksWithAudio.length > 0) {
-        pendingAnalysisRef.current = [...pendingAnalysisRef.current, ...tracksWithAudio.map(t => t.id)];
-        console.log(`Queued ${tracksWithAudio.length} tracks for BPM/key analysis`);
+      // Queue tracks for background BPM/key analysis (skip on mobile for large imports)
+      if (!isMobile || completed < 20) {
+        const allTracks = [...newTracks];
+        const tracksWithAudio = allTracks.filter(t => t.fileUrl && t.fileUrl.startsWith('data:'));
+        if (tracksWithAudio.length > 0) {
+          pendingAnalysisRef.current = [...pendingAnalysisRef.current, ...tracksWithAudio.map(t => t.id)];
+          console.log(`Queued ${tracksWithAudio.length} tracks for BPM/key analysis`);
+        }
       }
-    }
 
-    // Show toast notification based on results
-    if (failed === 0 && completed > 0) {
-      showToast(`Successfully imported ${completed} ${completed === 1 ? 'song' : 'songs'}`, 'success');
-    } else if (failed > 0 && completed > 0) {
-      showToast(`Imported ${completed} ${completed === 1 ? 'song' : 'songs'}, ${failed} failed`, 'warning');
-    } else if (failed > 0 && completed === 0) {
-      showToast(`Failed to import ${failed} ${failed === 1 ? 'song' : 'songs'}`, 'error');
-    }
+      // Show toast notification based on results
+      if (failed === 0 && completed > 0) {
+        showToast(`Successfully imported ${completed} ${completed === 1 ? 'song' : 'songs'}`, 'success');
+      } else if (failed > 0 && completed > 0) {
+        showToast(`Imported ${completed} ${completed === 1 ? 'song' : 'songs'}, ${failed} failed`, 'warning');
+      } else if (failed > 0 && completed === 0) {
+        showToast(`Failed to import ${failed} ${failed === 1 ? 'song' : 'songs'}`, 'error');
+      }
 
-    // Clear queue after a delay to show completion
-    setTimeout(() => {
+      // Clear queue after a delay to show completion
+      setTimeout(() => {
+        setImportQueue([]);
+        setIsImporting(false);
+        setImportProgress(0);
+        setImportStats({ total: 0, completed: 0, failed: 0, currentFileName: undefined });
+        importInProgressRef.current = false;
+      }, 2000);
+    } catch (error) {
+      // Handle unexpected errors during import
+      console.error('Import failed unexpectedly:', error);
+      showToast('Import failed unexpectedly. Please try again.', 'error');
+
+      // Add any tracks that were successfully processed before the error
+      if (newTracks.length > 0) {
+        setTracks(prev => [...prev, ...newTracks]);
+        console.log(`Added ${newTracks.length} tracks before error`);
+      }
+
+      // Immediately reset import state on error
       setImportQueue([]);
       setIsImporting(false);
       setImportProgress(0);
       setImportStats({ total: 0, completed: 0, failed: 0, currentFileName: undefined });
       importInProgressRef.current = false;
-    }, 2000);
+    }
   };
 
   // Get audio data for a track (lazy-loaded from cloud)
