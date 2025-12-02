@@ -1498,6 +1498,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
 
     let synced = 0;
     let failed = 0;
+    let staleBlobs = 0;
 
     showToast(`Syncing ${localTracks.length} tracks to cloud...`, 'info');
 
@@ -1519,10 +1520,26 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
         if (audioData.startsWith('blob:')) {
           try {
             const response = await fetch(audioData);
+            if (!response.ok) {
+              // Blob URL is stale (page was refreshed) - audio data is lost
+              console.warn(`Blob URL expired for ${track.title} - audio data lost after page refresh`);
+              staleBlobs++;
+              failed++;
+              continue;
+            }
             const blob = await response.blob();
+            // Check if the blob is actually valid audio data
+            if (blob.size === 0) {
+              console.warn(`Empty blob for ${track.title}`);
+              staleBlobs++;
+              failed++;
+              continue;
+            }
             file = new File([blob], `${track.title}.mp3`, { type: blob.type || 'audio/mpeg' });
           } catch (e) {
+            // Most likely the blob URL expired after page refresh
             console.error(`Failed to fetch blob for ${track.title}:`, e);
+            staleBlobs++;
             failed++;
             continue;
           }
@@ -1609,9 +1626,20 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     if (failed === 0 && synced > 0) {
       showToast(`Successfully synced ${synced} tracks to cloud`, 'success');
     } else if (synced > 0 && failed > 0) {
-      showToast(`Synced ${synced} tracks, ${failed} failed`, 'warning');
+      if (staleBlobs > 0) {
+        showToast(`Synced ${synced} tracks. ${staleBlobs} tracks lost audio data (re-import from files)`, 'warning', 6000);
+      } else {
+        showToast(`Synced ${synced} tracks, ${failed} failed`, 'warning');
+      }
     } else if (failed > 0 && synced === 0) {
-      showToast(`Failed to sync ${failed} tracks`, 'error');
+      if (staleBlobs === failed) {
+        // All failures were due to stale blob URLs
+        showToast(`Audio data lost after page refresh. Re-import your music files to sync to cloud.`, 'error', 8000);
+      } else if (staleBlobs > 0) {
+        showToast(`${staleBlobs} tracks lost audio data. Re-import from original files.`, 'error', 6000);
+      } else {
+        showToast(`Failed to sync ${failed} tracks`, 'error');
+      }
     }
 
     // Reset stats after a delay
