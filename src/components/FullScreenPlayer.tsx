@@ -306,10 +306,12 @@ export const FullScreenPlayer = ({
 
         {/* Progress Bar */}
         <div className="mb-5 flex-shrink-0">
-          <div className="relative py-2">
+          <div className="relative h-6 flex items-center">
+            {/* Background track */}
             <div
-              className="absolute top-2 left-0 right-0 h-2 bg-white/10 rounded-full overflow-hidden pointer-events-none"
+              className="absolute left-0 right-0 h-1.5 bg-white/10 rounded-full overflow-hidden pointer-events-none"
             >
+              {/* Filled progress */}
               <div
                 className="h-full bg-[var(--replay-off-white)]"
                 style={{
@@ -318,18 +320,21 @@ export const FullScreenPlayer = ({
                 }}
               />
             </div>
+            {/* Invisible range input for interaction - centered with flexbox */}
             <input
               type="range"
               min="0"
               max="100"
               value={progress}
               onChange={(e) => onProgressChange(Number(e.target.value))}
-              className="relative w-full h-2 bg-transparent rounded-full appearance-none cursor-pointer touch-pan-y z-10
+              className="absolute inset-0 w-full h-full bg-transparent appearance-none cursor-pointer touch-pan-y z-10
+                [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-runnable-track]:h-full
                 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5
                 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--replay-off-white)]
                 [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-black/40
                 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:transition-transform
                 [&::-webkit-slider-thumb]:duration-200 [&::-webkit-slider-thumb]:active:scale-125
+                [&::-moz-range-track]:bg-transparent [&::-moz-range-track]:h-full
                 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full
                 [&::-moz-range-thumb]:bg-[var(--replay-off-white)] [&::-moz-range-thumb]:border-0
                 [&::-moz-range-thumb]:shadow-lg [&::-moz-range-thumb]:cursor-pointer"

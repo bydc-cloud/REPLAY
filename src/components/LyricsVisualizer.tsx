@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Mic, MicOff, Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { useMusicLibrary, TrackLyrics, LyricsSegment } from "../contexts/MusicLibraryContext";
 
 interface LyricsVisualizerProps {
@@ -26,6 +26,7 @@ export const LyricsVisualizer = ({
   const { tracks, transcribeTrack, getLyrics } = useMusicLibrary();
   const [lyrics, setLyrics] = useState<TrackLyrics | null>(null);
   const [currentLineIndex, setCurrentLineIndex] = useState(0);
+  const [autoTranscribeAttempted, setAutoTranscribeAttempted] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const activeLineRef = useRef<HTMLDivElement>(null);
 
@@ -37,6 +38,25 @@ export const LyricsVisualizer = ({
     if (audioLevels.length === 0) return 0.3;
     return audioLevels.reduce((a, b) => a + b, 0) / audioLevels.length;
   }, [audioLevels]);
+
+  // Convert lyrics segments to line format
+  const lines = useMemo(() => {
+    if (!lyrics || !lyrics.segments || lyrics.segments.length === 0) {
+      return [];
+    }
+
+    return lyrics.segments.map((segment: LyricsSegment) => ({
+      text: segment.text,
+      startTime: segment.start,
+      endTime: segment.end,
+    }));
+  }, [lyrics]);
+
+  // Define state variables early so they can be used in effects
+  const isTranscribing = track?.lyrics?.status === 'processing' || lyrics?.status === 'processing';
+  const hasFailed = track?.lyrics?.status === 'failed';
+  const hasLyrics = lines.length > 0;
+  const canTranscribe = track?.hasAudio || (trackId && !trackId.startsWith('local-'));
 
   // Load lyrics when track changes - with polling for processing tracks
   useEffect(() => {
@@ -88,18 +108,28 @@ export const LyricsVisualizer = ({
     };
   }, [trackId, track?.lyrics?.status, getLyrics]);
 
-  // Convert lyrics segments to line format
-  const lines = useMemo(() => {
-    if (!lyrics || !lyrics.segments || lyrics.segments.length === 0) {
-      return [];
-    }
+  // Auto-transcribe when lyrics visualizer is shown and no lyrics exist
+  useEffect(() => {
+    const shouldAutoTranscribe =
+      trackId &&
+      canTranscribe &&
+      !hasLyrics &&
+      !isTranscribing &&
+      !hasFailed &&
+      autoTranscribeAttempted !== trackId &&
+      lyrics?.status !== 'processing' &&
+      lyrics?.status !== 'completed';
 
-    return lyrics.segments.map((segment: LyricsSegment) => ({
-      text: segment.text,
-      startTime: segment.start,
-      endTime: segment.end,
-    }));
-  }, [lyrics]);
+    if (shouldAutoTranscribe) {
+      console.log('Auto-transcribing track:', trackId);
+      setAutoTranscribeAttempted(trackId);
+      transcribeTrack(trackId).then(result => {
+        if (result) {
+          setLyrics(result);
+        }
+      });
+    }
+  }, [trackId, canTranscribe, hasLyrics, isTranscribing, hasFailed, autoTranscribeAttempted, lyrics?.status, transcribeTrack]);
 
   // Update current line based on playback time
   useEffect(() => {
@@ -129,19 +159,15 @@ export const LyricsVisualizer = ({
     }
   };
 
-  // Start transcription
-  const startTranscription = async () => {
+  // Retry transcription manually
+  const retryTranscription = async () => {
     if (!trackId) return;
+    setAutoTranscribeAttempted(null); // Reset to allow re-attempt
     const result = await transcribeTrack(trackId);
     if (result) {
       setLyrics(result);
     }
   };
-
-  const isTranscribing = track?.lyrics?.status === 'processing';
-  const hasFailed = track?.lyrics?.status === 'failed';
-  const hasLyrics = lines.length > 0;
-  const canTranscribe = track?.hasAudio || (trackId && !trackId.startsWith('local-'));
 
   return (
     <div className="relative w-full h-full flex flex-col overflow-hidden bg-gradient-to-b from-black via-[#0a0a0a] to-black">
@@ -173,47 +199,46 @@ export const LyricsVisualizer = ({
             </p>
           </div>
         ) : hasFailed ? (
-          // Failed State
+          // Failed State - with retry button
           <div className="flex flex-col items-center justify-center text-center">
-            <MicOff className="w-16 h-16 text-red-500/50 mb-6" />
+            <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mb-6">
+              <RefreshCw className="w-10 h-10 text-red-400" />
+            </div>
             <p className="text-white text-xl font-medium mb-2">Transcription failed</p>
             <p className="text-white/40 text-sm mb-6">
               There was an error transcribing this track
             </p>
             {canTranscribe && (
               <button
-                onClick={startTranscription}
+                onClick={retryTranscription}
                 className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full text-white font-medium hover:scale-105 transition-transform flex items-center gap-2"
               >
-                <Mic className="w-5 h-5" />
+                <RefreshCw className="w-5 h-5" />
                 Try Again
               </button>
             )}
           </div>
         ) : !hasLyrics ? (
-          // No Lyrics State
+          // No Lyrics State - Show loading since we're auto-transcribing
           <div className="flex flex-col items-center justify-center text-center">
-            <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-6">
-              <MicOff className="w-10 h-10 text-white/30" />
-            </div>
-            <p className="text-white/60 text-xl font-medium mb-2">No lyrics available</p>
             {canTranscribe ? (
               <>
-                <p className="text-white/30 text-sm mb-8">
-                  Transcribe this track with AI to see lyrics
+                <Loader2 className="w-16 h-16 text-purple-500 mb-6 animate-spin" />
+                <p className="text-white text-xl font-medium mb-2">Preparing lyrics...</p>
+                <p className="text-white/40 text-sm">
+                  Starting transcription automatically
                 </p>
-                <button
-                  onClick={startTranscription}
-                  className="px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full text-white font-semibold hover:scale-105 transition-transform flex items-center gap-3 shadow-lg shadow-purple-500/20"
-                >
-                  <Mic className="w-5 h-5" />
-                  Transcribe Audio
-                </button>
               </>
             ) : (
-              <p className="text-white/30 text-sm">
-                Upload this track to enable transcription
-              </p>
+              <>
+                <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-6">
+                  <Loader2 className="w-10 h-10 text-white/30" />
+                </div>
+                <p className="text-white/60 text-xl font-medium mb-2">No lyrics available</p>
+                <p className="text-white/30 text-sm">
+                  Upload this track to enable transcription
+                </p>
+              </>
             )}
           </div>
         ) : (
