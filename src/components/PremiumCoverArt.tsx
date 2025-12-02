@@ -9,26 +9,25 @@ interface PremiumCoverArtProps {
   demoMode?: boolean; // Force demo mode for settings previews
 }
 
-// Mini visualizer for small sizes - uses CSS animation like the loading screen
+// Mini visualizer for small sizes - clean premium style without glow
 const MiniVisualizer = ({ isPlaying }: { isPlaying: boolean; demoMode?: boolean }) => {
   return (
     <div className="w-full h-full flex items-end justify-center gap-[3px] p-2 bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a]">
       {[0, 1, 2, 3, 4].map((i) => (
         <div
           key={i}
-          className="w-1.5 rounded-full"
+          className="w-1.5 rounded-sm"
           style={{
-            background: `linear-gradient(to top, hsl(${260 + i * 20}, 80%, 50%), hsl(${280 + i * 20}, 90%, 65%))`,
+            background: `linear-gradient(to top, hsl(${220 + i * 10}, 45%, 50%), hsl(${225 + i * 8}, 50%, 60%))`,
             height: isPlaying ? '100%' : '20%',
             animation: isPlaying ? `audioLoading 1s ease-in-out ${i * 0.1}s infinite` : 'none',
-            boxShadow: isPlaying ? `0 0 8px hsla(${270 + i * 15}, 80%, 60%, 0.5)` : 'none',
-            transition: 'height 0.3s ease, box-shadow 0.3s ease',
+            transition: 'height 0.3s ease',
           }}
         />
       ))}
       <style>{`
         @keyframes audioLoading {
-          0%, 100% { transform: scaleY(0.3); opacity: 0.6; }
+          0%, 100% { transform: scaleY(0.3); opacity: 0.5; }
           50% { transform: scaleY(1); opacity: 1; }
         }
       `}</style>

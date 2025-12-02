@@ -1,5 +1,6 @@
-import { Home, Search, Library, Heart, Disc, ListMusic, Plus, X, Folder, Settings, Info, Store } from "lucide-react";
+import { Home, Search, Library, Heart, Disc, ListMusic, Plus, X, Folder, Settings, Info, Store, Check } from "lucide-react";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
+import { useState, useRef, useEffect } from "react";
 
 interface NavItemProps {
   icon: React.ReactNode;
@@ -53,7 +54,37 @@ interface SidebarProps {
 
 export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClose, onAboutClick }: SidebarProps) => {
   // Load playlists from MusicLibrary context
-  const { playlists } = useMusicLibrary();
+  const { playlists, createPlaylist } = useMusicLibrary();
+
+  // State for project creation
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when creating project
+  useEffect(() => {
+    if (isCreatingProject && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isCreatingProject]);
+
+  // Handle project creation
+  const handleCreateProject = () => {
+    if (newProjectName.trim()) {
+      createPlaylist(newProjectName.trim());
+      setNewProjectName("");
+      setIsCreatingProject(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleCreateProject();
+    } else if (e.key === "Escape") {
+      setIsCreatingProject(false);
+      setNewProjectName("");
+    }
+  };
 
   // Map playlists to projects format
   const projects = playlists.map(playlist => ({
@@ -219,15 +250,58 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
               <span className="text-xs uppercase tracking-wider text-[var(--replay-mid-grey)]">
                 Projects
               </span>
-              <button className="text-[var(--replay-off-white)] hover:opacity-70 transition-opacity">
+              <button
+                onClick={() => setIsCreatingProject(true)}
+                className="text-[var(--replay-off-white)] hover:opacity-70 transition-opacity p-1 rounded-md hover:bg-white/10"
+              >
                 <Plus size={18} />
               </button>
             </div>
+
+            {/* Create Project Input */}
+            {isCreatingProject && (
+              <div className="px-6 pb-3">
+                <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-2">
+                  <Folder size={16} className="text-[var(--replay-mid-grey)] flex-shrink-0" />
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Project name..."
+                    className="flex-1 bg-transparent text-[var(--replay-off-white)] text-sm outline-none placeholder:text-[var(--replay-mid-grey)]/50"
+                  />
+                  <button
+                    onClick={handleCreateProject}
+                    disabled={!newProjectName.trim()}
+                    className="p-1 rounded-md text-[var(--replay-off-white)] hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  >
+                    <Check size={16} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsCreatingProject(false);
+                      setNewProjectName("");
+                    }}
+                    className="p-1 rounded-md text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] hover:bg-white/10 transition-all"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-1 pb-24 md:pb-6">
-              {projects.length === 0 ? (
+              {projects.length === 0 && !isCreatingProject ? (
                 <div className="px-6 py-4 text-center">
                   <p className="text-sm text-[var(--replay-mid-grey)]">No projects yet</p>
-                  <p className="text-xs text-[var(--replay-mid-grey)]/70 mt-1">Create albums to see them here</p>
+                  <button
+                    onClick={() => setIsCreatingProject(true)}
+                    className="text-xs text-[var(--replay-off-white)]/70 mt-1 hover:text-[var(--replay-off-white)] transition-colors"
+                  >
+                    + Create your first project
+                  </button>
                 </div>
               ) : (
                 projects.map((project) => (

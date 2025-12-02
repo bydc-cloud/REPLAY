@@ -1023,6 +1023,42 @@ app.get('/api/tracks/:id/stream-url', auth, async (req, res) => {
   }
 });
 
+// Update track file key (for syncing local tracks to cloud)
+app.put('/api/tracks/:id/file-key', auth, async (req, res) => {
+  try {
+    const { fileKey } = req.body;
+
+    if (!fileKey) {
+      return res.status(400).json({ error: 'fileKey required' });
+    }
+
+    const db = getPool();
+
+    // Verify track belongs to user
+    const existingTrack = await db.query(
+      'SELECT id FROM tracks WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+
+    if (existingTrack.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    // Update track with new file key
+    const result = await db.query(
+      `UPDATE tracks SET file_key = $1, file_data = NULL WHERE id = $2 AND user_id = $3 RETURNING *`,
+      [fileKey, req.params.id, req.user.id]
+    );
+
+    console.log(`Track ${req.params.id} synced to cloud with file key: ${fileKey}`);
+
+    res.json(result.rows[0]);
+  } catch (e) {
+    console.error('Update track file key error:', e.message);
+    res.status(500).json({ error: 'Failed to update track' });
+  }
+});
+
 // Get playlists
 app.get('/api/playlists', auth, async (req, res) => {
   try {

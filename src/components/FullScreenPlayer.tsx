@@ -108,9 +108,9 @@ export const FullScreenPlayer = ({
           : 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease-in',
       }}
     >
-      {/* Header - Compact */}
-      <div className="flex items-center justify-between px-4 py-3 bg-[#1a1a1a]/40 backdrop-blur-xl border-b border-white/10 flex-shrink-0">
-        <button onClick={onClose} className="text-[var(--replay-off-white)] p-1">
+      {/* Header - Compact - Higher z-index to ensure visibility above visualizer */}
+      <div className="flex items-center justify-between px-4 py-3 bg-[#1a1a1a]/80 backdrop-blur-xl border-b border-white/10 flex-shrink-0 relative z-20">
+        <button onClick={onClose} className="text-[var(--replay-off-white)] p-2 -m-1 rounded-full hover:bg-white/10 active:bg-white/20 transition-colors">
           <ChevronDown size={28} />
         </button>
         <div className="flex-1 text-center">
@@ -119,10 +119,10 @@ export const FullScreenPlayer = ({
             {currentTrack?.album || "Unknown Album"}
           </p>
         </div>
-        <div className="relative" ref={menuRef}>
+        <div className="relative z-30" ref={menuRef}>
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="text-[var(--replay-off-white)] p-1"
+            className="text-[var(--replay-off-white)] p-2 -m-1 rounded-full hover:bg-white/10 active:bg-white/20 transition-colors"
           >
             <MoreHorizontal size={24} />
           </button>

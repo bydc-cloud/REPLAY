@@ -157,10 +157,11 @@ export const LyricsVisualizer = ({
         }}
       />
 
-      {/* Lyrics Display */}
+      {/* Lyrics Display - Mobile optimized with safe areas */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto scrollbar-hide flex flex-col justify-center px-6 md:px-12 py-32"
+        className="flex-1 overflow-y-auto scrollbar-hide flex flex-col justify-center px-4 sm:px-6 md:px-12 py-20 sm:py-24 md:py-32"
+        style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {isTranscribing ? (
           // Transcribing State
@@ -216,24 +217,25 @@ export const LyricsVisualizer = ({
             )}
           </div>
         ) : (
-          // Apple Music Style Lyrics Display
-          <div className="space-y-2 md:space-y-4 max-w-4xl mx-auto">
+          // Apple Music Style Lyrics Display - Mobile optimized
+          <div className="space-y-1 sm:space-y-2 md:space-y-4 max-w-4xl mx-auto w-full">
             {lines.map((line, index) => {
               const isActive = index === currentLineIndex;
               const isPast = index < currentLineIndex;
               const distanceFromActive = Math.abs(index - currentLineIndex);
 
               // Calculate blur and opacity based on distance from active line
-              const blur = isActive ? 0 : Math.min(distanceFromActive * 1.5, 4);
-              const opacity = isActive ? 1 : Math.max(0.25, 0.6 - distanceFromActive * 0.12);
-              const scale = isActive ? 1 : 0.95;
+              // Reduced blur on mobile for better readability
+              const blur = isActive ? 0 : Math.min(distanceFromActive * 1, 3);
+              const opacity = isActive ? 1 : Math.max(0.3, 0.65 - distanceFromActive * 0.1);
+              const scale = isActive ? 1 : 0.97;
 
               return (
                 <div
                   key={index}
                   ref={isActive ? activeLineRef : null}
                   onClick={() => handleLineClick(line)}
-                  className="cursor-pointer transition-all duration-500 ease-out text-center"
+                  className="cursor-pointer transition-all duration-400 ease-out text-center px-2"
                   style={{
                     transform: `scale(${scale})`,
                     opacity: opacity,
@@ -241,7 +243,7 @@ export const LyricsVisualizer = ({
                   }}
                 >
                   <p
-                    className={`text-2xl md:text-4xl lg:text-5xl font-bold leading-tight transition-colors duration-300 ${
+                    className={`text-lg sm:text-xl md:text-3xl lg:text-4xl font-bold leading-snug sm:leading-tight transition-colors duration-300 ${
                       isActive
                         ? "text-white"
                         : isPast
@@ -250,8 +252,8 @@ export const LyricsVisualizer = ({
                     }`}
                     style={{
                       textShadow: isActive && isPlaying
-                        ? `0 0 40px rgba(147, 51, 234, ${0.5 + averageEnergy * 0.3}),
-                           0 0 80px rgba(79, 70, 229, ${0.3 + averageEnergy * 0.2})`
+                        ? `0 0 30px rgba(147, 51, 234, ${0.4 + averageEnergy * 0.25}),
+                           0 0 60px rgba(79, 70, 229, ${0.25 + averageEnergy * 0.15})`
                         : "none",
                     }}
                   >
@@ -264,28 +266,29 @@ export const LyricsVisualizer = ({
         )}
       </div>
 
-      {/* Track Info Overlay at Top */}
-      <div className="absolute top-0 left-0 right-0 p-6 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
+      {/* Track Info Overlay at Top - Hidden on mobile in visualizer modal (shown in modal header) */}
+      <div className="absolute top-0 left-0 right-0 p-3 sm:p-4 md:p-6 bg-gradient-to-b from-black/80 to-transparent pointer-events-none hidden md:block">
         <div className="text-center">
-          <h2 className="text-lg font-semibold text-white/90 truncate">{trackTitle}</h2>
-          <p className="text-sm text-white/50">{trackArtist}</p>
+          <h2 className="text-sm sm:text-base md:text-lg font-semibold text-white/90 truncate">{trackTitle}</h2>
+          <p className="text-xs sm:text-sm text-white/50">{trackArtist}</p>
         </div>
       </div>
 
-      {/* Subtle Audio Visualizer at Bottom */}
+      {/* Subtle Audio Visualizer at Bottom - Smaller on mobile */}
       {isPlaying && hasLyrics && (
-        <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none flex items-end justify-center gap-[3px] px-8 pb-4">
+        <div className="absolute bottom-0 left-0 right-0 h-12 sm:h-16 md:h-24 pointer-events-none flex items-end justify-center gap-[2px] sm:gap-[3px] px-4 sm:px-6 md:px-8 pb-2 sm:pb-3 md:pb-4">
+          {/* Show fewer bars on mobile using CSS visibility */}
           {audioLevels.slice(0, 32).map((level, i) => (
             <div
               key={i}
-              className="flex-1 max-w-1.5 rounded-full"
+              className={`flex-1 max-w-1 sm:max-w-1.5 rounded-full ${i >= 24 ? 'hidden sm:block' : ''}`}
               style={{
-                height: `${Math.max(4, level * 80)}px`,
+                height: `${Math.max(3, level * 50)}px`,
                 background: `linear-gradient(to top,
-                  rgba(147, 51, 234, ${0.4 + level * 0.4}),
-                  rgba(79, 70, 229, ${0.3 + level * 0.3}))`,
+                  rgba(147, 51, 234, ${0.35 + level * 0.35}),
+                  rgba(79, 70, 229, ${0.25 + level * 0.25}))`,
                 transition: 'height 0.05s ease-out',
-                opacity: 0.6,
+                opacity: 0.5,
               }}
             />
           ))}

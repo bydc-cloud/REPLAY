@@ -103,6 +103,13 @@ const isMobileDevice = () => {
     (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
 };
 
+interface CloudSyncStats {
+  total: number;
+  synced: number;
+  failed: number;
+  currentTrack?: string;
+}
+
 interface MusicLibraryContextType {
   tracks: Track[];
   albums: Album[];
@@ -116,6 +123,9 @@ interface MusicLibraryContextType {
   importProgress: number;
   importQueue: ImportQueueItem[];
   importStats: { total: number; completed: number; failed: number; currentFileName?: string };
+  isSyncingToCloud: boolean;
+  cloudSyncProgress: number;
+  cloudSyncStats: CloudSyncStats;
   addTrack: (track: Track) => void;
   removeTrack: (trackId: string) => Promise<void>;
   toggleLike: (trackId: string) => void;
@@ -140,6 +150,8 @@ interface MusicLibraryContextType {
   removeFromProjectFolder: (folderId: string, trackId: string) => Promise<void>;
   analyzeTrack: (trackId: string) => Promise<AudioAnalysisResult | null>;
   analyzeAllTracks: () => Promise<void>;
+  getLocalOnlyTracks: () => Track[];
+  syncLocalTracksToCloud: () => Promise<{ synced: number; failed: number }>;
 }
 
 const MusicLibraryContext = createContext<MusicLibraryContextType | undefined>(undefined);
@@ -270,8 +282,12 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
   const [importQueue, setImportQueue] = useState<ImportQueueItem[]>([]);
   const [importStats, setImportStats] = useState<{ total: number; completed: number; failed: number; currentFileName?: string }>({ total: 0, completed: 0, failed: 0 });
   const [recentlyPlayed, setRecentlyPlayed] = useState<Track[]>([]);
+  const [isSyncingToCloud, setIsSyncingToCloud] = useState(false);
+  const [cloudSyncProgress, setCloudSyncProgress] = useState(0);
+  const [cloudSyncStats, setCloudSyncStats] = useState<CloudSyncStats>({ total: 0, synced: 0, failed: 0 });
   const syncInProgressRef = useRef(false);
   const importInProgressRef = useRef(false);
+  const cloudSyncInProgressRef = useRef(false);
   const pendingAnalysisRef = useRef<string[]>([]); // Queue of track IDs to analyze
 
   // Fetch tracks from API
@@ -1447,6 +1463,166 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Get tracks that are local-only (have blob URL but no fileKey for cloud storage)
+  const getLocalOnlyTracks = useCallback((): Track[] => {
+    return tracks.filter(track => {
+      // Track has a local blob/data URL but no cloud file key
+      const hasLocalAudio = track.fileUrl && (track.fileUrl.startsWith('blob:') || track.fileUrl.startsWith('data:'));
+      const hasNoCloudKey = !track.fileKey;
+      return hasLocalAudio && hasNoCloudKey;
+    });
+  }, [tracks]);
+
+  // Sync local-only tracks to cloud storage
+  const syncLocalTracksToCloud = async (): Promise<{ synced: number; failed: number }> => {
+    if (cloudSyncInProgressRef.current) {
+      showToast('Cloud sync already in progress', 'warning');
+      return { synced: 0, failed: 0 };
+    }
+
+    if (!token) {
+      showToast('Please sign in to sync to cloud', 'error');
+      return { synced: 0, failed: 0 };
+    }
+
+    const localTracks = getLocalOnlyTracks();
+    if (localTracks.length === 0) {
+      showToast('All tracks are already synced to cloud', 'info');
+      return { synced: 0, failed: 0 };
+    }
+
+    cloudSyncInProgressRef.current = true;
+    setIsSyncingToCloud(true);
+    setCloudSyncProgress(0);
+    setCloudSyncStats({ total: localTracks.length, synced: 0, failed: 0 });
+
+    let synced = 0;
+    let failed = 0;
+
+    showToast(`Syncing ${localTracks.length} tracks to cloud...`, 'info');
+
+    for (let i = 0; i < localTracks.length; i++) {
+      const track = localTracks[i];
+      setCloudSyncStats(prev => ({ ...prev, currentTrack: track.title }));
+
+      try {
+        // Get the audio data
+        let audioData = track.fileUrl;
+        if (!audioData || (!audioData.startsWith('blob:') && !audioData.startsWith('data:'))) {
+          console.log(`Skipping ${track.title} - no local audio data`);
+          failed++;
+          continue;
+        }
+
+        // Convert blob URL to actual blob/file
+        let file: File | null = null;
+        if (audioData.startsWith('blob:')) {
+          try {
+            const response = await fetch(audioData);
+            const blob = await response.blob();
+            file = new File([blob], `${track.title}.mp3`, { type: blob.type || 'audio/mpeg' });
+          } catch (e) {
+            console.error(`Failed to fetch blob for ${track.title}:`, e);
+            failed++;
+            continue;
+          }
+        } else if (audioData.startsWith('data:')) {
+          // Convert data URL to File
+          const arr = audioData.split(',');
+          const mime = arr[0].match(/:(.*?);/)?.[1] || 'audio/mpeg';
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          file = new File([u8arr], `${track.title}.mp3`, { type: mime });
+        }
+
+        if (!file) {
+          failed++;
+          continue;
+        }
+
+        // Upload via proxy to B2
+        console.log(`Uploading ${track.title} to cloud (${Math.round(file.size / 1024 / 1024)}MB)...`);
+
+        const uploadResponse = await fetch(`${API_URL}/api/upload/proxy`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': file.type || 'audio/mpeg',
+            'X-Filename': file.name,
+          },
+          body: file,
+        });
+
+        if (!uploadResponse.ok) {
+          console.error(`Upload failed for ${track.title}:`, await uploadResponse.text());
+          failed++;
+          continue;
+        }
+
+        const uploadResult = await uploadResponse.json();
+        if (!uploadResult.fileKey) {
+          failed++;
+          continue;
+        }
+
+        // Update track in database with new fileKey
+        const updateResponse = await fetch(`${API_URL}/api/tracks/${track.id}/file-key`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ fileKey: uploadResult.fileKey }),
+        });
+
+        if (updateResponse.ok) {
+          // Update local state
+          setTracks(prev => prev.map(t =>
+            t.id === track.id ? { ...t, fileKey: uploadResult.fileKey, hasAudio: true } : t
+          ));
+          synced++;
+          console.log(`Synced ${track.title} to cloud`);
+        } else {
+          console.error(`Failed to update track record for ${track.title}`);
+          failed++;
+        }
+      } catch (error) {
+        console.error(`Error syncing ${track.title}:`, error);
+        failed++;
+      }
+
+      // Update progress
+      const progress = Math.round(((synced + failed) / localTracks.length) * 100);
+      setCloudSyncProgress(progress);
+      setCloudSyncStats(prev => ({ ...prev, synced, failed }));
+    }
+
+    // Complete
+    setIsSyncingToCloud(false);
+    setCloudSyncProgress(100);
+    cloudSyncInProgressRef.current = false;
+
+    if (failed === 0 && synced > 0) {
+      showToast(`Successfully synced ${synced} tracks to cloud`, 'success');
+    } else if (synced > 0 && failed > 0) {
+      showToast(`Synced ${synced} tracks, ${failed} failed`, 'warning');
+    } else if (failed > 0 && synced === 0) {
+      showToast(`Failed to sync ${failed} tracks`, 'error');
+    }
+
+    // Reset stats after a delay
+    setTimeout(() => {
+      setCloudSyncStats({ total: 0, synced: 0, failed: 0 });
+      setCloudSyncProgress(0);
+    }, 3000);
+
+    return { synced, failed };
+  };
+
   // Preload essentia on mount
   useEffect(() => {
     preloadEssentia().catch(console.warn);
@@ -1497,6 +1673,9 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       importProgress,
       importQueue,
       importStats,
+      isSyncingToCloud,
+      cloudSyncProgress,
+      cloudSyncStats,
       addTrack,
       removeTrack,
       toggleLike,
@@ -1520,7 +1699,9 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       addToProjectFolder,
       removeFromProjectFolder,
       analyzeTrack,
-      analyzeAllTracks
+      analyzeAllTracks,
+      getLocalOnlyTracks,
+      syncLocalTracksToCloud
     }}>
       {children}
     </MusicLibraryContext.Provider>

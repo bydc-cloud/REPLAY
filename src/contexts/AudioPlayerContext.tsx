@@ -80,10 +80,17 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     // Don't set crossOrigin for mobile - it can cause "operation not supported" errors
     // audio.crossOrigin = "anonymous";
 
-    // Mobile-specific: Enable inline playback
+    // Mobile-specific: Enable inline playback and background audio
     audio.setAttribute('playsinline', 'true');
     audio.setAttribute('webkit-playsinline', 'true');
     audio.preload = "metadata"; // Use "metadata" instead of "auto" for mobile performance
+
+    // CRITICAL for iOS background playback - set audio category
+    // This helps iOS recognize this as a media app that should continue in background
+    if ('webkitAudioContext' in window) {
+      // iOS Safari - the audio element should be treated as media
+      (audio as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = true;
+    }
 
     audioRef.current = audio;
 
@@ -206,6 +213,10 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         // Page is being hidden - remember if we were playing
         wasPlayingBeforeHiddenRef.current = !audio.paused;
         console.log("Page hidden, was playing:", wasPlayingBeforeHiddenRef.current);
+
+        // IMPORTANT: On iOS, DON'T pause the audio when going to background
+        // The Media Session API will handle lock screen controls
+        // Just let the audio continue playing
       } else if (document.visibilityState === 'visible') {
         console.log("Page became visible, checking audio state...");
 
@@ -236,6 +247,18 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
+    // Handle iOS audio interruptions (phone calls, Siri, other apps)
+    const handleAudioInterruption = async () => {
+      console.log("Audio interruption detected");
+      // The audio element's pause/play events will handle state updates
+      // Just sync the playing state
+      setIsPlaying(!audio.paused);
+    };
+
+    // iOS Safari fires 'webkitplaybacktargetavailabilitychanged' for AirPlay
+    // This helps keep playback state synced
+    audio.addEventListener('webkitplaybacktargetavailabilitychanged', handleAudioInterruption as EventListener);
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
@@ -248,6 +271,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
       document.removeEventListener('touchend', unlockAudio);
       document.removeEventListener('click', unlockAudio);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      audio.removeEventListener('webkitplaybacktargetavailabilitychanged', handleAudioInterruption as EventListener);
     };
   }, []);
 

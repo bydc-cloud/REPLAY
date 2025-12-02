@@ -1,4 +1,4 @@
-import { Settings as SettingsIcon, Sparkles, Check, Sun, Moon, Palette, Keyboard, Info, Heart, Download, Upload, FileJson, CheckCircle2, User, Loader2, Code2, Zap, Trash2, EyeOff } from "lucide-react";
+import { Settings as SettingsIcon, Sparkles, Check, Sun, Moon, Palette, Keyboard, Info, Heart, Download, Upload, FileJson, CheckCircle2, User, Loader2, Code2, Zap, Trash2, EyeOff, Cloud, CloudOff } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { PremiumCoverArt } from "./PremiumCoverArt";
 import { useSettings } from "../contexts/SettingsContext";
@@ -15,7 +15,7 @@ interface SettingsViewProps {
 export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: SettingsViewProps) => {
   const [previewPlaying, setPreviewPlaying] = useState(true);
   const { themeMode, setThemeMode, developerMode, setDeveloperMode } = useSettings();
-  const { tracks, playlists, projectFolders, cleanupTracksWithoutAudio } = useMusicLibrary();
+  const { tracks, playlists, projectFolders, cleanupTracksWithoutAudio, getLocalOnlyTracks, syncLocalTracksToCloud, isSyncingToCloud, cloudSyncProgress, cloudSyncStats } = useMusicLibrary();
   const { user, updateProfile, error: authError, clearError } = useAuth();
   const [exportSuccess, setExportSuccess] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
@@ -759,6 +759,143 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
                 </p>
               </div>
             </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Cloud Sync Section */}
+      <section className="mb-8">
+        <div className="bg-[var(--replay-elevated)]/80 backdrop-blur-xl border border-[var(--replay-border)] rounded-2xl p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <Cloud className="text-[var(--replay-off-white)]" size={24} />
+            <h2 className="text-xl font-black text-[var(--replay-off-white)]">
+              Cloud Sync
+            </h2>
+          </div>
+
+          {/* Sync Status */}
+          <div className="space-y-4">
+            {/* Local tracks count */}
+            {(() => {
+              const localTracks = getLocalOnlyTracks();
+              const localCount = localTracks.length;
+
+              return (
+                <>
+                  <div className="p-4 bg-[var(--replay-dark-grey)]/60 backdrop-blur-sm rounded-xl border border-[var(--replay-border)]">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                          localCount > 0
+                            ? "bg-gradient-to-br from-orange-500/20 to-yellow-500/20 border border-orange-500/30"
+                            : "bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30"
+                        }`}>
+                          {localCount > 0 ? (
+                            <CloudOff className="text-orange-400" size={24} />
+                          ) : (
+                            <Cloud className="text-green-400" size={24} />
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-[var(--replay-off-white)]">
+                            {localCount > 0 ? `${localCount} Local-Only Tracks` : "All Tracks Synced"}
+                          </h3>
+                          <p className="text-xs text-[var(--replay-mid-grey)]">
+                            {localCount > 0
+                              ? "These tracks are stored locally and need to be synced to cloud"
+                              : "All your tracks are backed up to the cloud"}
+                          </p>
+                        </div>
+                      </div>
+                      {localCount > 0 && !isSyncingToCloud && (
+                        <span className="px-3 py-1 bg-orange-500/20 text-orange-400 text-xs font-semibold rounded-full">
+                          Needs Sync
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Sync Progress */}
+                  {isSyncingToCloud && (
+                    <div className="p-4 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-xl border border-blue-500/30">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
+                          <span className="text-sm font-semibold text-[var(--replay-off-white)]">
+                            Syncing to Cloud...
+                          </span>
+                        </div>
+                        <span className="text-sm font-bold text-blue-400">
+                          {cloudSyncProgress}%
+                        </span>
+                      </div>
+                      <div className="h-2 bg-[var(--replay-dark-grey)] rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
+                          style={{ width: `${cloudSyncProgress}%` }}
+                        />
+                      </div>
+                      {cloudSyncStats.currentTrack && (
+                        <p className="mt-2 text-xs text-[var(--replay-mid-grey)] truncate">
+                          Uploading: {cloudSyncStats.currentTrack}
+                        </p>
+                      )}
+                      <div className="mt-2 flex items-center gap-4 text-xs text-[var(--replay-mid-grey)]">
+                        <span>{cloudSyncStats.synced} synced</span>
+                        {cloudSyncStats.failed > 0 && (
+                          <span className="text-red-400">{cloudSyncStats.failed} failed</span>
+                        )}
+                        <span>{cloudSyncStats.total - cloudSyncStats.synced - cloudSyncStats.failed} remaining</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Sync Button */}
+                  <button
+                    onClick={() => syncLocalTracksToCloud()}
+                    disabled={isSyncingToCloud || localCount === 0}
+                    className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${
+                      localCount > 0 && !isSyncingToCloud
+                        ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-500/30 hover:border-blue-500/50 hover:from-blue-500/30 hover:to-purple-500/30"
+                        : "bg-[var(--replay-dark-grey)]/60 border-[var(--replay-border)]"
+                    }`}
+                  >
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                      localCount > 0 && !isSyncingToCloud
+                        ? "bg-gradient-to-br from-blue-500/30 to-purple-500/30"
+                        : "bg-[var(--replay-dark-grey)]"
+                    }`}>
+                      {isSyncingToCloud ? (
+                        <Loader2 className="text-blue-400 animate-spin" size={24} />
+                      ) : (
+                        <Cloud className={localCount > 0 ? "text-blue-400" : "text-[var(--replay-mid-grey)]"} size={24} />
+                      )}
+                    </div>
+                    <div className="text-left flex-1">
+                      <h3 className="text-sm font-semibold text-[var(--replay-off-white)]">
+                        {isSyncingToCloud
+                          ? "Syncing..."
+                          : localCount > 0
+                            ? `Sync ${localCount} Track${localCount === 1 ? '' : 's'} to Cloud`
+                            : "All Tracks Synced"}
+                      </h3>
+                      <p className="text-xs text-[var(--replay-mid-grey)]">
+                        {localCount > 0
+                          ? "Upload local tracks to cloud storage for backup"
+                          : "Your library is fully backed up"}
+                      </p>
+                    </div>
+                  </button>
+                </>
+              );
+            })()}
+          </div>
+
+          <div className="mt-4 p-3 bg-[var(--replay-dark-grey)]/60 backdrop-blur-sm rounded-xl border border-[var(--replay-border)]">
+            <p className="text-xs text-[var(--replay-mid-grey)] leading-relaxed">
+              Cloud sync uploads your local music files to secure cloud storage, allowing you to access
+              your music from any device. Tracks are synced one at a time to ensure reliability.
+            </p>
           </div>
         </div>
       </section>
