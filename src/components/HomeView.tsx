@@ -34,7 +34,10 @@ export const HomeView = ({ onTabChange }: HomeViewProps) => {
   };
 
   const handleImportClick = () => {
-    fileInputRef.current?.click();
+    // Small delay helps with iOS Safari
+    setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 10);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,14 +67,15 @@ export const HomeView = ({ onTabChange }: HomeViewProps) => {
 
   return (
     <div className="p-4 md:p-8 pt-4 md:pt-8">
-      {/* Hidden file input */}
+      {/* Hidden file input - using absolute positioning for better mobile compatibility */}
       <input
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
         accept="audio/*,.mp3,.m4a,.wav,.ogg,.flac,.aac,.wma"
         multiple
-        className="hidden"
+        className="absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0"
+        style={{ clip: 'rect(0, 0, 0, 0)' }}
       />
 
       {/* Header with User Menu */}

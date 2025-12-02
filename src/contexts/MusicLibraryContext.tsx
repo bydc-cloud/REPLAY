@@ -121,6 +121,7 @@ interface MusicLibraryContextType {
   toggleLike: (trackId: string) => void;
   incrementPlayCount: (trackId: string) => void;
   importFiles: (files: FileList) => Promise<void>;
+  resetImportState: () => void;
   getTrackAudio: (trackId: string) => Promise<string | null>;
   getStreamUrl: (trackId: string) => string | null;
   createPlaylist: (name: string, description?: string, coverUrl?: string) => Promise<string>;
@@ -909,6 +910,16 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Manual reset function for stuck import state
+  const resetImportState = useCallback(() => {
+    console.log('Manual reset of import state');
+    setImportQueue([]);
+    setIsImporting(false);
+    setImportProgress(0);
+    setImportStats({ total: 0, completed: 0, failed: 0, currentFileName: undefined });
+    importInProgressRef.current = false;
+  }, []);
+
   // Get audio data for a track (lazy-loaded from cloud)
   const getTrackAudio = useCallback(async (trackId: string): Promise<string | null> => {
     console.log('getTrackAudio called for:', trackId, 'token available:', !!token);
@@ -1385,6 +1396,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       toggleLike,
       incrementPlayCount,
       importFiles,
+      resetImportState,
       getTrackAudio,
       getStreamUrl: (trackId: string) => token ? getStreamUrl(trackId, token) : null,
       createPlaylist,
