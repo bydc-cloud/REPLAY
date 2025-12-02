@@ -1556,7 +1556,13 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       // Blob URLs become invalid after page refresh, so these tracks need re-importing
       const hasBlobUrl = track.fileUrl && track.fileUrl.startsWith('blob:');
       const hasNoCloudKey = !track.fileKey;
-      return hasBlobUrl && hasNoCloudKey;
+
+      // Also include cloud tracks that have no audio data
+      // These are tracks in the database but with neither file_key nor file_data
+      const isCloudTrack = !track.id.startsWith('local-');
+      const hasNoAudio = track.hasAudio === false;
+
+      return (hasBlobUrl && hasNoCloudKey) || (isCloudTrack && hasNoAudio);
     });
   }, [tracks]);
 
