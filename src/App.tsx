@@ -22,6 +22,7 @@ import { DragDropOverlay } from "./components/DragDropOverlay";
 import { MiniPlayer } from "./components/MiniPlayer";
 import { ToastProvider } from "./contexts/ToastContext";
 import { ToastContainer } from "./components/ToastContainer";
+import { GlobalImportProgress } from "./components/GlobalImportProgress";
 
 type AppView = "landing" | "auth" | "app" | "about";
 type AuthMode = "signin" | "signup";
@@ -287,6 +288,7 @@ function AppWithAudioPlayer() {
     <AudioEffectsProvider>
       <AudioPlayerProvider>
         <DragDropOverlay>
+          <GlobalImportProgress />
           <AppContent />
         </DragDropOverlay>
       </AudioPlayerProvider>
