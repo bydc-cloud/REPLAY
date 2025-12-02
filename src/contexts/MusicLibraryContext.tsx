@@ -810,16 +810,22 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     // Filter to only audio files - do this in chunks to not block UI
     const allFiles = Array.from(files);
     const audioFiles: File[] = [];
+    const skippedFiles: string[] = [];
+
+    // Supported audio extensions (case-insensitive)
+    const AUDIO_EXTENSIONS = /\.(mp3|m4a|wav|ogg|flac|aac|wma|aiff|alac|opus|webm)$/i;
 
     // Process file filtering in chunks
     const FILTER_CHUNK = 50;
     for (let i = 0; i < allFiles.length; i += FILTER_CHUNK) {
       const chunk = allFiles.slice(i, i + FILTER_CHUNK);
       for (const file of chunk) {
-        const isAudio = file.type.startsWith('audio/') ||
-          /\.(mp3|m4a|wav|ogg|flac|aac|wma)$/i.test(file.name);
+        const isAudio = file.type.startsWith('audio/') || AUDIO_EXTENSIONS.test(file.name);
         if (isAudio) {
           audioFiles.push(file);
+        } else if (file.name && !file.name.startsWith('.')) {
+          // Track non-hidden files that were skipped
+          skippedFiles.push(file.name);
         }
       }
       // Let UI breathe
@@ -831,8 +837,19 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
 
     const totalFiles = audioFiles.length;
 
+    // Show warning about skipped files if any
+    if (skippedFiles.length > 0) {
+      const skippedCount = skippedFiles.length;
+      const examples = skippedFiles.slice(0, 3).join(', ');
+      const suffix = skippedCount > 3 ? ` and ${skippedCount - 3} more` : '';
+      console.log(`Skipped ${skippedCount} non-audio files: ${examples}${suffix}`);
+      if (totalFiles > 0) {
+        showToast(`Skipped ${skippedCount} non-audio file${skippedCount > 1 ? 's' : ''}`, 'info', 3000);
+      }
+    }
+
     if (totalFiles === 0) {
-      showToast('No audio files found', 'warning');
+      showToast('No audio files found. Supported formats: MP3, M4A, WAV, FLAC, AAC, OGG, WMA', 'warning', 4000);
       setIsImporting(false);
       setImportProgress(0);
       setImportStats({ total: 0, completed: 0, failed: 0, currentFileName: undefined });
