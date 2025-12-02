@@ -574,12 +574,21 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
                 return;
               }
 
-              if (response.ok) {
+              // Check content type - if it's JSON, the server returned an error
+              const contentType = response.headers.get('content-type');
+              if (response.ok && contentType && contentType.startsWith('audio/')) {
                 const blob = await response.blob();
-                audioUrl = URL.createObjectURL(blob);
-                console.log("Mobile: Created blob URL, size:", blob.size);
+                if (blob.size > 0) {
+                  audioUrl = URL.createObjectURL(blob);
+                  console.log("Mobile: Created blob URL, size:", blob.size);
+                } else {
+                  console.error("Mobile: Got empty audio blob");
+                }
+              } else if (contentType && contentType.includes('application/json')) {
+                // Server returned JSON error - audio is not available
+                console.log("Mobile: Server returned JSON error (no audio in cloud)");
               } else {
-                console.error("Mobile: Stream fetch failed:", response.status);
+                console.error("Mobile: Stream fetch failed:", response.status, "content-type:", contentType);
               }
             } catch (fetchError) {
               console.error("Mobile: Error fetching audio stream:", fetchError);
