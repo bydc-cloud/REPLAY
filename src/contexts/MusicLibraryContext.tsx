@@ -1458,11 +1458,15 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('Cleanup API response:', data);
 
-        // Remove deleted tracks from local state
-        setTracks(prev => prev.filter(track => track.hasAudio !== false));
+        // Remove deleted tracks from local state by ID (more reliable than hasAudio check)
+        if (data.deletedIds && data.deletedIds.length > 0) {
+          const deletedIdSet = new Set(data.deletedIds);
+          setTracks(prev => prev.filter(track => !deletedIdSet.has(track.id)));
+        }
 
-        // Refresh tracks from API
+        // Also refresh tracks from API to ensure state is fully synced
         if (token) {
           const apiTracks = await fetchTracksFromAPI(token);
           if (apiTracks) {

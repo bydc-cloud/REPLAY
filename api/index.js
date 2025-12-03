@@ -713,10 +713,11 @@ app.delete('/api/tracks/cleanup/no-audio', auth, async (req, res) => {
       'DELETE FROM tracks WHERE user_id = $1 AND file_data IS NULL AND file_key IS NULL RETURNING id, title',
       [req.user.id]
     );
-    console.log(`Cleaned up ${result.rows.length} tracks without audio for user ${req.user.id}`);
+    console.log(`Cleaned up ${result.rows.length} tracks without audio for user ${req.user.id}:`, result.rows.map(t => t.title));
     res.json({
       deleted: result.rows.length,
-      tracks: result.rows.map(t => t.title)
+      tracks: result.rows.map(t => t.title),
+      deletedIds: result.rows.map(t => t.id)
     });
   } catch (e) {
     console.error('Cleanup error:', e.message);
