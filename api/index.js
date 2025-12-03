@@ -332,8 +332,8 @@ app.get('/api/tracks', auth, async (req, res) => {
     const db = getPool();
     const result = await db.query(
       `SELECT id, user_id, title, artist, album, duration, cover_url, play_count, is_liked,
-              lyrics_status, created_at, bpm, musical_key, energy, analyzed_at,
-              (file_data IS NOT NULL) as has_audio,
+              lyrics_status, created_at, bpm, musical_key, energy, analyzed_at, file_key,
+              (file_data IS NOT NULL OR file_key IS NOT NULL) as has_audio,
               (lyrics_text IS NOT NULL AND lyrics_text != '') as has_lyrics
        FROM tracks WHERE user_id = $1 ORDER BY created_at DESC`,
       [req.user.id]

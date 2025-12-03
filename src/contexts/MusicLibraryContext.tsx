@@ -311,7 +311,8 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
           album: track.album || 'Unknown Album',
           duration: track.duration || 0,
           fileUrl: track.file_url || '', // file_data is now lazy-loaded
-          hasAudio: track.has_audio || false, // Indicates if audio data exists in DB
+          fileKey: track.file_key || undefined, // B2 cloud storage key
+          hasAudio: track.has_audio || false, // Indicates if audio data exists in DB or B2
           artworkUrl: track.cover_url,
           isLiked: track.is_liked || false,
           addedAt: new Date(track.created_at),
