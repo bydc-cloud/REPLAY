@@ -537,9 +537,10 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
-        if (contextAudio && (contextAudio.startsWith('blob:') || contextAudio.startsWith('data:'))) {
-          // For blob URLs, verify they're still valid
+        if (contextAudio) {
+          // Handle different URL types
           if (contextAudio.startsWith('blob:')) {
+            // For blob URLs, verify they're still valid
             try {
               const blobResponse = await fetch(contextAudio, { method: 'HEAD' });
               if (blobResponse.ok) {
@@ -551,9 +552,14 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
             } catch {
               console.log("Context blob URL expired, trying cloud fallback");
             }
-          } else {
+          } else if (contextAudio.startsWith('data:')) {
             audioUrl = contextAudio;
             console.log("Using data URL from getTrackAudio, length:", contextAudio.length);
+          } else if (contextAudio.startsWith('https://') || contextAudio.startsWith('http://')) {
+            // CRITICAL FIX: Accept signed B2 URLs (https://s3.us-west-xxx.backblazeb2.com/...)
+            // These are pre-verified by the server and should be used directly
+            audioUrl = contextAudio;
+            console.log("Using signed cloud URL from getTrackAudio:", contextAudio.substring(0, 60) + "...");
           }
         }
       }
