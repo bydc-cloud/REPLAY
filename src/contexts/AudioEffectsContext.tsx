@@ -72,7 +72,7 @@ interface AudioEffectsContextType {
   setCrossfadeDuration: (seconds: number) => void;
 
   // Audio chain connection
-  connectToAudioElement: (audio: HTMLAudioElement) => void;
+  connectToAudioElement: (audio: HTMLAudioElement) => Promise<void>;
   disconnectFromAudioElement: () => void;
 
   // Analyser for visualizations
@@ -314,7 +314,7 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
   }, [applyEffects]);
 
   // Connect to audio element
-  const connectToAudioElement = useCallback((audio: HTMLAudioElement) => {
+  const connectToAudioElement = useCallback(async (audio: HTMLAudioElement) => {
     console.log("connectToAudioElement called", {
       audioExists: !!audio,
       alreadyConnected: connectedAudioRef.current === audio,
@@ -327,7 +327,8 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
       // Just resume context if suspended
       if (audioContextRef.current.state === 'suspended') {
         console.log("Resuming suspended AudioContext");
-        audioContextRef.current.resume().catch(console.error);
+        await audioContextRef.current.resume();
+        console.log("AudioContext resumed, new state:", audioContextRef.current.state);
       }
       return;
     }
@@ -346,11 +347,14 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
       sourceRef.current = existingSourceInfo.source;
       setAudioContext(existingSourceInfo.ctx);
 
-      // CRITICAL: Always resume context when reusing
+      // CRITICAL: Always resume context when reusing - AWAIT this!
       if (existingSourceInfo.ctx.state === 'suspended') {
-        existingSourceInfo.ctx.resume().then(() => {
-          console.log("Reused AudioContext resumed");
-        }).catch(console.error);
+        try {
+          await existingSourceInfo.ctx.resume();
+          console.log("Reused AudioContext resumed. New state:", existingSourceInfo.ctx.state);
+        } catch (e) {
+          console.error("Failed to resume reused AudioContext:", e);
+        }
       }
 
       // CRITICAL: Ensure source is connected to destination immediately
@@ -377,12 +381,14 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
 
         // CRITICAL: Resume context immediately after creation (required for audio to play)
         // Browsers suspend new AudioContexts by default until user interaction
+        // We MUST await this, otherwise the context stays suspended during chain build
         if (audioContextRef.current.state === 'suspended') {
-          audioContextRef.current.resume().then(() => {
-            console.log("AudioContext resumed immediately after creation");
-          }).catch((e) => {
+          try {
+            await audioContextRef.current.resume();
+            console.log("AudioContext resumed immediately after creation. New state:", audioContextRef.current.state);
+          } catch (e) {
             console.warn("Could not resume AudioContext:", e);
-          });
+          }
         }
 
         // Create source from audio element
@@ -409,9 +415,15 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
     // If so, just ensure context is running and don't rebuild
     if (analyserRef.current && connectedAudioRef.current === audio) {
       if (ctx.state === 'suspended') {
-        ctx.resume().catch(console.error);
+        try {
+          await ctx.resume();
+          console.log("Effects chain already connected, context resumed. State:", ctx.state);
+        } catch (e) {
+          console.error("Failed to resume in skip-rebuild path:", e);
+        }
+      } else {
+        console.log("Effects chain already connected, context running. State:", ctx.state);
       }
-      console.log("Effects chain already connected, skipping rebuild");
       return;
     }
 
@@ -489,11 +501,12 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
 
       // CRITICAL: Resume AudioContext if suspended (required for audio to play)
       if (ctx.state === 'suspended') {
-        ctx.resume().then(() => {
-          console.log("AudioContext resumed after chain build");
-        }).catch((e) => {
+        try {
+          await ctx.resume();
+          console.log("AudioContext resumed after chain build. New state:", ctx.state);
+        } catch (e) {
           console.error("Failed to resume AudioContext:", e);
-        });
+        }
       }
 
       console.log("Audio effects chain connected with analyser. Context state:", ctx.state);
@@ -506,9 +519,10 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
           sourceRef.current.connect(ctx.destination);
           console.log("Fallback: Connected audio source directly to destination");
 
-          // Also resume context in fallback path
+          // Also resume context in fallback path - AWAIT this!
           if (ctx.state === 'suspended') {
-            ctx.resume().catch(console.error);
+            await ctx.resume();
+            console.log("Fallback: Context resumed. State:", ctx.state);
           }
         }
       } catch (fallbackError) {
