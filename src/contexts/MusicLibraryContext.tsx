@@ -1689,7 +1689,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
   // (tracks with file_key in database but no actual file in B2)
   const verifyAndCleanupOrphanedB2Tracks = async (): Promise<{ checked: number; deleted: number; tracks: string[] }> => {
     if (!token) {
-      showToast('Please sign in to verify cloud storage', 'error');
+      // No token means user isn't logged in, skip B2 verification silently
       return { checked: 0, deleted: 0, tracks: [] };
     }
 
@@ -1702,8 +1702,11 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to verify B2 files');
+        // If B2 not configured or other error, log but don't show error to user
+        // The main cleanup (deleteTracksNeedingReimport) already ran
+        const errorData = await response.json().catch(() => ({}));
+        console.log('B2 verification skipped:', errorData.error || 'API error');
+        return { checked: 0, deleted: 0, tracks: [] };
       }
 
       const result = await response.json();
@@ -1711,13 +1714,13 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       // Remove deleted tracks from local state
       if (result.tracks && result.tracks.length > 0) {
         setTracks(prev => prev.filter(track => !result.tracks.includes(track.title)));
-        showToast(`Removed ${result.deleted} orphaned tracks from cloud`, 'success');
+        showToast(`Removed ${result.deleted} orphaned cloud tracks`, 'success');
       }
 
       return result;
     } catch (error) {
-      console.error('B2 verification error:', error);
-      showToast('Failed to verify cloud storage', 'error');
+      // Network error or other issue - don't block the cleanup
+      console.log('B2 verification skipped due to error:', error);
       return { checked: 0, deleted: 0, tracks: [] };
     }
   };

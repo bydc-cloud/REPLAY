@@ -687,11 +687,6 @@ app.delete('/api/tracks/cleanup/no-audio', auth, async (req, res) => {
 // Verify B2 files exist and delete orphaned tracks (tracks with file_key but no actual file in B2)
 app.delete('/api/tracks/cleanup/verify-b2', auth, async (req, res) => {
   try {
-    const client = getS3Client();
-    if (!client) {
-      return res.status(400).json({ error: 'Cloud storage not configured' });
-    }
-
     const db = getPool();
 
     // Get all tracks with file_key for this user
@@ -699,6 +694,19 @@ app.delete('/api/tracks/cleanup/verify-b2', auth, async (req, res) => {
       'SELECT id, title, file_key FROM tracks WHERE user_id = $1 AND file_key IS NOT NULL',
       [req.user.id]
     );
+
+    // If no tracks with file_key, nothing to check
+    if (tracksResult.rows.length === 0) {
+      return res.json({ checked: 0, deleted: 0, tracks: [] });
+    }
+
+    const client = getS3Client();
+    if (!client) {
+      // B2 not configured - can't verify files, so just return success with 0 deleted
+      // The tracks might still be valid, we just can't check
+      console.log('B2 not configured, skipping verification for user', req.user.id);
+      return res.json({ checked: 0, deleted: 0, tracks: [], note: 'Cloud storage not configured' });
+    }
 
     const orphanedTracks = [];
 
@@ -713,8 +721,11 @@ app.delete('/api/tracks/cleanup/verify-b2', auth, async (req, res) => {
         // File exists, track is OK
       } catch (err) {
         // File doesn't exist in B2, track is orphaned
-        if (err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404) {
+        if (err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404 || err.Code === 'NotFound') {
           orphanedTracks.push(track);
+        } else {
+          // Other error (permissions, network, etc) - log but don't delete
+          console.log(`B2 check error for ${track.file_key}:`, err.name || err.Code);
         }
       }
     }
