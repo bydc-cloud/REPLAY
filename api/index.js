@@ -509,17 +509,22 @@ app.get('/api/tracks/:id/stream', async (req, res) => {
   try {
     const db = getPool();
     const result = await db.query(
-      'SELECT file_data, file_key FROM tracks WHERE id = $1 AND user_id = $2',
+      'SELECT id, title, file_data, file_key FROM tracks WHERE id = $1 AND user_id = $2',
       [req.params.id, req.user.id]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    if (result.rows.length === 0) {
+      console.log(`Stream 404: Track ${req.params.id} not found for user ${req.user.id}`);
+      return res.status(404).json({ error: 'Not found' });
+    }
 
-    const { file_data: fileData, file_key: fileKey } = result.rows[0];
+    const { title, file_data: fileData, file_key: fileKey } = result.rows[0];
+    console.log(`Stream request for "${title}" (${req.params.id}): fileKey=${fileKey ? 'yes' : 'no'}, fileData=${fileData ? 'yes' : 'no'}`);
 
     // If track is stored in B2, redirect to signed URL
     if (fileKey) {
       const check = await verifyB2FileReadable(fileKey);
       if (!check.ok) {
+        console.log(`Stream: B2 file missing for "${title}": ${fileKey} (status: ${check.status})`);
         const status = check.status === 404 ? 404 : 500;
         return res.status(status).json({ error: 'Audio file missing from cloud storage', missing: true });
       }
