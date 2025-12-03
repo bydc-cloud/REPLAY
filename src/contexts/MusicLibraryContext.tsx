@@ -705,26 +705,34 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Upload file via proxy (Browser → API → B2) - bypasses CORS issues
-  const uploadViaProxy = async (file: File): Promise<{ success: boolean; fileKey?: string }> => {
+  const uploadViaProxy = async (file: File): Promise<{ success: boolean; fileKey?: string; error?: string }> => {
     try {
+      console.log(`Starting proxy upload for: ${file.name} (${Math.round(file.size / 1024 / 1024)}MB)`);
+
       const response = await fetch(`${API_URL}/api/upload/proxy`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': file.type || 'audio/mpeg',
-          'X-Filename': file.name,
+          'X-Filename': encodeURIComponent(file.name),
         },
         body: file,
       });
 
       if (response.ok) {
         const data = await response.json();
+        console.log(`Proxy upload success: ${file.name} -> ${data.fileKey}`);
         return { success: true, fileKey: data.fileKey };
       }
-      return { success: false };
+
+      // Log the error response
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error(`Proxy upload failed for ${file.name}: ${response.status} - ${errorText}`);
+      return { success: false, error: `Upload failed: ${response.status}` };
     } catch (error) {
-      console.error('Proxy upload failed:', error);
-      return { success: false };
+      const errorMsg = error instanceof Error ? error.message : 'Network error';
+      console.error(`Proxy upload error for ${file.name}:`, errorMsg);
+      return { success: false, error: errorMsg };
     }
   };
 
