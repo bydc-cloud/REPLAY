@@ -753,6 +753,7 @@ app.delete('/api/tracks/cleanup/verify-b2', auth, async (req, res) => {
 
     // Check each track's file in B2
     for (const track of tracksResult.rows) {
+      console.log(`Checking B2 file: ${track.file_key} for track "${track.title}"`);
       try {
         const command = new HeadObjectCommand({
           Bucket: B2_BUCKET,
@@ -760,13 +761,45 @@ app.delete('/api/tracks/cleanup/verify-b2', auth, async (req, res) => {
         });
         await client.send(command);
         // File exists, track is OK
+        console.log(`  ✓ File exists: ${track.file_key}`);
       } catch (err) {
-        // File doesn't exist in B2, track is orphaned
-        if (err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404 || err.Code === 'NotFound') {
+        const httpStatus = err.$metadata?.httpStatusCode;
+        // Broaden error detection to catch various "file not found" patterns
+        const isNotFound =
+          err.name === 'NotFound' ||
+          err.name === 'NoSuchKey' ||
+          err.Code === 'NotFound' ||
+          err.Code === 'NoSuchKey' ||
+          httpStatus === 404 ||
+          httpStatus === 403;  // B2 sometimes returns 403 for missing files
+
+        if (isNotFound) {
           orphanedTracks.push(track);
+          console.log(`  ✗ B2 file MISSING for track "${track.title}": ${track.file_key} (${err.name || err.Code || httpStatus})`);
         } else {
-          // Other error (permissions, network, etc) - log but don't delete
-          console.log(`B2 check error for ${track.file_key}:`, err.name || err.Code);
+          // Unknown error - log full details for debugging
+          console.log(`  ? B2 check error for ${track.file_key}:`, JSON.stringify({
+            name: err.name,
+            code: err.Code,
+            httpStatus: httpStatus,
+            message: err.message
+          }));
+          // Try GetObjectCommand as fallback verification
+          try {
+            const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+            const getCommand = new GetObjectCommand({
+              Bucket: B2_BUCKET,
+              Key: track.file_key,
+            });
+            const response = await client.send(getCommand);
+            // File exists, abort the stream immediately
+            response.Body?.destroy();
+            console.log(`  ✓ File verified via GetObject: ${track.file_key}`);
+          } catch (getErr) {
+            // If GetObject also fails, mark as orphaned
+            orphanedTracks.push(track);
+            console.log(`  ✗ B2 file confirmed MISSING via GetObject: ${track.file_key} (${getErr.name || getErr.Code})`);
+          }
         }
       }
     }
