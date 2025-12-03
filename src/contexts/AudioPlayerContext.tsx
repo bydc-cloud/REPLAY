@@ -566,12 +566,12 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         console.log("No local audio, fetching from cloud. Mobile:", isMobile, "hasAudio:", track.hasAudio);
 
         if (isMobile) {
-          // MOBILE STRATEGY: Use server-side proxy endpoint that streams from B2
+          // MOBILE STRATEGY: Use server-side proxy endpoint that streams real audio from B2
           // This avoids all CORS issues by proxying through our server
           if (token) {
             try {
               showToast(`Loading "${track.title}"...`, 'info', 3000);
-              console.log("Mobile: Fetching audio via proxy endpoint...");
+              console.log("Mobile: Fetching real audio via proxy endpoint...");
 
               // Use the stream-proxy endpoint which proxies B2 audio through our server
               const proxyUrl = `${API_URL}/api/tracks/${track.id}/stream-proxy?token=${encodeURIComponent(token)}`;
@@ -589,47 +589,33 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
                 const blob = await response.blob();
                 if (blob.size > 0) {
                   audioUrl = URL.createObjectURL(blob);
-                  console.log("Mobile: Created blob URL from proxy, size:", blob.size);
+                  console.log("Mobile: Created blob URL from real audio, size:", blob.size);
                 } else {
                   console.error("Mobile: Got empty audio blob from proxy");
+                  showToast(`Audio file not available for "${track.title}"`, 'error', 4000);
                 }
               } else if (contentType && contentType.includes('application/json')) {
-                // Server returned JSON error - audio is not available
+                // Server returned JSON error - audio is not available in cloud
                 const errorData = await response.json().catch(() => ({}));
-                console.log("Mobile: Proxy returned JSON error:", errorData.error || 'unknown');
+                console.error("Mobile: Audio not available:", errorData.error || 'unknown');
+                showToast(`Audio not available: ${errorData.error || 'Track needs to be re-uploaded'}`, 'error', 4000);
               } else {
                 console.error("Mobile: Proxy fetch failed:", response.status, "content-type:", contentType);
+                showToast(`Failed to load audio (${response.status})`, 'error', 4000);
               }
             } catch (fetchError) {
               console.error("Mobile: Error fetching audio from proxy:", fetchError);
+              showToast(`Network error loading audio`, 'error', 4000);
             }
-          }
-
-          // Fallback to base64 data URL if proxy approach failed
-          if (!audioUrl) {
-            console.log("Mobile: Falling back to base64 data URL...");
-            try {
-              audioUrl = await getTrackAudio(track.id);
-
-              // Check if this request is still current after async operation
-              if (isStale()) {
-                console.log(`Load request ${loadId} is stale, aborting (after mobile fallback)`);
-                return;
-              }
-
-              if (audioUrl) {
-                console.log("Mobile: Using base64 data URL, length:", audioUrl.length);
-              }
-            } catch (fetchError) {
-              console.error("Mobile: Error fetching base64 audio:", fetchError);
-            }
+          } else {
+            console.error("Mobile: No auth token available");
+            showToast(`Please log in to play audio`, 'error', 4000);
           }
         } else {
-          // DESKTOP STRATEGY: Use streaming URL, but verify it first
+          // DESKTOP STRATEGY: Use streaming URL directly - it redirects to B2 signed URL
+          // For desktop browsers, the redirect works fine (no CORS issues like mobile)
           const streamUrl = getStreamUrl(track.id);
-          if (streamUrl) {
-            // Pre-check if the stream URL will return valid audio
-            // Do a HEAD request first to check content-type
+          if (streamUrl && token) {
             try {
               console.log("Desktop: Checking streaming URL availability...");
               const headResponse = await fetch(streamUrl, { method: 'HEAD' });
@@ -646,59 +632,60 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
                 audioUrl = streamUrl;
                 console.log("Desktop: Using streaming URL for instant playback");
               } else if (contentType && contentType.includes('application/json')) {
-                // Server returned JSON error - audio data is missing
-                console.log("Desktop: Streaming endpoint returned JSON error, audio missing in cloud");
-                // Don't set audioUrl - let it fall through to show error message
+                // Server returned JSON error - audio data is missing in cloud
+                console.error("Desktop: Audio not available in cloud storage");
+                showToast(`Audio not available. Track needs to be re-uploaded.`, 'error', 4000);
               } else {
-                // Some other error
-                console.log("Desktop: Streaming check failed, status:", headResponse.status);
-              }
-            } catch (headError) {
-              console.log("Desktop: HEAD request failed, trying GET...", headError);
-              // If HEAD fails, try fetching as blob to check
-              try {
-                const response = await fetch(streamUrl);
+                // Some other error - try proxy approach as fallback
+                console.log("Desktop: Stream check failed, trying proxy endpoint...");
+                const proxyUrl = `${API_URL}/api/tracks/${track.id}/stream-proxy?token=${encodeURIComponent(token)}`;
+                const response = await fetch(proxyUrl);
 
                 if (isStale()) {
-                  console.log(`Load request ${loadId} is stale, aborting (after stream fetch)`);
+                  console.log(`Load request ${loadId} is stale, aborting (after proxy fetch)`);
+                  return;
+                }
+
+                const proxyContentType = response.headers.get('content-type');
+                if (response.ok && proxyContentType && (proxyContentType.startsWith('audio/') || proxyContentType === 'application/octet-stream')) {
+                  const blob = await response.blob();
+                  if (blob.size > 0) {
+                    audioUrl = URL.createObjectURL(blob);
+                    console.log("Desktop: Created blob URL from proxy, size:", blob.size);
+                  }
+                }
+              }
+            } catch (headError) {
+              console.log("Desktop: Streaming failed, trying proxy...", headError);
+              // If streaming fails, use proxy endpoint
+              try {
+                const proxyUrl = `${API_URL}/api/tracks/${track.id}/stream-proxy?token=${encodeURIComponent(token)}`;
+                const response = await fetch(proxyUrl);
+
+                if (isStale()) {
+                  console.log(`Load request ${loadId} is stale, aborting (after proxy fallback)`);
                   return;
                 }
 
                 const contentType = response.headers.get('content-type');
-                if (response.ok && contentType && contentType.startsWith('audio/')) {
-                  // Got valid audio - create blob URL
+                if (response.ok && contentType && (contentType.startsWith('audio/') || contentType === 'application/octet-stream')) {
                   const blob = await response.blob();
-                  audioUrl = URL.createObjectURL(blob);
-                  console.log("Desktop: Created blob URL from stream, size:", blob.size);
+                  if (blob.size > 0) {
+                    audioUrl = URL.createObjectURL(blob);
+                    console.log("Desktop: Created blob URL from proxy fallback, size:", blob.size);
+                  }
                 } else {
-                  console.log("Desktop: Stream returned non-audio content type:", contentType);
+                  console.error("Desktop: Both streaming and proxy failed");
+                  showToast(`Failed to load audio for "${track.title}"`, 'error', 4000);
                 }
               } catch (fetchError) {
-                console.error("Desktop: Stream fetch failed:", fetchError);
+                console.error("Desktop: Proxy fetch also failed:", fetchError);
+                showToast(`Network error loading audio`, 'error', 4000);
               }
             }
-          }
-
-          // Fallback to full download if streaming failed or not available
-          if (!audioUrl) {
-            console.log("Desktop: Streaming not available or failed, fetching full audio...");
-            showToast(`Loading "${track.title}"...`, 'info', 2000);
-
-            try {
-              audioUrl = await getTrackAudio(track.id);
-
-              // Check if this request is still current after async operation
-              if (isStale()) {
-                console.log(`Load request ${loadId} is stale, aborting (after desktop fallback)`);
-                return;
-              }
-
-              if (audioUrl) {
-                console.log("Desktop: Audio fetched, size:", audioUrl.length);
-              }
-            } catch (fetchError) {
-              console.error("Desktop: Error fetching audio:", fetchError);
-            }
+          } else if (!token) {
+            console.error("Desktop: No auth token available");
+            showToast(`Please log in to play audio`, 'error', 4000);
           }
         }
       }
