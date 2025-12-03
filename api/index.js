@@ -361,6 +361,99 @@ app.get('/api/tracks/:id/audio', auth, async (req, res) => {
   }
 });
 
+// Stream audio via proxy - fetches from B2 and streams through server
+// This avoids CORS issues on mobile browsers
+// Accepts token via query param for direct audio element access
+app.get('/api/tracks/:id/stream-proxy', async (req, res) => {
+  // Support token from query param (for audio element) or header
+  let token = req.headers.authorization?.split(' ')[1] || req.query.token;
+  if (!token) return res.status(401).json({ error: 'No token' });
+
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  try {
+    const db = getPool();
+    const result = await db.query(
+      'SELECT file_data, file_key FROM tracks WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+
+    const { file_data: fileData, file_key: fileKey } = result.rows[0];
+
+    // If track is stored in B2, proxy the audio through the server
+    if (fileKey) {
+      const client = getS3Client();
+      if (!client) {
+        return res.status(500).json({ error: 'Cloud storage not configured' });
+      }
+
+      try {
+        const command = new GetObjectCommand({
+          Bucket: B2_BUCKET,
+          Key: fileKey,
+        });
+
+        const s3Response = await client.send(command);
+
+        // Set response headers
+        res.setHeader('Content-Type', s3Response.ContentType || 'audio/mpeg');
+        if (s3Response.ContentLength) {
+          res.setHeader('Content-Length', s3Response.ContentLength);
+        }
+        res.setHeader('Accept-Ranges', 'bytes');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
+
+        // Pipe the S3 stream directly to the response
+        s3Response.Body.pipe(res);
+
+        // Handle stream errors
+        s3Response.Body.on('error', (err) => {
+          console.error('S3 stream error:', err.message);
+          if (!res.headersSent) {
+            res.status(500).json({ error: 'Stream error' });
+          }
+        });
+
+        return;
+      } catch (s3Error) {
+        console.error('S3 proxy error:', s3Error.message);
+        return res.status(500).json({ error: 'Failed to proxy audio from cloud storage' });
+      }
+    }
+
+    // Fallback to base64 data
+    if (!fileData) return res.status(404).json({ error: 'No audio data' });
+
+    // Parse the data URL to get mime type and base64 data
+    const matches = fileData.match(/^data:([^;]+);base64,(.+)$/);
+    if (!matches) return res.status(400).json({ error: 'Invalid audio format' });
+
+    const mimeType = matches[1];
+    const base64Data = matches[2];
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Set headers for streaming
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Length', buffer.length);
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
+
+    res.end(buffer);
+  } catch (e) {
+    console.error('Stream proxy error:', e.message);
+    res.status(500).json({ error: 'Failed to stream audio' });
+  }
+});
+
 // Stream audio - sends binary data for faster playback start
 // Accepts token via query param for direct audio element access
 app.get('/api/tracks/:id/stream', async (req, res) => {
