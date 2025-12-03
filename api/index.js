@@ -751,56 +751,41 @@ app.delete('/api/tracks/cleanup/verify-b2', auth, async (req, res) => {
 
     const orphanedTracks = [];
 
-    // Check each track's file in B2
+    // Check each track's file in B2 using GetObjectCommand (NOT HeadObject)
+    // HeadObjectCommand only checks metadata, which can succeed even when the file is missing/corrupted
+    // GetObjectCommand with Range header actually tries to read the file, matching streaming behavior
     for (const track of tracksResult.rows) {
-      console.log(`Checking B2 file: ${track.file_key} for track "${track.title}"`);
+      console.log(`Verifying B2 file: ${track.file_key} for track "${track.title}"`);
       try {
-        const command = new HeadObjectCommand({
+        // Use GetObjectCommand with Range to fetch just first byte
+        // This validates the file is actually readable, not just metadata
+        const command = new GetObjectCommand({
           Bucket: B2_BUCKET,
           Key: track.file_key,
+          Range: 'bytes=0-0',  // Only fetch first byte to minimize bandwidth
         });
-        await client.send(command);
-        // File exists, track is OK
-        console.log(`  ✓ File exists: ${track.file_key}`);
-      } catch (err) {
-        const httpStatus = err.$metadata?.httpStatusCode;
-        // Broaden error detection to catch various "file not found" patterns
-        const isNotFound =
-          err.name === 'NotFound' ||
-          err.name === 'NoSuchKey' ||
-          err.Code === 'NotFound' ||
-          err.Code === 'NoSuchKey' ||
-          httpStatus === 404 ||
-          httpStatus === 403;  // B2 sometimes returns 403 for missing files
+        const response = await client.send(command);
 
-        if (isNotFound) {
-          orphanedTracks.push(track);
-          console.log(`  ✗ B2 file MISSING for track "${track.title}": ${track.file_key} (${err.name || err.Code || httpStatus})`);
-        } else {
-          // Unknown error - log full details for debugging
-          console.log(`  ? B2 check error for ${track.file_key}:`, JSON.stringify({
-            name: err.name,
-            code: err.Code,
-            httpStatus: httpStatus,
-            message: err.message
-          }));
-          // Try GetObjectCommand as fallback verification
-          try {
-            const { GetObjectCommand } = await import('@aws-sdk/client-s3');
-            const getCommand = new GetObjectCommand({
-              Bucket: B2_BUCKET,
-              Key: track.file_key,
-            });
-            const response = await client.send(getCommand);
-            // File exists, abort the stream immediately
-            response.Body?.destroy();
-            console.log(`  ✓ File verified via GetObject: ${track.file_key}`);
-          } catch (getErr) {
-            // If GetObject also fails, mark as orphaned
+        // Must actually consume the stream to confirm it's readable
+        if (response.Body) {
+          const chunks = [];
+          for await (const chunk of response.Body) {
+            chunks.push(chunk);
+            break; // Only need first chunk
+          }
+          if (chunks.length === 0 || chunks[0].length === 0) {
+            // File exists but is empty/unreadable
             orphanedTracks.push(track);
-            console.log(`  ✗ B2 file confirmed MISSING via GetObject: ${track.file_key} (${getErr.name || getErr.Code})`);
+            console.log(`  ✗ File empty/unreadable: ${track.file_key}`);
+            continue;
           }
         }
+        console.log(`  ✓ File verified: ${track.file_key}`);
+      } catch (err) {
+        // ANY error means file is not streamable - mark as orphaned
+        const errorInfo = err.name || err.Code || err.$metadata?.httpStatusCode || 'unknown';
+        orphanedTracks.push(track);
+        console.log(`  ✗ File MISSING: ${track.file_key} (${errorInfo})`);
       }
     }
 
