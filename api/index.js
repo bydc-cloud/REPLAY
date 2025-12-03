@@ -665,11 +665,12 @@ app.post('/api/tracks', auth, async (req, res) => {
 });
 
 // Delete tracks without audio data (authenticated user)
+// Tracks need either file_data (legacy base64) OR file_key (B2 cloud) to have audio
 app.delete('/api/tracks/cleanup/no-audio', auth, async (req, res) => {
   try {
     const db = getPool();
     const result = await db.query(
-      'DELETE FROM tracks WHERE user_id = $1 AND file_data IS NULL RETURNING id, title',
+      'DELETE FROM tracks WHERE user_id = $1 AND file_data IS NULL AND file_key IS NULL RETURNING id, title',
       [req.user.id]
     );
     console.log(`Cleaned up ${result.rows.length} tracks without audio for user ${req.user.id}`);
