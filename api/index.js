@@ -78,7 +78,13 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key';
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString(), openai: !!openai });
+  res.json({
+    status: 'ok',
+    time: new Date().toISOString(),
+    openai: !!openai,
+    b2: !!(B2_KEY_ID && B2_APP_KEY),
+    b2_bucket: B2_BUCKET
+  });
 });
 
 app.get('/', (req, res) => {
