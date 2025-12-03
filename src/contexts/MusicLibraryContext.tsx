@@ -145,6 +145,7 @@ interface MusicLibraryContextType {
   cleanupTracksWithoutAudio: () => Promise<{ deleted: number; tracks: string[] }>;
   getTracksNeedingReimport: () => Track[];
   deleteTracksNeedingReimport: () => Promise<{ deleted: number; tracks: string[] }>;
+  verifyAndCleanupOrphanedB2Tracks: () => Promise<{ checked: number; deleted: number; tracks: string[] }>;
   createProjectFolder: (name: string) => Promise<string>;
   deleteProjectFolder: (folderId: string) => Promise<void>;
   renameProjectFolder: (folderId: string, newName: string) => Promise<void>;
@@ -1684,6 +1685,43 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     return { deleted: deletedCount, tracks: trackNames };
   };
 
+  // Verify B2 cloud storage files exist and cleanup orphaned tracks
+  // (tracks with file_key in database but no actual file in B2)
+  const verifyAndCleanupOrphanedB2Tracks = async (): Promise<{ checked: number; deleted: number; tracks: string[] }> => {
+    if (!token) {
+      showToast('Please sign in to verify cloud storage', 'error');
+      return { checked: 0, deleted: 0, tracks: [] };
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/tracks/cleanup/verify-b2`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to verify B2 files');
+      }
+
+      const result = await response.json();
+
+      // Remove deleted tracks from local state
+      if (result.tracks && result.tracks.length > 0) {
+        setTracks(prev => prev.filter(track => !result.tracks.includes(track.title)));
+        showToast(`Removed ${result.deleted} orphaned tracks from cloud`, 'success');
+      }
+
+      return result;
+    } catch (error) {
+      console.error('B2 verification error:', error);
+      showToast('Failed to verify cloud storage', 'error');
+      return { checked: 0, deleted: 0, tracks: [] };
+    }
+  };
+
   // Sync local-only tracks to cloud storage
   const syncLocalTracksToCloud = async (): Promise<{ synced: number; failed: number }> => {
     if (cloudSyncInProgressRef.current) {
@@ -1934,6 +1972,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       cleanupTracksWithoutAudio,
       getTracksNeedingReimport,
       deleteTracksNeedingReimport,
+      verifyAndCleanupOrphanedB2Tracks,
       createProjectFolder,
       deleteProjectFolder,
       renameProjectFolder,

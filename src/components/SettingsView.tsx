@@ -15,7 +15,7 @@ interface SettingsViewProps {
 export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: SettingsViewProps) => {
   const [previewPlaying, setPreviewPlaying] = useState(true);
   const { themeMode, setThemeMode, developerMode, setDeveloperMode } = useSettings();
-  const { tracks, playlists, projectFolders, cleanupTracksWithoutAudio, deleteTracksNeedingReimport, getLocalOnlyTracks, syncLocalTracksToCloud, isSyncingToCloud, cloudSyncProgress, cloudSyncStats } = useMusicLibrary();
+  const { tracks, playlists, projectFolders, cleanupTracksWithoutAudio, deleteTracksNeedingReimport, verifyAndCleanupOrphanedB2Tracks, getLocalOnlyTracks, syncLocalTracksToCloud, isSyncingToCloud, cloudSyncProgress, cloudSyncStats } = useMusicLibrary();
   const { user, updateProfile, error: authError, clearError } = useAuth();
   const [exportSuccess, setExportSuccess] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
@@ -55,13 +55,22 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
   };
 
   // Cleanup tracks that need re-importing (stale blob URLs without cloud backup)
+  // Also verifies B2 cloud storage and removes orphaned tracks (file_key exists but no actual file)
   const handleCleanupTracks = async () => {
     setIsCleaningUp(true);
     setCleanupResult(null);
     try {
-      // Use the new function that removes tracks with stale blob URLs that need re-importing
-      const result = await deleteTracksNeedingReimport();
-      setCleanupResult(result);
+      // First, clean up tracks with stale blob URLs
+      const result1 = await deleteTracksNeedingReimport();
+
+      // Then, verify B2 cloud storage and remove orphaned tracks
+      const result2 = await verifyAndCleanupOrphanedB2Tracks();
+
+      // Combine results
+      const totalDeleted = result1.deleted + result2.deleted;
+      const allTracks = [...result1.tracks, ...result2.tracks];
+
+      setCleanupResult({ deleted: totalDeleted, tracks: allTracks });
       setTimeout(() => setCleanupResult(null), 5000);
     } catch (error) {
       console.error('Cleanup failed:', error);

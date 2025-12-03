@@ -6,7 +6,7 @@ const { Pool } = pkg;
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 dotenv.config();
@@ -681,6 +681,61 @@ app.delete('/api/tracks/cleanup/no-audio', auth, async (req, res) => {
   } catch (e) {
     console.error('Cleanup error:', e.message);
     res.status(500).json({ error: 'Failed to cleanup tracks' });
+  }
+});
+
+// Verify B2 files exist and delete orphaned tracks (tracks with file_key but no actual file in B2)
+app.delete('/api/tracks/cleanup/verify-b2', auth, async (req, res) => {
+  try {
+    const client = getS3Client();
+    if (!client) {
+      return res.status(400).json({ error: 'Cloud storage not configured' });
+    }
+
+    const db = getPool();
+
+    // Get all tracks with file_key for this user
+    const tracksResult = await db.query(
+      'SELECT id, title, file_key FROM tracks WHERE user_id = $1 AND file_key IS NOT NULL',
+      [req.user.id]
+    );
+
+    const orphanedTracks = [];
+
+    // Check each track's file in B2
+    for (const track of tracksResult.rows) {
+      try {
+        const command = new HeadObjectCommand({
+          Bucket: B2_BUCKET,
+          Key: track.file_key,
+        });
+        await client.send(command);
+        // File exists, track is OK
+      } catch (err) {
+        // File doesn't exist in B2, track is orphaned
+        if (err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404) {
+          orphanedTracks.push(track);
+        }
+      }
+    }
+
+    // Delete orphaned tracks from database
+    const deletedTitles = [];
+    for (const track of orphanedTracks) {
+      await db.query('DELETE FROM tracks WHERE id = $1 AND user_id = $2', [track.id, req.user.id]);
+      deletedTitles.push(track.title);
+    }
+
+    console.log(`Verified B2 files: ${tracksResult.rows.length} tracks checked, ${orphanedTracks.length} orphaned tracks deleted for user ${req.user.id}`);
+
+    res.json({
+      checked: tracksResult.rows.length,
+      deleted: orphanedTracks.length,
+      tracks: deletedTitles
+    });
+  } catch (e) {
+    console.error('B2 verification error:', e.message);
+    res.status(500).json({ error: 'Failed to verify B2 files' });
   }
 });
 
