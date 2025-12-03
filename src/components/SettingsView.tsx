@@ -55,20 +55,23 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
   };
 
   // Cleanup tracks that need re-importing (stale blob URLs without cloud backup)
-  // Also verifies B2 cloud storage and removes orphaned tracks (file_key exists but no actual file)
+  // Also cleans up tracks without any audio data and verifies B2 cloud storage
   const handleCleanupTracks = async () => {
     setIsCleaningUp(true);
     setCleanupResult(null);
     try {
-      // First, clean up tracks with stale blob URLs
+      // First, clean up tracks with stale blob URLs (frontend)
       const result1 = await deleteTracksNeedingReimport();
 
-      // Then, verify B2 cloud storage and remove orphaned tracks
-      const result2 = await verifyAndCleanupOrphanedB2Tracks();
+      // Then, delete tracks without any audio data in the database (file_data IS NULL AND file_key IS NULL)
+      const result2 = await cleanupTracksWithoutAudio();
+
+      // Finally, verify B2 cloud storage and remove orphaned tracks
+      const result3 = await verifyAndCleanupOrphanedB2Tracks();
 
       // Combine results
-      const totalDeleted = result1.deleted + result2.deleted;
-      const allTracks = [...result1.tracks, ...result2.tracks];
+      const totalDeleted = result1.deleted + result2.deleted + result3.deleted;
+      const allTracks = [...result1.tracks, ...result2.tracks, ...result3.tracks];
 
       setCleanupResult({ deleted: totalDeleted, tracks: allTracks });
       setTimeout(() => setCleanupResult(null), 5000);
