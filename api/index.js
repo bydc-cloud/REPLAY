@@ -572,9 +572,9 @@ app.post('/api/transcribe/:id', auth, async (req, res) => {
     const db = getPool();
     const trackId = req.params.id;
 
-    // Get track with audio data
+    // Get track with audio data (include file_key for B2 storage)
     const result = await db.query(
-      'SELECT id, file_data, lyrics_status FROM tracks WHERE id = $1 AND user_id = $2',
+      'SELECT id, file_data, file_key, lyrics_status FROM tracks WHERE id = $1 AND user_id = $2',
       [trackId, req.user.id]
     );
 
@@ -584,7 +584,41 @@ app.post('/api/transcribe/:id', auth, async (req, res) => {
 
     const track = result.rows[0];
 
-    if (!track.file_data) {
+    // Try to get audio data - first from B2, then fall back to file_data
+    let audioBase64 = null;
+
+    // Try B2 first (preferred for newer tracks)
+    if (track.file_key) {
+      const client = getS3Client();
+      if (client) {
+        try {
+          const command = new GetObjectCommand({
+            Bucket: B2_BUCKET,
+            Key: track.file_key,
+          });
+          const response = await client.send(command);
+          // Convert stream to buffer then to base64
+          const chunks = [];
+          for await (const chunk of response.Body) {
+            chunks.push(chunk);
+          }
+          const audioBuffer = Buffer.concat(chunks);
+          audioBase64 = audioBuffer.toString('base64');
+          console.log(`Fetched audio from B2 for transcription: ${track.file_key}`);
+        } catch (err) {
+          console.error('B2 fetch for transcription failed:', err.message);
+        }
+      }
+    }
+
+    // Fall back to file_data if B2 failed or not available
+    if (!audioBase64 && track.file_data) {
+      audioBase64 = track.file_data;
+      console.log('Using file_data for transcription');
+    }
+
+    // Now check if we have audio
+    if (!audioBase64) {
       return res.status(400).json({ error: 'No audio data available' });
     }
 
@@ -595,7 +629,7 @@ app.post('/api/transcribe/:id', auth, async (req, res) => {
     );
 
     // Transcribe
-    const transcription = await transcribeAudio(track.file_data, trackId);
+    const transcription = await transcribeAudio(audioBase64, trackId);
 
     if (!transcription) {
       await db.query(
