@@ -628,11 +628,15 @@ app.post('/api/transcribe/:id', auth, async (req, res) => {
     // Try to get audio data - first from B2, then fall back to file_data
     let audioBase64 = null;
 
+    // Log what we have to work with
+    console.log(`Transcription request for track ${trackId}: file_key=${track.file_key ? 'yes' : 'no'}, file_data=${track.file_data ? 'yes' : 'no'}`);
+
     // Try B2 first (preferred for newer tracks)
     if (track.file_key) {
       const client = getS3Client();
       if (client) {
         try {
+          console.log(`Fetching from B2 for transcription: ${track.file_key}`);
           const command = new GetObjectCommand({
             Bucket: B2_BUCKET,
             Key: track.file_key,
@@ -645,21 +649,29 @@ app.post('/api/transcribe/:id', auth, async (req, res) => {
           }
           const audioBuffer = Buffer.concat(chunks);
           audioBase64 = audioBuffer.toString('base64');
-          console.log(`Fetched audio from B2 for transcription: ${track.file_key}`);
+          console.log(`Fetched ${audioBuffer.length} bytes from B2 for transcription`);
         } catch (err) {
-          console.error('B2 fetch for transcription failed:', err.message);
+          console.error('B2 fetch for transcription failed:', err.message, err.$metadata?.httpStatusCode || '');
         }
+      } else {
+        console.log('B2 client not available for transcription');
       }
     }
 
     // Fall back to file_data if B2 failed or not available
     if (!audioBase64 && track.file_data) {
-      audioBase64 = track.file_data;
+      // file_data might be a base64 string already or could be binary
+      if (typeof track.file_data === 'string') {
+        audioBase64 = track.file_data;
+      } else if (Buffer.isBuffer(track.file_data)) {
+        audioBase64 = track.file_data.toString('base64');
+      }
       console.log('Using file_data for transcription');
     }
 
     // Now check if we have audio
     if (!audioBase64) {
+      console.log(`No audio data available for transcription: file_key=${track.file_key}, file_data_type=${typeof track.file_data}`);
       return res.status(400).json({ error: 'No audio data available' });
     }
 
