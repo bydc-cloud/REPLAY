@@ -773,17 +773,20 @@ app.delete('/api/tracks/cleanup/verify-b2', auth, async (req, res) => {
 
     // Delete orphaned tracks from database
     const deletedTitles = [];
+    const deletedIds = [];
     for (const track of orphanedTracks) {
       await db.query('DELETE FROM tracks WHERE id = $1 AND user_id = $2', [track.id, req.user.id]);
       deletedTitles.push(track.title);
+      deletedIds.push(track.id);
     }
 
-    console.log(`Verified B2 files: ${tracksResult.rows.length} tracks checked, ${orphanedTracks.length} orphaned tracks deleted for user ${req.user.id}`);
+    console.log(`Verified B2 files: ${tracksResult.rows.length} tracks checked, ${orphanedTracks.length} orphaned tracks deleted for user ${req.user.id}:`, deletedTitles);
 
     res.json({
       checked: tracksResult.rows.length,
       deleted: orphanedTracks.length,
-      tracks: deletedTitles
+      tracks: deletedTitles,
+      deletedIds: deletedIds
     });
   } catch (e) {
     console.error('B2 verification error:', e.message);

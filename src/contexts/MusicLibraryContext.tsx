@@ -1714,10 +1714,12 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const result = await response.json();
+      console.log('B2 cleanup API response:', result);
 
-      // Remove deleted tracks from local state
-      if (result.tracks && result.tracks.length > 0) {
-        setTracks(prev => prev.filter(track => !result.tracks.includes(track.title)));
+      // Remove deleted tracks from local state by ID (more reliable than title matching)
+      if (result.deletedIds && result.deletedIds.length > 0) {
+        const deletedIdSet = new Set(result.deletedIds);
+        setTracks(prev => prev.filter(track => !deletedIdSet.has(track.id)));
         showToast(`Removed ${result.deleted} orphaned cloud tracks`, 'success');
       }
 
