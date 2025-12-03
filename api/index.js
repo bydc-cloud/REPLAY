@@ -642,16 +642,26 @@ app.post('/api/transcribe/:id', auth, async (req, res) => {
             Key: track.file_key,
           });
           const response = await client.send(command);
+
           // Convert stream to buffer then to base64
-          const chunks = [];
-          for await (const chunk of response.Body) {
-            chunks.push(chunk);
+          // Use transformToByteArray for more reliable stream consumption
+          let audioBuffer;
+          if (response.Body.transformToByteArray) {
+            // AWS SDK v3 style
+            audioBuffer = Buffer.from(await response.Body.transformToByteArray());
+          } else {
+            // Fallback for streams
+            const chunks = [];
+            for await (const chunk of response.Body) {
+              chunks.push(chunk);
+            }
+            audioBuffer = Buffer.concat(chunks);
           }
-          const audioBuffer = Buffer.concat(chunks);
+
           audioBase64 = audioBuffer.toString('base64');
           console.log(`Fetched ${audioBuffer.length} bytes from B2 for transcription`);
         } catch (err) {
-          console.error('B2 fetch for transcription failed:', err.message, err.$metadata?.httpStatusCode || '');
+          console.error('B2 fetch for transcription failed:', err.message, err.$metadata?.httpStatusCode || '', err.stack?.split('\n')[1] || '');
         }
       } else {
         console.log('B2 client not available for transcription');
