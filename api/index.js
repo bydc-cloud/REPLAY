@@ -6,7 +6,7 @@ const { Pool } = pkg;
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
-import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 dotenv.config();
@@ -36,6 +36,36 @@ function getS3Client() {
 }
 
 console.log('B2 configured:', !!B2_KEY_ID && !!B2_APP_KEY);
+
+// Verify that a B2 object is readable (not just present in metadata)
+async function verifyB2FileReadable(fileKey) {
+  const client = getS3Client();
+  if (!client) {
+    return { ok: false, status: 500, error: 'Cloud storage not configured' };
+  }
+
+  try {
+    const checkCommand = new GetObjectCommand({
+      Bucket: B2_BUCKET,
+      Key: fileKey,
+      Range: 'bytes=0-0' // minimal read to confirm existence
+    });
+    const response = await client.send(checkCommand);
+
+    // Consume first chunk to confirm the stream is readable
+    if (response.Body) {
+      for await (const chunk of response.Body) {
+        if (chunk && chunk.length > 0) break;
+      }
+    }
+
+    return { ok: true };
+  } catch (err) {
+    const status = err.$metadata?.httpStatusCode || err.statusCode || 500;
+    console.log(`B2 verify failed for ${fileKey}:`, status, err.message);
+    return { ok: false, status, error: err.message };
+  }
+}
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -430,6 +460,10 @@ app.get('/api/tracks/:id/stream-proxy', async (req, res) => {
         return;
       } catch (s3Error) {
         console.error('S3 proxy error:', s3Error.message);
+        const status = s3Error.$metadata?.httpStatusCode || 500;
+        if (status === 404) {
+          return res.status(404).json({ error: 'Audio file missing from cloud storage', missing: true });
+        }
         return res.status(500).json({ error: 'Failed to proxy audio from cloud storage' });
       }
     }
@@ -484,11 +518,13 @@ app.get('/api/tracks/:id/stream', async (req, res) => {
 
     // If track is stored in B2, redirect to signed URL
     if (fileKey) {
-      const client = getS3Client();
-      if (!client) {
-        return res.status(500).json({ error: 'Cloud storage not configured' });
+      const check = await verifyB2FileReadable(fileKey);
+      if (!check.ok) {
+        const status = check.status === 404 ? 404 : 500;
+        return res.status(status).json({ error: 'Audio file missing from cloud storage', missing: true });
       }
 
+      const client = getS3Client();
       const command = new GetObjectCommand({
         Bucket: B2_BUCKET,
         Key: fileKey,
@@ -661,6 +697,12 @@ app.post('/api/transcribe/:id', auth, async (req, res) => {
 app.post('/api/tracks', auth, async (req, res) => {
   try {
     const { title, artist, album, duration, file_data, cover_url } = req.body;
+
+    // Validate required fields
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+
     const db = getPool();
 
     // Insert track
@@ -672,28 +714,36 @@ app.post('/api/tracks', auth, async (req, res) => {
 
     const track = result.rows[0];
 
-    // Start auto-transcription in background (don't await)
+    // Start auto-transcription in background (don't await the transcription, but await DB updates)
     if (file_data && openai) {
       console.log(`Starting auto-transcription for track: ${track.id}`);
 
-      // Update status to processing
-      db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['processing', track.id]);
+      // Update status to processing (await this to ensure it completes)
+      await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['processing', track.id]);
 
-      // Transcribe in background
+      // Transcribe in background - but properly handle all DB updates
       transcribeAudio(file_data, track.id).then(async (transcription) => {
-        if (transcription) {
-          await db.query(
-            'UPDATE tracks SET lyrics_text = $1, lyrics_segments = $2, lyrics_status = $3 WHERE id = $4',
-            [transcription.text, JSON.stringify({ segments: transcription.segments, words: transcription.words }), 'completed', track.id]
-          );
-          console.log(`Auto-transcription completed for track: ${track.id}`);
-        } else {
-          await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', track.id]);
-          console.log(`Auto-transcription failed for track: ${track.id}`);
+        try {
+          if (transcription) {
+            await db.query(
+              'UPDATE tracks SET lyrics_text = $1, lyrics_segments = $2, lyrics_status = $3 WHERE id = $4',
+              [transcription.text, JSON.stringify({ segments: transcription.segments, words: transcription.words }), 'completed', track.id]
+            );
+            console.log(`Auto-transcription completed for track: ${track.id}`);
+          } else {
+            await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', track.id]);
+            console.log(`Auto-transcription returned null for track: ${track.id}`);
+          }
+        } catch (dbErr) {
+          console.error(`DB update failed after transcription for track ${track.id}:`, dbErr.message);
         }
-      }).catch((err) => {
+      }).catch(async (err) => {
         console.error(`Auto-transcription error for track ${track.id}:`, err.message);
-        db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', track.id]);
+        try {
+          await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', track.id]);
+        } catch (dbErr) {
+          console.error(`Failed to update status to 'failed' for track ${track.id}:`, dbErr.message);
+        }
       });
     }
 
@@ -782,10 +832,18 @@ app.delete('/api/tracks/cleanup/verify-b2', auth, async (req, res) => {
         }
         console.log(`  ✓ File verified: ${track.file_key}`);
       } catch (err) {
-        // ANY error means file is not streamable - mark as orphaned
-        const errorInfo = err.name || err.Code || err.$metadata?.httpStatusCode || 'unknown';
-        orphanedTracks.push(track);
-        console.log(`  ✗ File MISSING: ${track.file_key} (${errorInfo})`);
+        // Only mark as orphaned if it's a 404 - other errors might be transient
+        const status = err.$metadata?.httpStatusCode;
+        const errorInfo = err.name || err.Code || status || 'unknown';
+
+        if (status === 404 || err.name === 'NotFound' || err.Code === 'NotFound') {
+          // File definitely doesn't exist - safe to delete
+          orphanedTracks.push(track);
+          console.log(`  ✗ File MISSING (404): ${track.file_key}`);
+        } else {
+          // Other errors (permissions, network, etc.) - don't delete, just log
+          console.log(`  ⚠ Skipping ${track.file_key}: non-404 error (${errorInfo}) - may be transient`);
+        }
       }
     }
 
@@ -843,6 +901,12 @@ app.put('/api/tracks/:id', auth, async (req, res) => {
 app.put('/api/tracks/:id/analysis', auth, async (req, res) => {
   try {
     const { bpm, musical_key, energy } = req.body;
+
+    // Validate analysis values
+    const validBpm = typeof bpm === 'number' && bpm >= 0 && bpm <= 300 ? bpm : null;
+    const validEnergy = typeof energy === 'number' && energy >= 0 && energy <= 1 ? energy : null;
+    const validKey = typeof musical_key === 'string' ? musical_key : null;
+
     const db = getPool();
     const result = await db.query(
       `UPDATE tracks SET
@@ -851,7 +915,7 @@ app.put('/api/tracks/:id/analysis', auth, async (req, res) => {
         energy = $3,
         analyzed_at = CURRENT_TIMESTAMP
        WHERE id = $4 AND user_id = $5 RETURNING *`,
-      [bpm, musical_key, energy, req.params.id, req.user.id]
+      [validBpm, validKey, validEnergy, req.params.id, req.user.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     console.log(`Analysis saved for track ${req.params.id}: BPM=${bpm}, Key=${musical_key}`);
@@ -1002,24 +1066,33 @@ app.post('/api/tracks/upload/finalize', auth, async (req, res) => {
     // Clean up session
     uploadSessions.delete(session_id);
 
-    // Start auto-transcription in background
+    // Start auto-transcription in background (await initial status update)
     if (openai) {
       console.log(`Starting auto-transcription for chunked upload track: ${session.trackId}`);
-      db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['processing', session.trackId]);
+      await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['processing', session.trackId]);
 
       transcribeAudio(fileData, session.trackId).then(async (transcription) => {
-        if (transcription) {
-          await db.query(
-            'UPDATE tracks SET lyrics_text = $1, lyrics_segments = $2, lyrics_status = $3 WHERE id = $4',
-            [transcription.text, JSON.stringify({ segments: transcription.segments, words: transcription.words }), 'completed', session.trackId]
-          );
-          console.log(`Auto-transcription completed for track: ${session.trackId}`);
-        } else {
-          await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', session.trackId]);
+        try {
+          if (transcription) {
+            await db.query(
+              'UPDATE tracks SET lyrics_text = $1, lyrics_segments = $2, lyrics_status = $3 WHERE id = $4',
+              [transcription.text, JSON.stringify({ segments: transcription.segments, words: transcription.words }), 'completed', session.trackId]
+            );
+            console.log(`Auto-transcription completed for track: ${session.trackId}`);
+          } else {
+            await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', session.trackId]);
+            console.log(`Auto-transcription returned null for track: ${session.trackId}`);
+          }
+        } catch (dbErr) {
+          console.error(`DB update failed after transcription for track ${session.trackId}:`, dbErr.message);
         }
-      }).catch((err) => {
+      }).catch(async (err) => {
         console.error(`Auto-transcription error for track ${session.trackId}:`, err.message);
-        db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', session.trackId]);
+        try {
+          await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', session.trackId]);
+        } catch (dbErr) {
+          console.error(`Failed to update status to 'failed' for track ${session.trackId}:`, dbErr.message);
+        }
       });
     }
 
@@ -1175,6 +1248,34 @@ app.post('/api/tracks/from-b2', auth, async (req, res) => {
   }
 });
 
+// Update track's file_key after successful B2 upload (for syncing existing tracks)
+app.put('/api/tracks/:id/file-key', auth, async (req, res) => {
+  try {
+    const { fileKey } = req.body;
+
+    if (!fileKey) {
+      return res.status(400).json({ error: 'fileKey required' });
+    }
+
+    const db = getPool();
+
+    const result = await db.query(
+      'UPDATE tracks SET file_key = $1 WHERE id = $2 AND user_id = $3 RETURNING id, title',
+      [fileKey, req.params.id, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    console.log(`Track file_key updated: ${result.rows[0].title} -> ${fileKey}`);
+    res.json({ success: true, track: result.rows[0] });
+  } catch (e) {
+    console.error('Update file_key error:', e.message);
+    res.status(500).json({ error: 'Failed to update file_key' });
+  }
+});
+
 // Bulk create tracks after B2 uploads
 app.post('/api/tracks/from-b2-batch', auth, async (req, res) => {
   try {
@@ -1232,11 +1333,13 @@ app.get('/api/tracks/:id/stream-url', auth, async (req, res) => {
 
     // If track has file_key (B2 storage), generate signed URL
     if (track.file_key) {
-      const client = getS3Client();
-      if (!client) {
-        return res.status(500).json({ error: 'Cloud storage not configured' });
+      const check = await verifyB2FileReadable(track.file_key);
+      if (!check.ok) {
+        const status = check.status === 404 ? 404 : 500;
+        return res.status(status).json({ error: 'Audio file missing from cloud storage', missing: true });
       }
 
+      const client = getS3Client();
       const command = new GetObjectCommand({
         Bucket: B2_BUCKET,
         Key: track.file_key,
@@ -1415,7 +1518,20 @@ app.post('/api/upload/proxy', auth, express.raw({ type: '*/*', limit: '200mb' })
 
     await client.send(command);
 
-    console.log(`Proxy upload complete: ${fileKey}`);
+    // Verify upload succeeded by reading first byte
+    const verifyResult = await verifyB2FileReadable(fileKey);
+    if (!verifyResult.ok) {
+      console.error(`Upload verification failed for ${fileKey}:`, verifyResult.error);
+      // Try to delete the potentially corrupted file
+      try {
+        await client.send(new DeleteObjectCommand({ Bucket: B2_BUCKET, Key: fileKey }));
+      } catch (deleteErr) {
+        console.error(`Failed to cleanup corrupted upload ${fileKey}:`, deleteErr.message);
+      }
+      return res.status(500).json({ error: 'Upload verification failed - file may be corrupted' });
+    }
+
+    console.log(`Proxy upload complete and verified: ${fileKey}`);
 
     res.json({
       success: true,

@@ -346,14 +346,18 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
       sourceRef.current = existingSourceInfo.source;
       setAudioContext(existingSourceInfo.ctx);
 
+      // CRITICAL: Always resume context when reusing
       if (existingSourceInfo.ctx.state === 'suspended') {
-        existingSourceInfo.ctx.resume().catch(console.error);
+        existingSourceInfo.ctx.resume().then(() => {
+          console.log("Reused AudioContext resumed");
+        }).catch(console.error);
       }
 
       // CRITICAL: Ensure source is connected to destination immediately
       // The code below will disconnect and rebuild, but we need audio to work
       try {
         sourceRef.current.connect(existingSourceInfo.ctx.destination);
+        console.log("Reused source connected to destination. Context state:", existingSourceInfo.ctx.state);
       } catch { /* May already be connected */ }
 
       // Rebuild the effects chain with existing source
@@ -371,6 +375,16 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
         setAudioContext(audioContextRef.current);
 
+        // CRITICAL: Resume context immediately after creation (required for audio to play)
+        // Browsers suspend new AudioContexts by default until user interaction
+        if (audioContextRef.current.state === 'suspended') {
+          audioContextRef.current.resume().then(() => {
+            console.log("AudioContext resumed immediately after creation");
+          }).catch((e) => {
+            console.warn("Could not resume AudioContext:", e);
+          });
+        }
+
         // Create source from audio element
         sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
 
@@ -378,7 +392,7 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
         // This ensures audio plays even if the effects chain setup below fails or is slow
         // The effects chain will disconnect and rebuild, but at least we have audio output
         sourceRef.current.connect(audioContextRef.current.destination);
-        console.log("Audio source created and connected to destination");
+        console.log("Audio source created and connected to destination. Context state:", audioContextRef.current.state);
 
         // Store on the audio element for future reconnections
         (audio as any).__replayAudioSource = { ctx: audioContextRef.current, source: sourceRef.current };
@@ -390,6 +404,16 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
 
     const ctx = audioContextRef.current;
     if (!ctx || !sourceRef.current) return;
+
+    // Check if effects chain is already built and working
+    // If so, just ensure context is running and don't rebuild
+    if (analyserRef.current && connectedAudioRef.current === audio) {
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(console.error);
+      }
+      console.log("Effects chain already connected, skipping rebuild");
+      return;
+    }
 
     // Disconnect source from any existing connections first (to rebuild the chain)
     try {
@@ -463,7 +487,16 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
       // Apply playback speed
       audio.playbackRate = playbackSpeed;
 
-      console.log("Audio effects chain connected with analyser");
+      // CRITICAL: Resume AudioContext if suspended (required for audio to play)
+      if (ctx.state === 'suspended') {
+        ctx.resume().then(() => {
+          console.log("AudioContext resumed after chain build");
+        }).catch((e) => {
+          console.error("Failed to resume AudioContext:", e);
+        });
+      }
+
+      console.log("Audio effects chain connected with analyser. Context state:", ctx.state);
     } catch (e) {
       console.error("Failed to connect audio effects:", e);
       // CRITICAL FALLBACK: If effects chain fails, connect source directly to destination
@@ -472,6 +505,11 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
         if (sourceRef.current && ctx) {
           sourceRef.current.connect(ctx.destination);
           console.log("Fallback: Connected audio source directly to destination");
+
+          // Also resume context in fallback path
+          if (ctx.state === 'suspended') {
+            ctx.resume().catch(console.error);
+          }
         }
       } catch (fallbackError) {
         console.error("Even fallback connection failed:", fallbackError);

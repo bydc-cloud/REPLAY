@@ -8,6 +8,10 @@ let essentia: any = null;
 let essentiaExtractor: any = null;
 let isInitialized = false;
 let initPromise: Promise<void> | null = null;
+let initFailed = false;
+
+// Initialization timeout (10 seconds)
+const INIT_TIMEOUT_MS = 10000;
 
 // Key mappings from essentia output
 const KEY_MAP: Record<string, string> = {
@@ -32,25 +36,64 @@ export interface AudioAnalysisResult {
 }
 
 /**
- * Initialize Essentia.js
+ * Initialize Essentia.js with proper mutex and timeout handling
  */
 async function initEssentia(): Promise<void> {
-  if (isInitialized) return;
+  // Fast path: already initialized
+  if (isInitialized && essentia) return;
+
+  // If previous init failed, don't retry (prevents infinite loops)
+  if (initFailed) {
+    throw new Error('Essentia initialization previously failed');
+  }
+
+  // Return existing promise if init is in progress (prevents race condition)
   if (initPromise) return initPromise;
 
+  // Create init promise with timeout
   initPromise = (async () => {
     try {
-      // Dynamic import of essentia.js modules
-      const { Essentia, EssentiaWASM } = await import('essentia.js');
+      // Create a timeout promise
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Essentia WASM initialization timed out')), INIT_TIMEOUT_MS);
+      });
 
-      // Initialize the WASM module
-      const essentiaWasm = await EssentiaWASM();
-      essentia = new Essentia(essentiaWasm);
+      // Race between actual init and timeout
+      await Promise.race([
+        (async () => {
+          // Dynamic import of essentia.js modules
+          const { Essentia, EssentiaWASM } = await import('essentia.js');
 
-      isInitialized = true;
-      console.log('Essentia.js initialized successfully');
+          // Initialize the WASM module
+          const essentiaWasm = await EssentiaWASM();
+
+          // Validate WASM module loaded correctly
+          if (!essentiaWasm) {
+            throw new Error('EssentiaWASM returned null/undefined');
+          }
+
+          essentia = new Essentia(essentiaWasm);
+
+          // Validate essentia object has required methods
+          if (typeof essentia.KeyExtractor !== 'function') {
+            throw new Error('Essentia.KeyExtractor is not a function - WASM module may be corrupted');
+          }
+          if (typeof essentia.PercivalBpmEstimator !== 'function') {
+            throw new Error('Essentia.PercivalBpmEstimator is not a function - WASM module may be corrupted');
+          }
+          if (typeof essentia.arrayToVector !== 'function') {
+            throw new Error('Essentia.arrayToVector is not a function - WASM module may be corrupted');
+          }
+
+          isInitialized = true;
+          console.log('Essentia.js initialized successfully');
+        })(),
+        timeoutPromise
+      ]);
     } catch (error) {
       console.error('Failed to initialize Essentia.js:', error);
+      initFailed = true;
+      initPromise = null; // Allow retry after page refresh
       throw error;
     }
   })();
@@ -323,21 +366,55 @@ function calculateEnergy(audioData: Float32Array): number {
 
 /**
  * Analyze audio file for BPM, key, and energy
+ * Returns partial results if some analysis fails
  */
 export async function analyzeAudio(audioData: ArrayBuffer): Promise<AudioAnalysisResult> {
-  // Initialize essentia if needed
-  await initEssentia();
-
-  // Decode audio to float32 samples
+  // Decode audio to float32 samples first (doesn't require essentia)
   const samples = await decodeAudioFile(audioData);
 
-  // Run analysis in parallel
-  const [bpmResult, keyResult] = await Promise.all([
-    detectBPM(samples),
-    detectKey(samples)
-  ]);
-
+  // Calculate energy (doesn't require essentia)
   const energy = calculateEnergy(samples);
+
+  // Try to initialize essentia
+  let essentiaAvailable = false;
+  try {
+    await initEssentia();
+    essentiaAvailable = isInitialized && essentia !== null;
+  } catch (error) {
+    console.warn('Essentia initialization failed, using fallback analysis:', error);
+  }
+
+  // Run analysis with fallbacks
+  let bpmResult: { bpm: number; confidence: number };
+  let keyResult: { key: string; confidence: number };
+
+  if (essentiaAvailable) {
+    // Use Promise.allSettled so one failure doesn't break everything
+    const [bpmSettled, keySettled] = await Promise.allSettled([
+      detectBPM(samples),
+      detectKey(samples)
+    ]);
+
+    bpmResult = bpmSettled.status === 'fulfilled'
+      ? bpmSettled.value
+      : fallbackBPMDetection(samples);
+
+    keyResult = keySettled.status === 'fulfilled'
+      ? keySettled.value
+      : fallbackKeyDetection(samples);
+
+    // Log any failures for debugging
+    if (bpmSettled.status === 'rejected') {
+      console.warn('BPM detection failed, using fallback:', bpmSettled.reason);
+    }
+    if (keySettled.status === 'rejected') {
+      console.warn('Key detection failed, using fallback:', keySettled.reason);
+    }
+  } else {
+    // Essentia not available, use pure JavaScript fallbacks
+    bpmResult = fallbackBPMDetection(samples);
+    keyResult = fallbackKeyDetection(samples);
+  }
 
   return {
     bpm: bpmResult.bpm,

@@ -706,8 +706,9 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Upload file via proxy (Browser → API → B2) - bypasses CORS issues
+  // Uses retry logic for network resilience
   const uploadViaProxy = async (file: File): Promise<{ success: boolean; fileKey?: string; error?: string }> => {
-    try {
+    const doUpload = async (): Promise<{ success: boolean; fileKey?: string; error?: string }> => {
       console.log(`Starting proxy upload for: ${file.name} (${Math.round(file.size / 1024 / 1024)}MB)`);
 
       const response = await fetch(`${API_URL}/api/upload/proxy`, {
@@ -726,13 +727,24 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
         return { success: true, fileKey: data.fileKey };
       }
 
-      // Log the error response
+      // For server errors (5xx), throw to trigger retry
+      if (response.status >= 500) {
+        const errorText = await response.text().catch(() => 'Server error');
+        throw new Error(`Server error ${response.status}: ${errorText}`);
+      }
+
+      // For client errors (4xx), don't retry - just return failure
       const errorText = await response.text().catch(() => 'Unknown error');
       console.error(`Proxy upload failed for ${file.name}: ${response.status} - ${errorText}`);
       return { success: false, error: `Upload failed: ${response.status}` };
+    };
+
+    try {
+      // Use retry with backoff for network/server errors
+      return await retryWithBackoff(doUpload, 3, 1000);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Network error';
-      console.error(`Proxy upload error for ${file.name}:`, errorMsg);
+      console.error(`Proxy upload error for ${file.name} (after retries):`, errorMsg);
       return { success: false, error: errorMsg };
     }
   };
@@ -1161,6 +1173,13 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       setImportProgress(0);
       setImportStats({ total: 0, completed: 0, failed: 0, currentFileName: undefined });
       importInProgressRef.current = false;
+    } finally {
+      // GUARANTEE: Always reset the import flag even if something unexpected happens
+      // This prevents the import from getting stuck permanently
+      if (importInProgressRef.current) {
+        console.warn('Import flag was still set in finally block - resetting');
+        importInProgressRef.current = false;
+      }
     }
   };
 
@@ -1208,6 +1227,15 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
               return data.url;
             }
           }
+        } else if (streamResponse.status === 404) {
+          console.warn('Stream URL not available for track, marking as missing:', trackId);
+          setTracks(prev => prev.map(t =>
+            t.id === trackId ? { ...t, hasAudio: false } : t
+          ));
+          if (track && track.hasAudio !== false) {
+            showToast(`"${track.title}" audio is missing from cloud. Re-import to restore.`, 'error', 5000);
+          }
+          return null;
         }
       } catch (error) {
         console.warn('Stream URL fetch failed, falling back to audio endpoint:', error);
@@ -1231,7 +1259,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     }
 
     return null;
-  }, [tracks, token]);
+  }, [tracks, token, showToast]);
 
   const createPlaylist = async (name: string, description?: string, coverUrl?: string): Promise<string> => {
     const newPlaylist: Playlist = {
