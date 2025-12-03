@@ -111,7 +111,7 @@ export const PerformantVisualizer = ({
     return sum / 24 / 255;
   };
 
-  // Ultra-smooth interpolation using exponential easing for buttery 60fps animations
+  // Ultra-smooth interpolation - fast attack for punch, slow release for smooth trails
   const smoothDataWithMomentum = (
     newValue: number,
     oldValue: number,
@@ -119,24 +119,21 @@ export const PerformantVisualizer = ({
     index: number,
     isRising: boolean
   ): { value: number; velocity: number } => {
-    // Adaptive smoothing: faster attack for punchy response, slower release for smooth decay
-    const attackFactor = 0.55; // Quick but not jarring response to increases
-    const releaseFactor = 0.08; // Very smooth organic decay for buttery feel
+    // MUCH faster attack (0.25) for punchy response, slower release (0.04) for smooth trails
+    const attackFactor = 0.25; // Fast response to audio peaks
+    const releaseFactor = 0.04; // Very slow decay for smooth trailing effect
     const factor = isRising ? attackFactor : releaseFactor;
 
-    // Exponential interpolation for smoother curves (less linear, more natural)
+    // Simple linear interpolation for snappier response
     const diff = newValue - oldValue;
     const eased = diff * factor;
 
-    // Momentum smoothing with higher inertia for fluid motion
-    const momentum = 0.35;
+    // Reduced momentum for more direct response to audio
+    const momentum = 0.2;
     const targetVelocity = eased;
     const newVelocity = velocity * momentum + targetVelocity * (1 - momentum);
 
-    // Apply cubic easing for even smoother transitions
-    const cubicEase = (v: number) => v < 0 ? -Math.pow(-v, 0.8) : Math.pow(v, 0.8);
-    const smoothedVelocity = cubicEase(newVelocity);
-    const smoothedValue = oldValue + smoothedVelocity;
+    const smoothedValue = oldValue + newVelocity;
 
     return {
       value: Math.max(0, Math.min(1, smoothedValue)),
@@ -165,12 +162,8 @@ export const PerformantVisualizer = ({
     if (!isReady) return;
 
     const update = (timestamp: number) => {
-      // Throttle to 60fps (16.67ms between frames)
-      if (timestamp - lastUpdateRef.current < 16) {
-        rafRef.current = requestAnimationFrame(update);
-        return;
-      }
-      const delta = timestamp - lastUpdateRef.current;
+      // Let browser handle timing naturally - no manual throttling for smooth 60fps
+      const delta = Math.min(timestamp - lastUpdateRef.current, 50); // Cap delta to prevent jumps
       lastUpdateRef.current = timestamp;
 
       // Only update time if playing
@@ -244,39 +237,59 @@ export const PerformantVisualizer = ({
           return;
         }
 
-        // VIBRANT color palette - reactive rainbow spectrum
+        // WARM→COOL frequency spectrum: bass=red/orange, mids=yellow/green, highs=cyan/blue/purple
         const position = i / barCount;
-        const baseHue = position * 280 + hueRotationRef.current; // Full rainbow spread
 
-        // Dynamic hue shifts based on frequency bands
-        const bassHueShift = bassEnergy * 30; // Bass pushes toward red/orange
-        const midHueShift = midEnergy * 20; // Mids affect purple/blue
-        const highHueShift = highEnergy * 15; // Highs affect cyan/green
+        // Frequency-band based hue (warm to cool)
+        // Bass (0-12.5%): Red (0°) to Orange (30°)
+        // Low-mid (12.5-25%): Orange (30°) to Yellow (60°)
+        // Mid (25-50%): Yellow (60°) to Green (120°)
+        // High-mid (50-75%): Green (120°) to Cyan (180°) to Blue (240°)
+        // High (75-100%): Blue (240°) to Purple (280°)
+        let frequencyHue: number;
+        if (position < 0.125) {
+          // Sub-bass to bass: Red to Orange
+          frequencyHue = position / 0.125 * 30;
+        } else if (position < 0.25) {
+          // Bass to low-mid: Orange to Yellow
+          frequencyHue = 30 + (position - 0.125) / 0.125 * 30;
+        } else if (position < 0.5) {
+          // Low-mid to mid: Yellow to Green
+          frequencyHue = 60 + (position - 0.25) / 0.25 * 60;
+        } else if (position < 0.75) {
+          // Mid to high-mid: Green to Blue
+          frequencyHue = 120 + (position - 0.5) / 0.25 * 120;
+        } else {
+          // High-mid to high: Blue to Purple
+          frequencyHue = 240 + (position - 0.75) / 0.25 * 40;
+        }
 
-        // Create reactive hue that responds to music
-        const dynamicHue = (baseHue + bassHueShift - highHueShift + midHueShift * Math.sin(timeRef.current)) % 360;
+        // Add subtle energy-reactive hue shift (±20° based on current value intensity)
+        const energyHueShift = (value - 0.5) * 20;
+        const dynamicHue = (frequencyHue + energyHueShift + hueRotationRef.current * 0.1) % 360;
 
-        // VIBRANT saturation - full color!
-        const saturation = isPlaying ? (75 + value * 25) : 15;
-        const lightness = isPlaying ? (50 + value * 25 + avgEnergy * 10) : 20;
+        // FULL saturation on peaks (80-100%), higher lightness range
+        const saturation = isPlaying ? Math.min(100, 80 + value * 25) : 15;
+        const lightness = isPlaying ? (45 + value * 20 + avgEnergy * 8) : 20;
 
         if (variant === "bars") {
-          // Vibrant bars with layered multi-color glow effects
-          const scale = Math.max(0.03, value * 1.15); // Slightly larger bars
-          const barHue = (dynamicHue + position * 60) % 360;
-          bar.style.transform = `scaleY(${scale})`;
+          // Vibrant bars with deep multi-layer glow
+          const scale = Math.max(0.03, value * 1.15);
+          const barHue = dynamicHue; // Use the frequency-based hue directly
+          bar.style.transform = `translateZ(0) scaleY(${scale})`; // GPU accelerated
           bar.style.background = `linear-gradient(to top,
-            hsl(${barHue}, ${saturation}%, ${lightness - 15}%),
-            hsl(${(barHue + 30) % 360}, ${saturation + 5}%, ${lightness}%),
-            hsl(${(barHue + 50) % 360}, ${saturation}%, ${lightness + 10}%))`;
-          // Multi-layered glow for depth - more prominent on higher values
-          const glowIntensity = value * value; // Exponential for more dramatic effect
-          bar.style.boxShadow = isPlaying && value > 0.15 ?
-            `0 0 ${glowIntensity * 6}px hsla(${barHue}, 100%, 60%, ${0.5 + glowIntensity * 0.3}),
-             0 0 ${glowIntensity * 12}px hsla(${(barHue + 20) % 360}, 95%, 55%, ${0.3 + glowIntensity * 0.2}),
-             0 0 ${glowIntensity * 20}px hsla(${(barHue + 40) % 360}, 90%, 50%, ${0.15 + glowIntensity * 0.1}),
-             0 ${glowIntensity * 4}px ${glowIntensity * 8}px hsla(${barHue}, 100%, 40%, ${0.2 + glowIntensity * 0.15})` : 'none';
-          bar.style.opacity = isPlaying ? `${0.9 + value * 0.1}` : '0.25';
+            hsl(${barHue}, ${saturation}%, ${lightness - 10}%),
+            hsl(${barHue}, ${saturation}%, ${lightness + 5}%),
+            hsl(${barHue}, ${Math.min(100, saturation + 10)}%, ${lightness + 15}%))`;
+          // 5-layer glow with exponential opacity falloff for natural depth
+          const g = value; // glow intensity base
+          bar.style.boxShadow = isPlaying && value > 0.1 ?
+            `0 0 ${g * 3}px hsla(${barHue}, 100%, 70%, ${0.9 * g}),
+             0 0 ${g * 8}px hsla(${barHue}, 100%, 60%, ${0.6 * g}),
+             0 0 ${g * 16}px hsla(${barHue}, 95%, 50%, ${0.35 * g}),
+             0 0 ${g * 30}px hsla(${barHue}, 90%, 40%, ${0.15 * g}),
+             0 ${g * 4}px ${g * 12}px hsla(${barHue}, 100%, 30%, ${0.25 * g})` : 'none';
+          bar.style.opacity = isPlaying ? '1' : '0.25';
         } else if (variant === "wave") {
           // Flowing wave with color gradients and glow
           const wavePhase = position * Math.PI * 4 + timeRef.current * 3;

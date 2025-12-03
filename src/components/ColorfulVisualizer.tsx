@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAudioAnalyzer } from "../hooks/useAudioAnalyzer";
 
 interface ColorfulVisualizerProps {
@@ -8,23 +8,36 @@ interface ColorfulVisualizerProps {
   audioElement?: HTMLAudioElement | null;
 }
 
-export const ColorfulVisualizer = ({ 
-  isPlaying, 
+export const ColorfulVisualizer = ({
+  isPlaying,
   variant = "orb",
   size = "md",
   audioElement
 }: ColorfulVisualizerProps) => {
   const { frequencyData } = useAudioAnalyzer(isPlaying ? audioElement : null);
   const [rotation, setRotation] = useState(0);
+  const rafRef = useRef<number | null>(null);
+  const lastTimeRef = useRef<number>(0);
 
+  // Use RAF instead of setInterval for smooth 60fps animation
   useEffect(() => {
     if (!isPlaying) return;
-    
-    const interval = setInterval(() => {
-      setRotation(prev => (prev + 0.5) % 360);
-    }, 50);
 
-    return () => clearInterval(interval);
+    const animate = (timestamp: number) => {
+      // Calculate delta time for consistent rotation speed
+      const delta = timestamp - lastTimeRef.current;
+      lastTimeRef.current = timestamp;
+
+      // Rotate at ~0.5 degrees per 16.67ms (equivalent to old setInterval)
+      setRotation(prev => (prev + (delta * 0.03)) % 360);
+      rafRef.current = requestAnimationFrame(animate);
+    };
+
+    rafRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, [isPlaying]);
 
   const sizeMap = {

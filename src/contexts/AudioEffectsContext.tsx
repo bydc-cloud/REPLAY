@@ -315,10 +315,18 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
 
   // Connect to audio element
   const connectToAudioElement = useCallback((audio: HTMLAudioElement) => {
+    console.log("connectToAudioElement called", {
+      audioExists: !!audio,
+      alreadyConnected: connectedAudioRef.current === audio,
+      hasContext: !!audioContextRef.current,
+      hasSource: !!sourceRef.current
+    });
+
     // Don't reconnect if already connected to same element and context exists
     if (connectedAudioRef.current === audio && audioContextRef.current && sourceRef.current) {
       // Just resume context if suspended
       if (audioContextRef.current.state === 'suspended') {
+        console.log("Resuming suspended AudioContext");
         audioContextRef.current.resume().catch(console.error);
       }
       return;
@@ -342,6 +350,12 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
         existingSourceInfo.ctx.resume().catch(console.error);
       }
 
+      // CRITICAL: Ensure source is connected to destination immediately
+      // The code below will disconnect and rebuild, but we need audio to work
+      try {
+        sourceRef.current.connect(existingSourceInfo.ctx.destination);
+      } catch { /* May already be connected */ }
+
       // Rebuild the effects chain with existing source
       console.log("Reusing existing audio source for element");
     } else {
@@ -359,6 +373,12 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
 
         // Create source from audio element
         sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
+
+        // CRITICAL: Immediately connect source to destination as a baseline
+        // This ensures audio plays even if the effects chain setup below fails or is slow
+        // The effects chain will disconnect and rebuild, but at least we have audio output
+        sourceRef.current.connect(audioContextRef.current.destination);
+        console.log("Audio source created and connected to destination");
 
         // Store on the audio element for future reconnections
         (audio as any).__replayAudioSource = { ctx: audioContextRef.current, source: sourceRef.current };
@@ -380,7 +400,7 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
       // Create analyser for visualizations
       analyserRef.current = ctx.createAnalyser();
       analyserRef.current.fftSize = 256;
-      analyserRef.current.smoothingTimeConstant = 0.8;
+      analyserRef.current.smoothingTimeConstant = 0.4; // Lower for faster visual response
       setAnalyserNode(analyserRef.current);
 
       // Create EQ filters
@@ -446,6 +466,16 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
       console.log("Audio effects chain connected with analyser");
     } catch (e) {
       console.error("Failed to connect audio effects:", e);
+      // CRITICAL FALLBACK: If effects chain fails, connect source directly to destination
+      // This ensures audio still plays even if effects setup fails
+      try {
+        if (sourceRef.current && ctx) {
+          sourceRef.current.connect(ctx.destination);
+          console.log("Fallback: Connected audio source directly to destination");
+        }
+      } catch (fallbackError) {
+        console.error("Even fallback connection failed:", fallbackError);
+      }
     }
   }, [applyEqSettings, applyEffects, playbackSpeed]);
 
