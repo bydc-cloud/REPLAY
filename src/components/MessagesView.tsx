@@ -1,11 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   MessageCircle, Send, ArrowLeft, Search, Loader2, MoreHorizontal,
-  Phone, Video, Info, Image, Mic, Plus, Heart, Smile, CheckCheck, Check
+  Phone, Video, Info, Image, Mic, Plus, Heart, Smile, CheckCheck, Check,
+  PenSquare, X, UserPlus
 } from 'lucide-react';
 import { useAuth } from '../contexts/PostgresAuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://replay-production-9240.up.railway.app';
+
+interface SearchUser {
+  id: string;
+  username: string;
+  display_name?: string;
+  avatar_url?: string;
+}
 
 interface Conversation {
   id: string;
@@ -49,8 +57,13 @@ export function MessagesView() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [showNewMessage, setShowNewMessage] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const userSearchRef = useRef<HTMLInputElement>(null);
 
   const fetchConversations = useCallback(async () => {
     if (!token) return;
@@ -185,6 +198,98 @@ export function MessagesView() {
     setSendingMessage(false);
   };
 
+  // Search for users to start a new conversation
+  const searchUsers = useCallback(async (query: string) => {
+    if (!token || !query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearchingUsers(true);
+    try {
+      const response = await fetch(`${API_URL}/api/users/search?q=${encodeURIComponent(query)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Filter out current user
+        setSearchResults(data.filter((u: SearchUser) => u.id !== user?.id));
+      }
+    } catch (err) {
+      console.error('Failed to search users:', err);
+    }
+    setSearchingUsers(false);
+  }, [token, user?.id]);
+
+  // Debounced user search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (userSearchQuery.trim()) {
+        searchUsers(userSearchQuery);
+      } else {
+        setSearchResults([]);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [userSearchQuery, searchUsers]);
+
+  // Start a new conversation with a user
+  const startConversation = async (targetUser: SearchUser) => {
+    if (!token) return;
+
+    try {
+      // Check if conversation already exists
+      const existingConv = conversations.find(c =>
+        c.other_participants.some(p => p.user_id === targetUser.id)
+      );
+
+      if (existingConv) {
+        setActiveConversation(existingConv);
+        setShowNewMessage(false);
+        setUserSearchQuery('');
+        setSearchResults([]);
+        return;
+      }
+
+      // Create new conversation
+      const response = await fetch(`${API_URL}/api/messages/conversations`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ user_id: targetUser.id })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        await fetchConversations();
+        // Find the new conversation from the refreshed list
+        const updatedConversations = await fetch(`${API_URL}/api/messages/conversations`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).then(r => r.json());
+        const newConv = updatedConversations.find((c: Conversation) =>
+          c.other_participants.some(p => p.user_id === targetUser.id)
+        );
+        if (newConv) {
+          setActiveConversation(newConv);
+        }
+        setShowNewMessage(false);
+        setUserSearchQuery('');
+        setSearchResults([]);
+      }
+    } catch (err) {
+      console.error('Failed to start conversation:', err);
+    }
+  };
+
+  // Focus user search when opening new message
+  useEffect(() => {
+    if (showNewMessage) {
+      setTimeout(() => userSearchRef.current?.focus(), 100);
+    }
+  }, [showNewMessage]);
+
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -276,8 +381,11 @@ export function MessagesView() {
         <div className="p-5 border-b border-white/5">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold text-white">Messages</h1>
-            <button className="p-2 rounded-full hover:bg-white/5 transition-colors">
-              <MoreHorizontal className="w-5 h-5 text-white/60" />
+            <button
+              onClick={() => setShowNewMessage(true)}
+              className="p-2.5 rounded-full bg-violet-500 hover:bg-violet-600 transition-colors"
+            >
+              <PenSquare className="w-5 h-5 text-white" />
             </button>
           </div>
 
@@ -598,6 +706,102 @@ export function MessagesView() {
           </div>
         )}
       </div>
+
+      {/* New Message Modal */}
+      {showNewMessage && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={() => {
+              setShowNewMessage(false);
+              setUserSearchQuery('');
+              setSearchResults([]);
+            }}
+          />
+
+          {/* Modal */}
+          <div className="relative bg-zinc-900 rounded-2xl w-full max-w-md shadow-2xl border border-white/10">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
+              <h2 className="text-lg font-semibold text-white">New Message</h2>
+              <button
+                onClick={() => {
+                  setShowNewMessage(false);
+                  setUserSearchQuery('');
+                  setSearchResults([]);
+                }}
+                className="p-2 rounded-full hover:bg-white/5 transition-colors"
+              >
+                <X className="w-5 h-5 text-white/60" />
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="p-4">
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <input
+                  ref={userSearchRef}
+                  type="text"
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  placeholder="Search for a user..."
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white text-sm placeholder-white/30 focus:outline-none focus:border-violet-500/50 focus:bg-white/10 transition-all"
+                />
+                {searchingUsers && (
+                  <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-400 animate-spin" />
+                )}
+              </div>
+            </div>
+
+            {/* Search Results */}
+            <div className="max-h-80 overflow-y-auto">
+              {searchResults.length > 0 ? (
+                <div className="px-2 pb-4">
+                  {searchResults.map((searchUser) => (
+                    <button
+                      key={searchUser.id}
+                      onClick={() => startConversation(searchUser)}
+                      className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition-colors"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                        {searchUser.avatar_url ? (
+                          <img
+                            src={searchUser.avatar_url}
+                            alt={searchUser.username}
+                            className="w-full h-full object-cover rounded-full"
+                          />
+                        ) : (
+                          <span className="text-white font-bold text-lg">
+                            {(searchUser.display_name || searchUser.username).charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="font-semibold text-white truncate">
+                          {searchUser.display_name || searchUser.username}
+                        </p>
+                        <p className="text-sm text-white/40 truncate">@{searchUser.username}</p>
+                      </div>
+                      <UserPlus className="w-5 h-5 text-violet-400 flex-shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              ) : userSearchQuery.trim() && !searchingUsers ? (
+                <div className="px-4 py-8 text-center">
+                  <p className="text-white/40 text-sm">No users found</p>
+                </div>
+              ) : !userSearchQuery.trim() ? (
+                <div className="px-4 py-8 text-center">
+                  <UserPlus className="w-12 h-12 text-white/10 mx-auto mb-3" />
+                  <p className="text-white/40 text-sm">Search for a user to start messaging</p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

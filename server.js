@@ -1890,6 +1890,42 @@ app.put('/api/me/producer-profile', auth, async (req, res) => {
   }
 });
 
+// ---- USER SEARCH ----
+
+// Search users by username or display name
+app.get('/api/users/search', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { q } = req.query;
+
+    if (!q || q.length < 1) {
+      return res.json([]);
+    }
+
+    const result = await db.query(`
+      SELECT
+        u.id,
+        pp.username,
+        pp.display_name,
+        pp.avatar_url
+      FROM users u
+      LEFT JOIN producer_profiles pp ON pp.user_id = u.id
+      WHERE pp.username ILIKE $1
+         OR pp.display_name ILIKE $1
+         OR u.email ILIKE $1
+      ORDER BY
+        CASE WHEN pp.username ILIKE $2 THEN 0 ELSE 1 END,
+        pp.username
+      LIMIT 20
+    `, [`%${q}%`, `${q}%`]);
+
+    res.json(result.rows);
+  } catch (e) {
+    console.error('User search error:', e.message);
+    res.status(500).json({ error: 'Failed to search users' });
+  }
+});
+
 // ---- FOLLOWS ----
 
 // Follow a user
