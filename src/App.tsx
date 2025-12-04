@@ -1,5 +1,5 @@
 import { Menu } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useContext } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { PlayerBar } from "./components/PlayerBar";
 import { HomeView } from "./components/HomeView";
@@ -28,6 +28,21 @@ import { ToastContainer } from "./components/ToastContainer";
 import { GlobalImportProgress } from "./components/GlobalImportProgress";
 import { useHashRouter } from "./hooks/useHashRouter";
 import { LazyContextLoader } from "./components/LazyContextLoader";
+import { TrackUploadModal } from "./components/TrackUploadModal";
+import { NotificationsView } from "./components/NotificationsView";
+import NotificationsContext from "./contexts/NotificationsContext";
+import MessagingContext from "./contexts/MessagingContext";
+
+// Safe hooks for lazy-loaded contexts - return defaults if context not available
+function useSafeNotifications() {
+  const context = useContext(NotificationsContext);
+  return context || { unreadCount: 0 };
+}
+
+function useSafeMessaging() {
+  const context = useContext(MessagingContext);
+  return context || { unreadTotal: 0 };
+}
 
 type AppView = "landing" | "auth" | "app" | "about";
 type AuthMode = "signin" | "signup";
@@ -36,8 +51,13 @@ function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [queueDrawerOpen, setQueueDrawerOpen] = useState(false);
   const [miniPlayerOpen, setMiniPlayerOpen] = useState(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const { visualizerVariant, setVisualizerVariant } = useSettings();
   const { isAuthenticated, isLoading } = useAuth();
+
+  // Safe access to notification and message counts
+  const { unreadCount: notificationCount } = useSafeNotifications();
+  const { unreadTotal: messageCount } = useSafeMessaging();
 
   // Hash-based routing for shareable URLs
   const { route, navigate, getTabFromRoute } = useHashRouter();
@@ -196,6 +216,8 @@ function AppContent() {
         );
       case "marketplace":
         return <MarketplaceView />;
+      case "notifications":
+        return <NotificationsView />;
       default:
         return <HomeView />;
     }
@@ -213,6 +235,9 @@ function AppContent() {
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onAboutClick={() => setCurrentView("about")}
+        onUploadClick={() => setUploadModalOpen(true)}
+        notificationCount={notificationCount}
+        messageCount={messageCount}
       />
 
       {/* Main Content Area */}
@@ -302,6 +327,12 @@ function AppContent() {
         isOpen={miniPlayerOpen}
         onClose={() => setMiniPlayerOpen(false)}
         onExpand={() => setMiniPlayerOpen(false)}
+      />
+
+      {/* Track Upload Modal */}
+      <TrackUploadModal
+        isOpen={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
       />
     </div>
   );

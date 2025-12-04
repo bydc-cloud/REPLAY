@@ -32,6 +32,14 @@ const LazySocialContext = lazy(() =>
   }))
 );
 
+const LazyNotificationsContext = lazy(() =>
+  import('../contexts/NotificationsContext').then(module => ({
+    default: module.NotificationsProvider
+  })).catch(() => ({
+    default: ({ children }: { children: ReactNode }) => <>{children}</>
+  }))
+);
+
 interface LazyContextLoaderProps {
   children: ReactNode;
 }
@@ -82,6 +90,15 @@ export function LazyContextLoader({ children }: LazyContextLoaderProps) {
     content = (
       <Suspense fallback={<ContextLoadingFallback>{content}</ContextLoadingFallback>}>
         <LazySocialContext>{content}</LazySocialContext>
+      </Suspense>
+    );
+  }
+
+  // Wrap with notifications context if social is enabled (notifications are part of social features)
+  if (flags.social_enabled) {
+    content = (
+      <Suspense fallback={<ContextLoadingFallback>{content}</ContextLoadingFallback>}>
+        <LazyNotificationsContext>{content}</LazyNotificationsContext>
       </Suspense>
     );
   }

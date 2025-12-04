@@ -1,4 +1,4 @@
-import { Home, Search, Library, Heart, Disc, ListMusic, Plus, X, Folder, Settings, Info, Store, Check, Compass, MessageCircle, User } from "lucide-react";
+import { Home, Search, Library, Heart, Disc, ListMusic, Plus, X, Folder, Settings, Info, Store, Check, Compass, MessageCircle, User, Upload, Bell } from "lucide-react";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
 import { useState, useRef, useEffect } from "react";
 
@@ -7,9 +7,10 @@ interface NavItemProps {
   label: string;
   active?: boolean;
   onClick?: () => void;
+  badge?: number;
 }
 
-const NavItem = ({ icon, label, active, onClick }: NavItemProps) => {
+const NavItem = ({ icon, label, active, onClick, badge }: NavItemProps) => {
   return (
     <button
       onClick={onClick}
@@ -19,7 +20,14 @@ const NavItem = ({ icon, label, active, onClick }: NavItemProps) => {
           : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] hover:bg-white/5"
       }`}
     >
-      {icon}
+      <div className="relative">
+        {icon}
+        {badge !== undefined && badge > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 text-[10px] font-bold bg-[var(--replay-accent-blue)] text-white rounded-full flex items-center justify-center">
+            {badge > 99 ? '99+' : badge}
+          </span>
+        )}
+      </div>
       <span className="font-medium">{label}</span>
     </button>
   );
@@ -50,9 +58,12 @@ interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
   onAboutClick?: () => void;
+  onUploadClick?: () => void;
+  notificationCount?: number;
+  messageCount?: number;
 }
 
-export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClose, onAboutClick }: SidebarProps) => {
+export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClose, onAboutClick, onUploadClick, notificationCount = 0, messageCount = 0 }: SidebarProps) => {
   // Load playlists from MusicLibrary context
   const { playlists, createPlaylist } = useMusicLibrary();
 
@@ -216,6 +227,14 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
               label="Messages"
               active={activeTab === "messages"}
               onClick={() => handleNavClick("messages")}
+              badge={messageCount}
+            />
+            <NavItem
+              icon={<Bell size={20} />}
+              label="Notifications"
+              active={activeTab === "notifications"}
+              onClick={() => handleNavClick("notifications")}
+              badge={notificationCount}
             />
             <NavItem
               icon={<User size={20} />}
@@ -226,7 +245,21 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
           </nav>
 
           {/* Secondary Navigation */}
-          <nav className="pt-6 border-t border-[var(--replay-border)] mt-6">
+          {/* Upload Button */}
+          <div className="px-3 pt-6 border-t border-[var(--replay-border)] mt-6">
+            <button
+              onClick={() => {
+                onUploadClick?.();
+                onClose?.();
+              }}
+              className="w-full py-3 bg-gradient-to-r from-[var(--replay-accent-blue)] to-[var(--replay-accent-purple)] text-white hover:opacity-90 transition-all rounded-lg hover-lift active:scale-95 font-semibold flex items-center justify-center gap-2"
+            >
+              <Upload size={18} />
+              Upload Track
+            </button>
+          </div>
+
+          <nav className="pt-4">
             <NavItem
               icon={<Disc size={20} />}
               label="Albums"
@@ -330,12 +363,8 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
           </div>
         </div>
 
-        {/* Import Button Footer - Fixed at bottom */}
-        <div className="px-3 py-4 border-t border-[var(--replay-border)] flex-shrink-0">
-          <button className="w-full py-3 border border-[var(--replay-off-white)] text-[var(--replay-off-white)] hover:bg-[var(--replay-off-white)] hover:text-[var(--replay-black)] transition-all rounded-md hover-lift active:scale-95 font-medium">
-            Import Music
-          </button>
-        </div>
+        {/* Footer spacer for mobile safe area */}
+        <div className="h-4 flex-shrink-0" />
       </aside>
     </>
   );
