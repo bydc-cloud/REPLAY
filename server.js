@@ -7,7 +7,7 @@ import pkg from 'pg';
 const { Pool } = pkg;
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -50,10 +50,14 @@ console.log('Port:', PORT);
 console.log('Node version:', process.version);
 console.log('OpenAI configured:', !!process.env.OPENAI_API_KEY);
 
-// OpenAI client for transcription
+// OpenAI client for transcription - with extended timeout for large audio files
 let openai = null;
 if (process.env.OPENAI_API_KEY) {
-  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+    timeout: 120000, // 2 minute timeout for audio uploads
+    maxRetries: 3,   // Retry up to 3 times on transient errors
+  });
 }
 
 // CORS
@@ -218,7 +222,13 @@ async function transcribeAudio(audioBase64, trackId) {
   try {
     console.log(`Starting transcription for track ${trackId}`);
     const audioBuffer = base64ToBuffer(audioBase64);
-    const audioFile = new File([audioBuffer], 'audio.mp3', { type: 'audio/mpeg' });
+    console.log(`Audio buffer size: ${audioBuffer.length} bytes`);
+
+    // Use toFile helper to convert buffer to a file-like object
+    // This is more reliable for retries than fs.createReadStream
+    const audioFile = await toFile(audioBuffer, `audio-${trackId}.mp3`, { type: 'audio/mpeg' });
+
+    console.log(`Sending ${audioBuffer.length} bytes to Whisper API...`);
 
     const transcription = await openai.audio.transcriptions.create({
       file: audioFile,
@@ -227,7 +237,9 @@ async function transcribeAudio(audioBase64, trackId) {
       timestamp_granularities: ['segment', 'word']
     });
 
-    console.log(`Transcription complete for track ${trackId}, segments: ${transcription.segments?.length || 0}`);
+    console.log(`Transcription complete for track ${trackId}`);
+    console.log(`Transcription text length: ${transcription.text?.length || 0}`);
+    console.log(`Transcription segments: ${transcription.segments?.length || 0}`);
 
     return {
       text: transcription.text,
@@ -237,6 +249,18 @@ async function transcribeAudio(audioBase64, trackId) {
     };
   } catch (error) {
     console.error('Transcription error:', error.message);
+    console.error('Transcription error stack:', error.stack);
+    // Try to get more error details from OpenAI response
+    if (error.response) {
+      console.error('OpenAI response status:', error.response.status);
+      console.error('OpenAI response data:', JSON.stringify(error.response.data));
+    }
+    if (error.error) {
+      console.error('OpenAI error object:', JSON.stringify(error.error));
+    }
+    if (error.cause) {
+      console.error('Error cause:', JSON.stringify(error.cause, Object.getOwnPropertyNames(error.cause), 2));
+    }
     return null;
   }
 }
@@ -454,12 +478,13 @@ app.get('/api/lyrics/:id', auth, async (req, res) => {
 
 // Transcribe a track
 app.post('/api/transcribe/:id', auth, async (req, res) => {
+  console.log('=== TRANSCRIPTION ENDPOINT HIT ===', req.params.id);
   try {
     const db = getPool();
     const trackId = req.params.id;
 
     const result = await db.query(
-      'SELECT id, file_data, lyrics_status FROM tracks WHERE id = $1 AND user_id = $2',
+      'SELECT id, file_data, file_key, lyrics_status FROM tracks WHERE id = $1 AND user_id = $2',
       [trackId, req.user.id]
     );
 
@@ -468,14 +493,57 @@ app.post('/api/transcribe/:id', auth, async (req, res) => {
     }
 
     const track = result.rows[0];
+    console.log(`Transcription request: file_key=${track.file_key ? 'yes' : 'no'}, file_data=${track.file_data ? 'yes' : 'no'}`);
 
-    if (!track.file_data) {
+    // Try to get audio data - first from B2, then fall back to file_data
+    let audioBase64 = null;
+
+    // Try B2 first (preferred for newer tracks)
+    if (track.file_key) {
+      const client = getS3Client();
+      if (client) {
+        try {
+          console.log(`Fetching from B2 for transcription: ${track.file_key}`);
+          const command = new GetObjectCommand({
+            Bucket: B2_BUCKET,
+            Key: track.file_key,
+          });
+          const response = await client.send(command);
+
+          // Convert stream to buffer then to base64
+          let audioBuffer;
+          if (response.Body.transformToByteArray) {
+            audioBuffer = Buffer.from(await response.Body.transformToByteArray());
+          } else {
+            const chunks = [];
+            for await (const chunk of response.Body) {
+              chunks.push(chunk);
+            }
+            audioBuffer = Buffer.concat(chunks);
+          }
+
+          audioBase64 = `data:audio/mpeg;base64,${audioBuffer.toString('base64')}`;
+          console.log(`Fetched ${audioBuffer.length} bytes from B2 for transcription`);
+        } catch (err) {
+          console.error('B2 fetch for transcription failed:', err.message);
+        }
+      }
+    }
+
+    // Fall back to file_data if B2 failed or not available
+    if (!audioBase64 && track.file_data) {
+      audioBase64 = track.file_data;
+      console.log('Using file_data for transcription');
+    }
+
+    if (!audioBase64) {
+      console.log('No audio data available for transcription');
       return res.status(400).json({ error: 'No audio data available' });
     }
 
     await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['processing', trackId]);
 
-    const transcription = await transcribeAudio(track.file_data, trackId);
+    const transcription = await transcribeAudio(audioBase64, trackId);
 
     if (!transcription) {
       await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', trackId]);
