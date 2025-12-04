@@ -10,6 +10,8 @@ import dotenv from 'dotenv';
 import OpenAI, { toFile } from 'openai';
 import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import fs from 'fs';
+import { execSync } from 'child_process';
 
 dotenv.config();
 
@@ -411,7 +413,6 @@ async function compressAudioForTranscription(audioBuffer, originalExt) {
   console.log(`Compressing ${audioBuffer.length} bytes for transcription...`);
 
   try {
-    const { execSync } = require('child_process');
     const tempInputPath = `/tmp/transcription_input_${Date.now()}.${originalExt || 'mp3'}`;
     const tempOutputPath = `/tmp/transcription_output_${Date.now()}.mp3`;
 
