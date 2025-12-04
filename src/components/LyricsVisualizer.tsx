@@ -15,7 +15,7 @@ interface LyricsVisualizerProps {
 
 // Timing offset to sync lyrics slightly ahead (in seconds)
 // Whisper timestamps can be slightly late, this compensates
-const SYNC_OFFSET = 0.15;
+const SYNC_OFFSET = 0.3;
 
 export const LyricsVisualizer = ({
   currentTime,
@@ -168,14 +168,30 @@ export const LyricsVisualizer = ({
     }
   }, [currentTime, lines, currentLineIndex]);
 
-  // Auto-scroll to active line
+  // Auto-scroll to active line with debounce to prevent jank
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     if (activeLineRef.current && containerRef.current) {
-      activeLineRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+      // Clear any pending scroll to prevent jitter
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+
+      // Small delay to let CSS transitions start first
+      scrollTimeoutRef.current = setTimeout(() => {
+        activeLineRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 50);
     }
+
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
   }, [currentLineIndex]);
 
   const handleLineClick = (line: { startTime: number }) => {
@@ -194,19 +210,78 @@ export const LyricsVisualizer = ({
     }
   };
 
+  // Calculate bass and treble energy for reactive background
+  const bassEnergy = useMemo(() => {
+    if (audioLevels.length < 8) return averageEnergy;
+    return audioLevels.slice(0, 8).reduce((a, b) => a + b, 0) / 8;
+  }, [audioLevels, averageEnergy]);
+
+  const trebleEnergy = useMemo(() => {
+    if (audioLevels.length < 16) return averageEnergy;
+    return audioLevels.slice(audioLevels.length - 8).reduce((a, b) => a + b, 0) / 8;
+  }, [audioLevels, averageEnergy]);
+
   return (
-    <div className="relative w-full h-full flex flex-col overflow-hidden bg-gradient-to-b from-black via-[#0a0a0a] to-black">
-      {/* Ambient Background Glow - Subtle */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: `radial-gradient(ellipse at center,
-            rgba(147, 51, 234, ${0.04 + averageEnergy * 0.06}) 0%,
-            rgba(79, 70, 229, ${0.02 + averageEnergy * 0.04}) 40%,
-            transparent 70%)`,
-          transition: "all 0.15s ease-out",
-        }}
-      />
+    <div className="relative w-full h-full flex flex-col overflow-hidden bg-black">
+      {/* Apple-style Reactive Gaussian Blur Background */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {/* Primary blob - purple, reacts to bass */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: '60%',
+            height: '60%',
+            left: '20%',
+            top: '15%',
+            background: `radial-gradient(circle,
+              rgba(147, 51, 234, ${0.4 + bassEnergy * 0.3}) 0%,
+              rgba(147, 51, 234, 0) 70%)`,
+            filter: 'blur(80px)',
+            transform: `scale(${1 + bassEnergy * 0.15})`,
+            transition: 'transform 0.15s ease-out, background 0.15s ease-out',
+          }}
+        />
+        {/* Secondary blob - indigo, reacts to treble */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: '50%',
+            height: '50%',
+            right: '10%',
+            bottom: '20%',
+            background: `radial-gradient(circle,
+              rgba(79, 70, 229, ${0.35 + trebleEnergy * 0.25}) 0%,
+              rgba(79, 70, 229, 0) 70%)`,
+            filter: 'blur(70px)',
+            transform: `scale(${1 + trebleEnergy * 0.12}) translateY(${-trebleEnergy * 10}px)`,
+            transition: 'transform 0.12s ease-out, background 0.12s ease-out',
+          }}
+        />
+        {/* Tertiary blob - pink accent, subtle movement */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: '40%',
+            height: '40%',
+            left: '5%',
+            bottom: '30%',
+            background: `radial-gradient(circle,
+              rgba(236, 72, 153, ${0.2 + averageEnergy * 0.15}) 0%,
+              rgba(236, 72, 153, 0) 70%)`,
+            filter: 'blur(60px)',
+            transform: `scale(${1 + averageEnergy * 0.1})`,
+            transition: 'transform 0.2s ease-out, background 0.2s ease-out',
+          }}
+        />
+        {/* Dark overlay to keep text readable */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'rgba(0, 0, 0, 0.3)',
+            backdropFilter: 'blur(1px)',
+          }}
+        />
+      </div>
 
       {/* Lyrics Display - Apple Music style centered layout */}
       <div
@@ -267,51 +342,56 @@ export const LyricsVisualizer = ({
             )}
           </div>
         ) : (
-          // Apple Music Style Lyrics Display - Centered with large active line
-          <div className="flex flex-col items-center justify-center min-h-full py-[40vh]">
-            <div className="w-full max-w-4xl mx-auto">
+          // Apple Music Style Lyrics Display - Bar by bar with clear separation
+          <div className="flex flex-col items-center justify-center min-h-full py-[45vh]">
+            <div className="w-full max-w-4xl mx-auto space-y-8 sm:space-y-10 md:space-y-12">
               {lines.map((line, index) => {
                 const isActive = index === currentLineIndex;
                 const isPast = index < currentLineIndex;
                 const distanceFromActive = Math.abs(index - currentLineIndex);
 
-                // Apple Music style: active line is much larger and brighter
-                // Nearby lines are visible, distant lines fade out
+                // Apple Music style: clear distinction between active and inactive
+                // Active line pops, others fade significantly
                 const opacity = isActive ? 1 : isPast
-                  ? Math.max(0.15, 0.4 - distanceFromActive * 0.08)
-                  : Math.max(0.2, 0.5 - distanceFromActive * 0.1);
+                  ? Math.max(0.15, 0.35 - distanceFromActive * 0.08)
+                  : Math.max(0.2, 0.4 - distanceFromActive * 0.08);
 
-                // Only slight blur on non-active lines
-                const blur = isActive ? 0 : Math.min(distanceFromActive * 0.5, 2);
+                // Scale creates clear visual hierarchy - active line stands out
+                const scale = isActive ? 1 : 0.65;
 
                 return (
                   <div
                     key={index}
                     ref={isActive ? activeLineRef : null}
                     onClick={() => handleLineClick(line)}
-                    className={`cursor-pointer text-center transition-all duration-500 ease-out ${
-                      isActive ? 'py-6 sm:py-8 md:py-10' : 'py-2 sm:py-3 md:py-4'
-                    }`}
+                    className="cursor-pointer text-center"
                     style={{
                       opacity: opacity,
-                      filter: blur > 0 ? `blur(${blur}px)` : undefined,
+                      transform: `scale(${scale})`,
+                      transition: 'all 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)',
+                      willChange: 'transform, opacity',
+                      transformOrigin: 'center center',
+                      marginTop: isActive ? '16px' : '0',
+                      marginBottom: isActive ? '16px' : '0',
                     }}
                   >
                     <p
-                      className={`font-bold leading-tight transition-all duration-500 ${
-                        isActive
-                          ? "text-3xl sm:text-5xl md:text-6xl lg:text-7xl text-white"
-                          : isPast
-                          ? "text-lg sm:text-xl md:text-2xl lg:text-3xl text-white/50"
-                          : "text-lg sm:text-xl md:text-2xl lg:text-3xl text-white/60"
-                      }`}
+                      className="font-bold leading-relaxed text-2xl sm:text-4xl md:text-5xl lg:text-6xl"
                       style={{
+                        color: isActive
+                          ? 'white'
+                          : isPast
+                          ? 'rgba(255, 255, 255, 0.4)'
+                          : 'rgba(255, 255, 255, 0.5)',
                         textShadow: isActive && isPlaying
-                          ? `0 0 20px rgba(147, 51, 234, ${0.25 + averageEnergy * 0.15}),
-                             0 0 40px rgba(79, 70, 229, ${0.15 + averageEnergy * 0.1})`
+                          ? `0 0 30px rgba(147, 51, 234, ${0.3 + bassEnergy * 0.2}),
+                             0 0 60px rgba(79, 70, 229, ${0.15 + bassEnergy * 0.1}),
+                             0 2px 4px rgba(0, 0, 0, 0.3)`
                           : isActive
-                          ? "0 0 15px rgba(147, 51, 234, 0.2)"
+                          ? "0 0 20px rgba(147, 51, 234, 0.2), 0 2px 4px rgba(0, 0, 0, 0.2)"
                           : "none",
+                        transition: 'all 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)',
+                        letterSpacing: isActive ? '0.02em' : '0',
                       }}
                     >
                       {line.text}

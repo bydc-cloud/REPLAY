@@ -166,7 +166,7 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
               </svg>
             </div>
             <h1 className="text-2xl font-black tracking-tight text-[var(--replay-off-white)]">
-              REPLAY
+              RHYTHM
             </h1>
           </div>
           <button
@@ -235,7 +235,7 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
             />
             <NavItem
               icon={<Info size={20} />}
-              label="About REPLAY"
+              label="About RHYTHM"
               active={activeTab === "about"}
               onClick={() => {
                 onAboutClick?.();

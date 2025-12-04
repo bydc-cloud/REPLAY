@@ -229,7 +229,7 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
           </h1>
         </div>
         <p className="text-[var(--replay-mid-grey)]">
-          Customize your Replay experience
+          Customize your Rhythm experience
         </p>
       </div>
 
@@ -952,7 +952,7 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
           <div className="flex items-center gap-3 mb-6">
             <Info className="text-[var(--replay-off-white)]" size={24} />
             <h2 className="text-xl font-black text-[var(--replay-off-white)]">
-              About Replay
+              About Rhythm
             </h2>
           </div>
           
@@ -964,7 +964,7 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
             
             <div className="p-4 bg-[var(--replay-dark-grey)]/60 backdrop-blur-sm rounded-xl border border-[var(--replay-border)]">
               <p className="text-xs text-[var(--replay-mid-grey)] leading-relaxed">
-                Replay is a premium local music organizer designed for Mac and Windows. 
+                Rhythm is a premium local music organizer designed for Mac and Windows. 
                 Featuring project-based organization, stunning visualizers, and a minimalist 
                 black theme with glassmorphism effects throughout.
               </p>
@@ -998,7 +998,7 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
                 </h2>
               </div>
               <p className="text-sm text-[var(--replay-off-white)]/70">
-                Help keep Replay alive and support future updates
+                Help keep Rhythm alive and support future updates
               </p>
             </div>
 
@@ -1035,7 +1035,7 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
                   {[5, 10, 20].map((amount) => (
                     <a
                       key={amount}
-                      href={`https://venmo.com/johndallascox?txn=pay&amount=${amount}&note=Thanks%20for%20Replay!`}
+                      href={`https://venmo.com/johndallascox?txn=pay&amount=${amount}&note=Thanks%20for%20Rhythm!`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white font-black rounded-xl py-3 text-center transition-all duration-200 hover:scale-105 active:scale-95 border border-white/30"
@@ -1071,7 +1071,7 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
             <div className="mt-6 text-center">
               <p className="text-xs text-[var(--replay-off-white)]/60 leading-relaxed">
                 💙 Every contribution is greatly appreciated and helps fund continued development, 
-                new features, and improvements to Replay. Thank you for your support!
+                new features, and improvements to Rhythm. Thank you for your support!
               </p>
             </div>
           </div>

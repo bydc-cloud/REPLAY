@@ -105,7 +105,7 @@ function AppContent() {
               </svg>
             </div>
             <span className="text-xl font-black tracking-tight text-[var(--replay-off-white)]">
-              REPLAY
+              RHYTHM
             </span>
           </div>
           <p className="text-white/40 text-sm">Loading your music...</p>
@@ -251,7 +251,7 @@ function AppContent() {
                   </svg>
                 </div>
                 <h1 className="text-lg font-black tracking-tight text-[var(--replay-off-white)]">
-                  REPLAY
+                  RHYTHM
                 </h1>
               </div>
             </div>

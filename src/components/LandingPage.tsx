@@ -348,7 +348,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                 <Play className="w-4 h-4 md:w-5 md:h-5 text-white fill-white ml-0.5" />
               </div>
             </div>
-            <span className="text-lg md:text-xl font-black tracking-tight text-white">REPLAY</span>
+            <span className="text-lg md:text-xl font-black tracking-tight text-white">RHYTHM</span>
           </div>
 
           {!showBackButton && (
@@ -694,13 +694,13 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
           <div className="text-center mb-10 md:mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mb-4 md:mb-6">
               <Music className="w-4 h-4 text-white/60" />
-              <span className="text-xs md:text-sm font-medium text-white/60">About REPLAY</span>
+              <span className="text-xs md:text-sm font-medium text-white/60">About RHYTHM</span>
             </div>
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 md:mb-4">
               Music, The Way It Should Be
             </h2>
             <p className="text-white/50 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">
-              REPLAY was born from frustration with bloated music apps that prioritize ads over experience.
+              RHYTHM was born from frustration with bloated music apps that prioritize ads over experience.
               We built something different - a clean, fast, beautiful music player that puts your music first.
             </p>
           </div>
@@ -794,7 +794,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                 <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
                   <Play className="w-5 h-5 text-white fill-white ml-0.5" />
                 </div>
-                <span className="text-xl font-black text-white">REPLAY</span>
+                <span className="text-xl font-black text-white">RHYTHM</span>
               </div>
               <p className="text-white/50 text-sm max-w-md mb-4">
                 A premium music player built for musicians. Import, organize, and enjoy your music
@@ -839,7 +839,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
 
           <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-xs text-white/30">
-              © 2024 REPLAY. All rights reserved.
+              © 2024 RHYTHM. All rights reserved.
             </p>
             <p className="text-xs text-white/30">
               Made with love for musicians everywhere.

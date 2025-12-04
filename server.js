@@ -1292,6 +1292,92 @@ app.get('/api/tracks/:id/stream-url', auth, async (req, res) => {
   }
 });
 
+// Proxy stream from B2 (bypasses CORS issues)
+// Accepts token via query param since audio elements can't set headers
+app.get('/api/tracks/:id/proxy-stream', async (req, res) => {
+  // Get token from query param or header
+  const token = req.query.token || req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+  } catch (e) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+  try {
+    const db = getPool();
+    const result = await db.query(
+      'SELECT file_key, file_data FROM tracks WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    const track = result.rows[0];
+
+    if (track.file_key) {
+      const client = getS3Client();
+      if (!client) {
+        return res.status(500).json({ error: 'Cloud storage not configured' });
+      }
+
+      try {
+        const command = new GetObjectCommand({
+          Bucket: B2_BUCKET,
+          Key: track.file_key,
+        });
+
+        const response = await client.send(command);
+
+        // Set appropriate headers
+        const ext = track.file_key.split('.').pop()?.toLowerCase() || 'mp3';
+        const mimeTypes = {
+          'mp3': 'audio/mpeg',
+          'wav': 'audio/wav',
+          'flac': 'audio/flac',
+          'm4a': 'audio/mp4',
+          'ogg': 'audio/ogg',
+          'aac': 'audio/aac'
+        };
+
+        res.setHeader('Content-Type', mimeTypes[ext] || 'audio/mpeg');
+        res.setHeader('Accept-Ranges', 'bytes');
+        if (response.ContentLength) {
+          res.setHeader('Content-Length', response.ContentLength);
+        }
+
+        // Stream the response
+        response.Body.pipe(res);
+      } catch (b2Err) {
+        console.error(`B2 proxy stream error for ${track.file_key}:`, b2Err.message);
+        return res.status(404).json({ error: 'Audio file not found in cloud' });
+      }
+    } else if (track.file_data) {
+      // Fall back to base64 data
+      const base64Match = track.file_data.match(/^data:(audio\/[^;]+);base64,(.+)$/);
+      if (base64Match) {
+        const mimeType = base64Match[1];
+        const audioBuffer = Buffer.from(base64Match[2], 'base64');
+        res.setHeader('Content-Type', mimeType);
+        res.setHeader('Content-Length', audioBuffer.length);
+        res.send(audioBuffer);
+      } else {
+        res.status(400).json({ error: 'Invalid audio data format' });
+      }
+    } else {
+      res.status(404).json({ error: 'No audio data available' });
+    }
+  } catch (e) {
+    console.error('Proxy stream error:', e.message);
+    res.status(500).json({ error: 'Stream failed' });
+  }
+});
+
 // Update track file key (for syncing local tracks to cloud)
 app.put('/api/tracks/:id/file-key', auth, async (req, res) => {
   try {

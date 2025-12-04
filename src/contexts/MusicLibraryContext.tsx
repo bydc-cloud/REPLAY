@@ -1235,12 +1235,15 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
           const data = await streamResponse.json();
           if (data.url) {
             console.log('Got stream URL from:', data.source);
-            // For B2 tracks, return the signed URL directly
+            // For B2 tracks, use proxy endpoint to bypass CORS issues
             if (data.source === 'b2') {
+              // Use server-side proxy to avoid B2 CORS issues
+              const proxyUrl = `${API_URL}/api/tracks/${trackId}/proxy-stream?token=${token}`;
+              console.log('Using proxy stream URL for B2 track');
               setTracks(prev => prev.map(t =>
-                t.id === trackId ? { ...t, fileUrl: data.url } : t
+                t.id === trackId ? { ...t, fileUrl: proxyUrl } : t
               ));
-              return data.url;
+              return proxyUrl;
             }
           }
         } else if (streamResponse.status === 404) {

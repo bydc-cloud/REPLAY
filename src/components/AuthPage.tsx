@@ -66,7 +66,7 @@ export const AuthPage = ({ onBack, initialMode = "signup" }: AuthPageProps) => {
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center">
             <Play className="w-5 h-5 text-white fill-white" />
           </div>
-          <span className="text-xl font-black tracking-tight text-white">REPLAY</span>
+          <span className="text-xl font-black tracking-tight text-white">RHYTHM</span>
         </div>
 
         <div className="w-20" /> {/* Spacer for centering */}
