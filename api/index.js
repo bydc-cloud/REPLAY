@@ -226,42 +226,75 @@ function base64ToBuffer(base64Data) {
   return Buffer.from(base64, 'base64');
 }
 
-// Transcribe audio using OpenAI Whisper
-async function transcribeAudio(audioBase64, trackId) {
+// Small helper for delays
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Decide if an error is retryable (429/5xx/timeouts)
+function isRetryableTranscriptionError(err) {
+  const status = err?.status || err?.response?.status || err?.$metadata?.httpStatusCode;
+  const message = err?.message || '';
+  if (!status) {
+    return /timeout|ETIMEDOUT|ECONNRESET|ENETUNREACH/i.test(message);
+  }
+  return status === 429 || status >= 500;
+}
+
+// Transcribe audio using OpenAI Whisper with retries
+async function transcribeAudio(audioBase64, trackId, maxAttempts = 3) {
   if (!openai) {
-    console.log('OpenAI not configured, skipping transcription');
-    return null;
+    const msg = 'OpenAI not configured, skipping transcription';
+    console.log(msg);
+    throw new Error(msg);
   }
 
-  try {
-    console.log(`Starting transcription for track ${trackId}`);
-
-    // Convert base64 to buffer
-    const audioBuffer = base64ToBuffer(audioBase64);
-
-    // Create a File-like object for OpenAI
-    const audioFile = new File([audioBuffer], 'audio.mp3', { type: 'audio/mpeg' });
-
-    // Transcribe with Whisper
-    const transcription = await openai.audio.transcriptions.create({
-      file: audioFile,
-      model: 'whisper-1',
-      response_format: 'verbose_json',
-      timestamp_granularities: ['segment', 'word']
-    });
-
-    console.log(`Transcription complete for track ${trackId}, segments: ${transcription.segments?.length || 0}`);
-
-    return {
-      text: transcription.text,
-      segments: transcription.segments || [],
-      words: transcription.words || [],
-      language: transcription.language || 'en'
-    };
-  } catch (error) {
-    console.error('Transcription error:', error.message);
-    return null;
+  // Convert base64 to buffer and validate
+  const audioBuffer = base64ToBuffer(audioBase64 || '');
+  if (!audioBuffer || audioBuffer.length === 0) {
+    const msg = `No audio data to transcribe for track ${trackId}`;
+    console.error(msg);
+    throw new Error(msg);
   }
+
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log(`Starting transcription for track ${trackId} (attempt ${attempt}/${maxAttempts}), bytes=${audioBuffer.length}`);
+
+      const audioFile = new File([audioBuffer], `audio-${trackId}.mp3`, { type: 'audio/mpeg' });
+
+      const transcription = await openai.audio.transcriptions.create({
+        file: audioFile,
+        model: 'whisper-1',
+        response_format: 'verbose_json',
+        timestamp_granularities: ['segment', 'word']
+      });
+
+      console.log(`Transcription complete for track ${trackId}, segments: ${transcription.segments?.length || 0}`);
+
+      return {
+        text: transcription.text,
+        segments: transcription.segments || [],
+        words: transcription.words || [],
+        language: transcription.language || 'en'
+      };
+    } catch (error) {
+      lastError = error;
+      const status = error?.status || error?.response?.status || error?.$metadata?.httpStatusCode;
+      console.error(`Transcription error (attempt ${attempt}):`, status || '', error.message);
+
+      if (attempt === maxAttempts || !isRetryableTranscriptionError(error)) {
+        break;
+      }
+
+      // Backoff
+      const delay = attempt === 1 ? 1500 : attempt === 2 ? 3000 : 6000;
+      console.log(`Retrying transcription for track ${trackId} after ${delay}ms...`);
+      await sleep(delay);
+    }
+  }
+
+  throw lastError || new Error('Transcription failed');
 }
 
 // Signup
@@ -693,14 +726,16 @@ app.post('/api/transcribe/:id', auth, async (req, res) => {
     );
 
     // Transcribe
-    const transcription = await transcribeAudio(audioBase64, trackId);
-
-    if (!transcription) {
+    let transcription;
+    try {
+      transcription = await transcribeAudio(audioBase64, trackId);
+    } catch (err) {
+      console.error(`Transcription failed for track ${trackId}:`, err.message);
       await db.query(
         'UPDATE tracks SET lyrics_status = $1 WHERE id = $2',
         ['failed', trackId]
       );
-      return res.status(500).json({ error: 'Transcription failed' });
+      return res.status(500).json({ error: err.message || 'Transcription failed' });
     }
 
     // Save lyrics
