@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useMusicLibrary, TrackLyrics, LyricsSegment } from "../contexts/MusicLibraryContext";
 
@@ -12,6 +12,10 @@ interface LyricsVisualizerProps {
   audioLevels?: number[];
   onSeek?: (time: number) => void;
 }
+
+// Timing offset to sync lyrics slightly ahead (in seconds)
+// Whisper timestamps can be slightly late, this compensates
+const SYNC_OFFSET = 0.15;
 
 export const LyricsVisualizer = ({
   currentTime,
@@ -131,13 +135,34 @@ export const LyricsVisualizer = ({
     }
   }, [trackId, canTranscribe, hasLyrics, isTranscribing, hasFailed, autoTranscribeAttempted, lyrics?.status, transcribeTrack]);
 
-  // Update current line based on playback time
+  // Update current line based on playback time with sync offset
   useEffect(() => {
     if (lines.length === 0) return;
 
-    const lineIndex = lines.findIndex(
-      (line) => currentTime >= line.startTime && currentTime < line.endTime
+    // Apply sync offset to show lyrics slightly ahead
+    const adjustedTime = currentTime + SYNC_OFFSET;
+
+    // Find the line that matches current time
+    let lineIndex = lines.findIndex(
+      (line) => adjustedTime >= line.startTime && adjustedTime < line.endTime
     );
+
+    // If no exact match, find the next upcoming line or last past line
+    if (lineIndex === -1) {
+      // Check if we're past all lines
+      if (adjustedTime >= lines[lines.length - 1].endTime) {
+        lineIndex = lines.length - 1;
+      } else {
+        // Find the next upcoming line
+        const upcomingIndex = lines.findIndex(line => line.startTime > adjustedTime);
+        if (upcomingIndex > 0) {
+          lineIndex = upcomingIndex - 1;
+        } else if (upcomingIndex === 0) {
+          lineIndex = 0;
+        }
+      }
+    }
+
     if (lineIndex !== -1 && lineIndex !== currentLineIndex) {
       setCurrentLineIndex(lineIndex);
     }
@@ -171,41 +196,41 @@ export const LyricsVisualizer = ({
 
   return (
     <div className="relative w-full h-full flex flex-col overflow-hidden bg-gradient-to-b from-black via-[#0a0a0a] to-black">
-      {/* Ambient Background Glow */}
+      {/* Ambient Background Glow - Subtle */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
           background: `radial-gradient(ellipse at center,
-            rgba(147, 51, 234, ${0.08 + averageEnergy * 0.12}) 0%,
-            rgba(79, 70, 229, ${0.04 + averageEnergy * 0.08}) 40%,
+            rgba(147, 51, 234, ${0.04 + averageEnergy * 0.06}) 0%,
+            rgba(79, 70, 229, ${0.02 + averageEnergy * 0.04}) 40%,
             transparent 70%)`,
           transition: "all 0.15s ease-out",
         }}
       />
 
-      {/* Lyrics Display - Mobile optimized with safe areas */}
+      {/* Lyrics Display - Apple Music style centered layout */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto scrollbar-hide flex flex-col justify-center px-4 sm:px-6 md:px-12 py-20 sm:py-24 md:py-32"
+        className="flex-1 overflow-y-auto scrollbar-hide px-4 sm:px-6 md:px-12"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {isTranscribing ? (
-          // Transcribing State
-          <div className="flex flex-col items-center justify-center text-center">
+          // Transcribing State - Centered
+          <div className="flex flex-col items-center justify-center min-h-full text-center">
             <Loader2 className="w-16 h-16 text-purple-500 mb-6 animate-spin" />
-            <p className="text-white text-xl font-medium mb-2">Transcribing audio...</p>
-            <p className="text-white/40 text-sm">
+            <p className="text-white text-2xl font-bold mb-2">Transcribing audio...</p>
+            <p className="text-white/40 text-base">
               This may take a minute
             </p>
           </div>
         ) : hasFailed ? (
-          // Failed State - with retry button
-          <div className="flex flex-col items-center justify-center text-center">
+          // Failed State - Centered with retry button
+          <div className="flex flex-col items-center justify-center min-h-full text-center">
             <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mb-6">
               <RefreshCw className="w-10 h-10 text-red-400" />
             </div>
-            <p className="text-white text-xl font-medium mb-2">Transcription failed</p>
-            <p className="text-white/40 text-sm mb-6">
+            <p className="text-white text-2xl font-bold mb-2">Transcription failed</p>
+            <p className="text-white/40 text-base mb-6">
               There was an error transcribing this track
             </p>
             {canTranscribe && (
@@ -219,13 +244,13 @@ export const LyricsVisualizer = ({
             )}
           </div>
         ) : !hasLyrics ? (
-          // No Lyrics State - Show loading since we're auto-transcribing
-          <div className="flex flex-col items-center justify-center text-center">
+          // No Lyrics State - Centered
+          <div className="flex flex-col items-center justify-center min-h-full text-center">
             {canTranscribe ? (
               <>
                 <Loader2 className="w-16 h-16 text-purple-500 mb-6 animate-spin" />
-                <p className="text-white text-xl font-medium mb-2">Preparing lyrics...</p>
-                <p className="text-white/40 text-sm">
+                <p className="text-white text-2xl font-bold mb-2">Preparing lyrics...</p>
+                <p className="text-white/40 text-base">
                   Starting transcription automatically
                 </p>
               </>
@@ -234,59 +259,67 @@ export const LyricsVisualizer = ({
                 <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-6">
                   <Loader2 className="w-10 h-10 text-white/30" />
                 </div>
-                <p className="text-white/60 text-xl font-medium mb-2">No lyrics available</p>
-                <p className="text-white/30 text-sm">
+                <p className="text-white/60 text-2xl font-bold mb-2">No lyrics available</p>
+                <p className="text-white/30 text-base">
                   Upload this track to enable transcription
                 </p>
               </>
             )}
           </div>
         ) : (
-          // Apple Music Style Lyrics Display - Mobile optimized
-          <div className="space-y-1 sm:space-y-2 md:space-y-4 max-w-4xl mx-auto w-full">
-            {lines.map((line, index) => {
-              const isActive = index === currentLineIndex;
-              const isPast = index < currentLineIndex;
-              const distanceFromActive = Math.abs(index - currentLineIndex);
+          // Apple Music Style Lyrics Display - Centered with large active line
+          <div className="flex flex-col items-center justify-center min-h-full py-[40vh]">
+            <div className="w-full max-w-4xl mx-auto">
+              {lines.map((line, index) => {
+                const isActive = index === currentLineIndex;
+                const isPast = index < currentLineIndex;
+                const distanceFromActive = Math.abs(index - currentLineIndex);
 
-              // Calculate blur and opacity based on distance from active line
-              // Reduced blur on mobile for better readability
-              const blur = isActive ? 0 : Math.min(distanceFromActive * 1, 3);
-              const opacity = isActive ? 1 : Math.max(0.3, 0.65 - distanceFromActive * 0.1);
-              const scale = isActive ? 1 : 0.97;
+                // Apple Music style: active line is much larger and brighter
+                // Nearby lines are visible, distant lines fade out
+                const opacity = isActive ? 1 : isPast
+                  ? Math.max(0.15, 0.4 - distanceFromActive * 0.08)
+                  : Math.max(0.2, 0.5 - distanceFromActive * 0.1);
 
-              return (
-                <div
-                  key={index}
-                  ref={isActive ? activeLineRef : null}
-                  onClick={() => handleLineClick(line)}
-                  className="cursor-pointer transition-all duration-400 ease-out text-center px-2"
-                  style={{
-                    transform: `scale(${scale})`,
-                    opacity: opacity,
-                    filter: `blur(${blur}px)`,
-                  }}
-                >
-                  <p
-                    className={`text-lg sm:text-xl md:text-3xl lg:text-4xl font-bold leading-snug sm:leading-tight transition-colors duration-300 ${
-                      isActive
-                        ? "text-white"
-                        : isPast
-                        ? "text-white/40"
-                        : "text-white/50"
+                // Only slight blur on non-active lines
+                const blur = isActive ? 0 : Math.min(distanceFromActive * 0.5, 2);
+
+                return (
+                  <div
+                    key={index}
+                    ref={isActive ? activeLineRef : null}
+                    onClick={() => handleLineClick(line)}
+                    className={`cursor-pointer text-center transition-all duration-500 ease-out ${
+                      isActive ? 'py-6 sm:py-8 md:py-10' : 'py-2 sm:py-3 md:py-4'
                     }`}
                     style={{
-                      textShadow: isActive && isPlaying
-                        ? `0 0 30px rgba(147, 51, 234, ${0.4 + averageEnergy * 0.25}),
-                           0 0 60px rgba(79, 70, 229, ${0.25 + averageEnergy * 0.15})`
-                        : "none",
+                      opacity: opacity,
+                      filter: blur > 0 ? `blur(${blur}px)` : undefined,
                     }}
                   >
-                    {line.text}
-                  </p>
-                </div>
-              );
-            })}
+                    <p
+                      className={`font-bold leading-tight transition-all duration-500 ${
+                        isActive
+                          ? "text-3xl sm:text-5xl md:text-6xl lg:text-7xl text-white"
+                          : isPast
+                          ? "text-lg sm:text-xl md:text-2xl lg:text-3xl text-white/50"
+                          : "text-lg sm:text-xl md:text-2xl lg:text-3xl text-white/60"
+                      }`}
+                      style={{
+                        textShadow: isActive && isPlaying
+                          ? `0 0 20px rgba(147, 51, 234, ${0.25 + averageEnergy * 0.15}),
+                             0 0 40px rgba(79, 70, 229, ${0.15 + averageEnergy * 0.1})`
+                          : isActive
+                          ? "0 0 15px rgba(147, 51, 234, 0.2)"
+                          : "none",
+                      }}
+                    >
+                      {line.text}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
