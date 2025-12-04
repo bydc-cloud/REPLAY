@@ -1,28 +1,44 @@
-# Resume Replay Music Project
+# Resume Replay Music Project Session
 
-You are resuming work on the Replay Music project. Do the following:
+You are resuming work on the Replay Music project after a compact or new session.
 
-1. **Load project memory** - Search memory for "ReplayMusicApp" to get full project context including architecture, known issues, and deployment info.
+## Step 1: Load Full Context from Memory
+Search memory for these entities and display their contents:
+- "ReplayMusicApp" - Project overview and LAST SESSION info
+- "ReplayArchitecture" - Technical implementation details
+- "ReplayKnownIssues" - Common problems and solutions
+- "ReplayDeployment" - How to deploy
+- "ReplayWorkflow" - User preferences and process improvements
 
-2. **Check current state**:
-   - Run `git status` to see any uncommitted changes
-   - Run `git log --oneline -5` to see recent commits
-   - Check if current version matches stable tag `v1.0-stable`
+## Step 2: Check Current State
+Run these commands and summarize:
+```bash
+cd "/Users/johncox/Downloads/Design Premium Music Organizer 2"
+git status
+git log --oneline -5
+git describe --tags --always
+```
 
-3. **Verify deployment status**:
-   - The app is deployed on Railway at https://replay-production-9240.up.railway.app
-   - Check Railway logs briefly if needed: `railway logs` (from project directory)
+## Step 3: Quick Health Check
+- Is the app accessible at https://replay-production-9240.up.railway.app ?
+- Any uncommitted changes that need attention?
 
-4. **Summarize for user**:
-   - Current git state
-   - What was last worked on
-   - Any known issues from memory
-   - Ask what they want to work on next
+## Step 4: Present Summary to User
+Format your response as:
 
-**Key files to know:**
-- `server.js` - Full-stack backend (API + serves frontend)
-- `src/contexts/MusicLibraryContext.tsx` - Track management, audio fetching
-- `src/contexts/AudioPlayerContext.tsx` - Playback, lyrics sync
-- `src/components/LyricsVisualizer.tsx` - Lyrics display
+**Last Session:** [date/time from memory]
+**What was done:** [summary from memory]
+**Outcome:** [result from memory]
 
-**Deploy command:** `npm run build && railway up`
+**Current Git State:**
+- Branch: [branch]
+- Recent commits: [list]
+- Uncommitted changes: [yes/no + details]
+
+**Known Issues to Watch:**
+- [list key issues from ReplayKnownIssues]
+
+**Ready to continue! What would you like to work on?**
+
+---
+*Tip: Before ending a session, use `/save` to record progress for next time.*
