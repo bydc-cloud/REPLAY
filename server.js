@@ -212,15 +212,43 @@ function base64ToBuffer(base64Data) {
   return Buffer.from(base64, 'base64');
 }
 
+// Detect MIME type from file extension or data URI
+function detectAudioMimeType(audioBase64, fileKey) {
+  // Check file extension from fileKey
+  if (fileKey) {
+    const ext = fileKey.split('.').pop()?.toLowerCase();
+    const mimeTypes = {
+      'mp3': 'audio/mpeg',
+      'm4a': 'audio/mp4',
+      'mp4': 'audio/mp4',
+      'wav': 'audio/wav',
+      'webm': 'audio/webm',
+      'ogg': 'audio/ogg',
+      'flac': 'audio/flac'
+    };
+    if (mimeTypes[ext]) return { mimeType: mimeTypes[ext], ext };
+  }
+
+  // Check data URI prefix
+  const match = audioBase64.match(/^data:audio\/([^;]+);base64,/);
+  if (match) {
+    const format = match[1];
+    return { mimeType: `audio/${format}`, ext: format === 'mpeg' ? 'mp3' : format };
+  }
+
+  // Default to mp3
+  return { mimeType: 'audio/mpeg', ext: 'mp3' };
+}
+
 // Transcribe audio using OpenAI Whisper with manual retry for network errors
-async function transcribeAudio(audioBase64, trackId) {
+async function transcribeAudio(audioBase64, trackId, fileKey = null) {
   if (!openai) {
     console.log('OpenAI not configured, skipping transcription');
     return null;
   }
 
-  const maxRetries = 3;
-  const retryDelays = [2000, 5000, 10000]; // Exponential backoff: 2s, 5s, 10s
+  const maxRetries = 5; // Increased retries due to Railway network issues
+  const retryDelays = [2000, 4000, 8000, 15000, 30000]; // Longer exponential backoff
 
   async function attemptTranscription(attempt) {
     try {
@@ -228,9 +256,12 @@ async function transcribeAudio(audioBase64, trackId) {
       const audioBuffer = base64ToBuffer(audioBase64);
       console.log(`Audio buffer size: ${audioBuffer.length} bytes`);
 
-      // Use toFile helper to convert buffer to a file-like object
-      // This is more reliable for retries than fs.createReadStream
-      const audioFile = await toFile(audioBuffer, `audio-${trackId}.mp3`, { type: 'audio/mpeg' });
+      // Detect correct MIME type
+      const { mimeType, ext } = detectAudioMimeType(audioBase64, fileKey);
+      console.log(`Detected audio format: ${mimeType} (.${ext})`);
+
+      // Use toFile helper with correct MIME type
+      const audioFile = await toFile(audioBuffer, `audio-${trackId}.${ext}`, { type: mimeType });
 
       console.log(`Sending ${audioBuffer.length} bytes to Whisper API...`);
 
@@ -256,12 +287,14 @@ async function transcribeAudio(audioBase64, trackId) {
                             error.message?.includes('Connection error') ||
                             error.message?.includes('ETIMEDOUT') ||
                             error.message?.includes('socket hang up') ||
-                            error.cause?.code === 'ECONNRESET';
+                            error.message?.includes('ENOTFOUND') ||
+                            error.cause?.code === 'ECONNRESET' ||
+                            error.cause?.code === 'ETIMEDOUT';
 
       console.error(`Transcription error (attempt ${attempt}):`, error.message);
 
       if (isNetworkError && attempt < maxRetries) {
-        const delay = retryDelays[attempt - 1] || 10000;
+        const delay = retryDelays[attempt - 1] || 30000;
         console.log(`Network error detected, retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return attemptTranscription(attempt + 1);
@@ -564,7 +597,7 @@ app.post('/api/transcribe/:id', auth, async (req, res) => {
 
     await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['processing', trackId]);
 
-    const transcription = await transcribeAudio(audioBase64, trackId);
+    const transcription = await transcribeAudio(audioBase64, trackId, track.file_key);
 
     if (!transcription) {
       await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', trackId]);
