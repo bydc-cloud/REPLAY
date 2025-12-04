@@ -19,10 +19,14 @@ import {
   Loader2,
   UploadCloud,
   BarChart3,
+  CreditCard,
+  Download,
+  AlertCircle,
 } from "lucide-react";
 import { useAuth } from "../contexts/PostgresAuthContext";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
 import { PremiumCoverArt } from "./PremiumCoverArt";
+import { BeatUploadModal } from "./BeatUploadModal";
 
 interface Beat {
   id: string;

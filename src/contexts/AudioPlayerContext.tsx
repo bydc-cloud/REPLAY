@@ -86,7 +86,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
     // Mobile-specific: Enable inline playback and background audio
     audio.setAttribute('playsinline', 'true');
     audio.setAttribute('webkit-playsinline', 'true');
-    audio.preload = "metadata"; // Use "metadata" instead of "auto" for mobile performance
+    audio.preload = "auto"; // Use "auto" for better mobile playback reliability
 
     // CRITICAL for iOS background playback - set audio category
     // This helps iOS recognize this as a media app that should continue in background

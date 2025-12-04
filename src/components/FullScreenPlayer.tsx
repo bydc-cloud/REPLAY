@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { ChevronDown, Heart, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, Volume2, MoreHorizontal, ListMusic, Share2, ListPlus, User, Disc, Type } from "lucide-react";
+import { ChevronDown, Heart, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, Volume2, MoreHorizontal, ListMusic, Share2, ListPlus, User, Disc, Type, Music } from "lucide-react";
 import { PremiumCoverArt } from "./PremiumCoverArt";
+import { LyricsVisualizer } from "./LyricsVisualizer";
 import { useSettings } from "../contexts/SettingsContext";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
 import { useToast } from "../contexts/ToastContext";
+import { useAudioAnalyzer } from "../hooks/useAudioAnalyzer";
 
 interface FullScreenPlayerProps {
   isOpen: boolean;
@@ -33,10 +35,16 @@ export const FullScreenPlayer = ({
   onVolumeChange,
   onLyricsClick,
 }: FullScreenPlayerProps) => {
-  const { visualizerVariant } = useSettings();
-  const { currentTrack, currentTime, duration, shuffleMode, repeatMode, toggleShuffle, cycleRepeatMode, playNext, playPrevious, audioElement, addToQueue, addToQueueNext } = useAudioPlayer();
+  const { visualizerVariant, setVisualizerVariant } = useSettings();
+  const { currentTrack, currentTime, duration, shuffleMode, repeatMode, toggleShuffle, cycleRepeatMode, playNext, playPrevious, audioElement, addToQueue, addToQueueNext, seek } = useAudioPlayer();
   const { playlists, addToPlaylist } = useMusicLibrary();
   const { showToast } = useToast();
+
+  // Get audio levels for lyrics visualizer
+  const { audioLevels } = useAudioAnalyzer(isOpen && visualizerVariant === "lyrics" ? audioElement : null);
+
+  // Check if lyrics mode is enabled
+  const showLyricsMode = visualizerVariant === "lyrics";
 
   // Animation state
   const [isVisible, setIsVisible] = useState(false);
@@ -264,25 +272,42 @@ export const FullScreenPlayer = ({
 
       {/* Content Area - Flex layout to fit viewport */}
       <div className="flex-1 flex flex-col px-5 py-4 min-h-0">
-        {/* Album Art - Centered and properly sized for mobile */}
+        {/* Album Art OR Lyrics - Centered and properly sized for mobile */}
         <div className="flex-1 flex items-center justify-center min-h-0 mb-4">
-          <div className="w-[85vw] max-w-[320px] aspect-square mx-auto">
-            {currentTrack?.artworkUrl || currentTrack?.artworkData ? (
-              <div className="w-full h-full rounded-xl overflow-hidden shadow-2xl border border-white/10">
-                <img
-                  src={currentTrack.artworkUrl || currentTrack.artworkData}
-                  alt={currentTrack.title}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            ) : (
-              <PremiumCoverArt isPlaying={isPlaying} size="full" variant={visualizerVariant} audioElement={audioElement} />
-            )}
-          </div>
+          {showLyricsMode ? (
+            // Full lyrics view when lyrics mode is selected
+            <div className="w-full h-full rounded-xl overflow-hidden">
+              <LyricsVisualizer
+                currentTime={currentTime}
+                duration={duration}
+                isPlaying={isPlaying}
+                trackId={currentTrack?.id}
+                trackTitle={currentTrack?.title}
+                trackArtist={currentTrack?.artist}
+                audioLevels={audioLevels}
+                onSeek={seek}
+              />
+            </div>
+          ) : (
+            // Album art view
+            <div className="w-[85vw] max-w-[320px] aspect-square mx-auto">
+              {currentTrack?.artworkUrl || currentTrack?.artworkData ? (
+                <div className="w-full h-full rounded-xl overflow-hidden shadow-2xl border border-white/10">
+                  <img
+                    src={currentTrack.artworkUrl || currentTrack.artworkData}
+                    alt={currentTrack.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <PremiumCoverArt isPlaying={isPlaying} size="full" variant={visualizerVariant} audioElement={audioElement} />
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Song Info - Compact */}
-        <div className="flex items-center justify-between mb-3 flex-shrink-0">
+        {/* Song Info - Compact (hidden in lyrics mode since header shows it) */}
+        <div className={`flex items-center justify-between mb-3 flex-shrink-0 ${showLyricsMode ? 'hidden' : ''}`}>
           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-semibold text-[var(--replay-off-white)] mb-0.5 truncate">
               {currentTrack?.title || "No Track"}
@@ -292,16 +317,26 @@ export const FullScreenPlayer = ({
             </p>
           </div>
           <div className="flex items-center gap-1">
-            {/* Lyrics Button */}
-            {onLyricsClick && (
-              <button
-                onClick={onLyricsClick}
-                className="p-2.5 rounded-full transition-all duration-300 ease-out active:scale-90 text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] hover:bg-white/5"
-                title="View Lyrics"
-              >
-                <Type size={22} />
-              </button>
-            )}
+            {/* Lyrics / Album Art Toggle Button */}
+            <button
+              onClick={() => {
+                if (showLyricsMode) {
+                  // Switch to album art (bars visualizer)
+                  setVisualizerVariant("bars");
+                } else {
+                  // Switch to lyrics mode
+                  setVisualizerVariant("lyrics");
+                }
+              }}
+              className={`p-2.5 rounded-full transition-all duration-300 ease-out active:scale-90 ${
+                showLyricsMode
+                  ? "text-purple-400 bg-purple-500/20"
+                  : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] hover:bg-white/5"
+              }`}
+              title={showLyricsMode ? "Show Album Art" : "Show Lyrics"}
+            >
+              {showLyricsMode ? <Music size={22} /> : <Type size={22} />}
+            </button>
             <button
               onClick={onLike}
               className={`p-2.5 rounded-full transition-all duration-300 ease-out active:scale-90 ${
@@ -317,6 +352,33 @@ export const FullScreenPlayer = ({
             </button>
           </div>
         </div>
+
+        {/* Floating Controls for Lyrics Mode */}
+        {showLyricsMode && (
+          <div className="flex items-center justify-between mb-3 flex-shrink-0 bg-black/50 backdrop-blur-sm rounded-xl px-3 py-2">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-white/80 truncate">{formatTime(currentTime)} / {formatTime(duration)}</p>
+            </div>
+            <div className="flex items-center gap-1">
+              {/* Album Art Toggle */}
+              <button
+                onClick={() => setVisualizerVariant("bars")}
+                className="p-2 rounded-full text-purple-400 bg-purple-500/20 active:scale-90 transition-all"
+                title="Show Album Art"
+              >
+                <Music size={20} />
+              </button>
+              <button
+                onClick={onLike}
+                className={`p-2 rounded-full transition-all active:scale-90 ${
+                  liked ? "text-red-500 bg-red-500/10" : "text-white/60 hover:text-white"
+                }`}
+              >
+                <Heart size={20} className={liked ? "fill-current" : ""} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Progress Bar */}
         <div className="mb-5 flex-shrink-0">
