@@ -212,57 +212,78 @@ function base64ToBuffer(base64Data) {
   return Buffer.from(base64, 'base64');
 }
 
-// Transcribe audio using OpenAI Whisper
+// Transcribe audio using OpenAI Whisper with manual retry for network errors
 async function transcribeAudio(audioBase64, trackId) {
   if (!openai) {
     console.log('OpenAI not configured, skipping transcription');
     return null;
   }
 
-  try {
-    console.log(`Starting transcription for track ${trackId}`);
-    const audioBuffer = base64ToBuffer(audioBase64);
-    console.log(`Audio buffer size: ${audioBuffer.length} bytes`);
+  const maxRetries = 3;
+  const retryDelays = [2000, 5000, 10000]; // Exponential backoff: 2s, 5s, 10s
 
-    // Use toFile helper to convert buffer to a file-like object
-    // This is more reliable for retries than fs.createReadStream
-    const audioFile = await toFile(audioBuffer, `audio-${trackId}.mp3`, { type: 'audio/mpeg' });
+  async function attemptTranscription(attempt) {
+    try {
+      console.log(`Starting transcription for track ${trackId} (attempt ${attempt}/${maxRetries})`);
+      const audioBuffer = base64ToBuffer(audioBase64);
+      console.log(`Audio buffer size: ${audioBuffer.length} bytes`);
 
-    console.log(`Sending ${audioBuffer.length} bytes to Whisper API...`);
+      // Use toFile helper to convert buffer to a file-like object
+      // This is more reliable for retries than fs.createReadStream
+      const audioFile = await toFile(audioBuffer, `audio-${trackId}.mp3`, { type: 'audio/mpeg' });
 
-    const transcription = await openai.audio.transcriptions.create({
-      file: audioFile,
-      model: 'whisper-1',
-      response_format: 'verbose_json',
-      timestamp_granularities: ['segment', 'word']
-    });
+      console.log(`Sending ${audioBuffer.length} bytes to Whisper API...`);
 
-    console.log(`Transcription complete for track ${trackId}`);
-    console.log(`Transcription text length: ${transcription.text?.length || 0}`);
-    console.log(`Transcription segments: ${transcription.segments?.length || 0}`);
+      const transcription = await openai.audio.transcriptions.create({
+        file: audioFile,
+        model: 'whisper-1',
+        response_format: 'verbose_json',
+        timestamp_granularities: ['segment', 'word']
+      });
 
-    return {
-      text: transcription.text,
-      segments: transcription.segments || [],
-      words: transcription.words || [],
-      language: transcription.language || 'en'
-    };
-  } catch (error) {
-    console.error('Transcription error:', error.message);
-    console.error('Transcription error stack:', error.stack);
-    // Try to get more error details from OpenAI response
-    if (error.response) {
-      console.error('OpenAI response status:', error.response.status);
-      console.error('OpenAI response data:', JSON.stringify(error.response.data));
+      console.log(`Transcription complete for track ${trackId}`);
+      console.log(`Transcription text length: ${transcription.text?.length || 0}`);
+      console.log(`Transcription segments: ${transcription.segments?.length || 0}`);
+
+      return {
+        text: transcription.text,
+        segments: transcription.segments || [],
+        words: transcription.words || [],
+        language: transcription.language || 'en'
+      };
+    } catch (error) {
+      const isNetworkError = error.message?.includes('ECONNRESET') ||
+                            error.message?.includes('Connection error') ||
+                            error.message?.includes('ETIMEDOUT') ||
+                            error.message?.includes('socket hang up') ||
+                            error.cause?.code === 'ECONNRESET';
+
+      console.error(`Transcription error (attempt ${attempt}):`, error.message);
+
+      if (isNetworkError && attempt < maxRetries) {
+        const delay = retryDelays[attempt - 1] || 10000;
+        console.log(`Network error detected, retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return attemptTranscription(attempt + 1);
+      }
+
+      // Final attempt failed or non-retryable error
+      console.error('Transcription error stack:', error.stack);
+      if (error.response) {
+        console.error('OpenAI response status:', error.response.status);
+        console.error('OpenAI response data:', JSON.stringify(error.response.data));
+      }
+      if (error.error) {
+        console.error('OpenAI error object:', JSON.stringify(error.error));
+      }
+      if (error.cause) {
+        console.error('Error cause:', JSON.stringify(error.cause, Object.getOwnPropertyNames(error.cause), 2));
+      }
+      return null;
     }
-    if (error.error) {
-      console.error('OpenAI error object:', JSON.stringify(error.error));
-    }
-    if (error.cause) {
-      console.error('Error cause:', JSON.stringify(error.cause, Object.getOwnPropertyNames(error.cause), 2));
-    }
-    return null;
   }
+
+  return attemptTranscription(1);
 }
 
 // Signup

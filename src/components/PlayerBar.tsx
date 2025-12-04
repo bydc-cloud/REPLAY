@@ -96,12 +96,9 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
   // Get audio URL for waveform
   const audioUrl = currentTrack ? getAudioUrl(currentTrack) : undefined;
 
-  // Connect audio element to effects chain
-  useEffect(() => {
-    if (audioElement) {
-      connectToAudioElement(audioElement);
-    }
-  }, [audioElement, connectToAudioElement]);
+  // NOTE: Audio effects chain connection is now handled in AudioPlayerContext
+  // BEFORE play() is called. This ensures proper Safari compatibility where
+  // createMediaElementSource must happen before playback starts.
 
   // Close track menu when clicking outside
   useEffect(() => {

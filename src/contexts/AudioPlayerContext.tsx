@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useRef, useEffect, ReactNode, useC
 import { Track, useMusicLibrary } from "./MusicLibraryContext";
 import { useAuth } from "./PostgresAuthContext";
 import { useToast } from "./ToastContext";
+import { useAudioEffects } from "./AudioEffectsContext";
 
 // API URL from environment
 const API_URL = import.meta.env.VITE_API_URL || '';
@@ -48,6 +49,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const { incrementPlayCount, getTrackAudio, getStreamUrl } = useMusicLibrary();
   const { token } = useAuth();
   const { showToast } = useToast();
+  const { connectToAudioElement } = useAudioEffects();
 
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -774,7 +776,12 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
       console.log("Audio ready, attempting to play...");
 
-      // Resume AudioContext if suspended (required for mobile)
+      // SAFARI FIX: Do NOT connect WebAudio before play() on first playback.
+      // createMediaElementSource() on Safari can break audio output if called before play().
+      // Instead, just play the audio directly first, then connect WebAudio after playback starts.
+      // This lets audio play through the normal HTMLAudioElement path initially.
+
+      // Resume AudioContext if suspended (required for mobile) - but don't create source yet
       if (audioContextRef.current?.state === "suspended") {
         await audioContextRef.current.resume();
       }

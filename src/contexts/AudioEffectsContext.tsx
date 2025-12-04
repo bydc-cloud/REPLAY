@@ -427,6 +427,38 @@ export const AudioEffectsProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    // SAFARI FIX: On first connection, DON'T disconnect and rebuild the effects chain.
+    // Safari breaks audio when you disconnect/reconnect MediaElementSourceNode before play().
+    // The source is already connected to destination from lines above - just mark as connected
+    // and create a minimal analyser for visualizations without rebuilding the chain.
+    const isFirstConnection = connectedAudioRef.current !== audio;
+    if (isFirstConnection) {
+      console.log("First connection - keeping simple source->destination path for Safari compatibility");
+
+      // Create analyser and connect it in PARALLEL (not in series) to preserve audio flow
+      try {
+        analyserRef.current = ctx.createAnalyser();
+        analyserRef.current.fftSize = 256;
+        analyserRef.current.smoothingTimeConstant = 0.4;
+        setAnalyserNode(analyserRef.current);
+
+        // Connect source to analyser in ADDITION to destination (parallel connection)
+        // This way audio flows: source -> destination (for sound)
+        //                       source -> analyser (for visualization only)
+        sourceRef.current.connect(analyserRef.current);
+        // Analyser doesn't need to connect to destination since source already does
+
+        console.log("Analyser connected in parallel for visualization. Audio flows directly to destination.");
+      } catch (e) {
+        console.warn("Could not create parallel analyser:", e);
+      }
+
+      connectedAudioRef.current = audio;
+      console.log("First connection complete. Context state:", ctx.state);
+      return;
+    }
+
+    // Only reach here on subsequent connections (track changes) - can rebuild full chain
     // Disconnect source from any existing connections first (to rebuild the chain)
     try {
       sourceRef.current.disconnect();

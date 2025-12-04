@@ -1197,14 +1197,30 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
   const getTrackAudio = useCallback(async (trackId: string): Promise<string | null> => {
     console.log('getTrackAudio called for:', trackId, 'token available:', !!token);
 
-    // First check if we have it locally (blob URL or data URL)
     const track = tracks.find(t => t.id === trackId);
-    if (track?.fileUrl && (track.fileUrl.startsWith('blob:') || track.fileUrl.startsWith('data:'))) {
-      console.log('Using local audio for track:', trackId);
-      return track.fileUrl;
+
+    // ALWAYS prefer B2 cloud if track has fileKey - blob URLs expire on page refresh
+    // Only use local blob/data URLs if track does NOT have fileKey (legacy imports)
+    if (track?.fileUrl && !track.fileKey) {
+      if (track.fileUrl.startsWith('data:')) {
+        console.log('Using local data URL for track (no fileKey):', trackId);
+        return track.fileUrl;
+      }
+      // For blob URLs without fileKey, they might be expired - verify first
+      if (track.fileUrl.startsWith('blob:')) {
+        try {
+          const response = await fetch(track.fileUrl, { method: 'HEAD' });
+          if (response.ok) {
+            console.log('Using valid local blob URL for track (no fileKey):', trackId);
+            return track.fileUrl;
+          }
+        } catch {
+          console.log('Blob URL expired for track without fileKey:', trackId);
+        }
+      }
     }
 
-    // Fetch from API
+    // Fetch from API - prefer B2 stream URL
     if (token) {
       // First try to get a stream URL (for B2-stored tracks)
       try {

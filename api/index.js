@@ -609,6 +609,7 @@ app.get('/api/lyrics/:id', auth, async (req, res) => {
 
 // Transcribe a track (manual trigger)
 app.post('/api/transcribe/:id', auth, async (req, res) => {
+  console.log('=== TRANSCRIPTION ENDPOINT HIT ===', req.params.id, 'user:', req.user?.id);
   try {
     const db = getPool();
     const trackId = req.params.id;
