@@ -1245,12 +1245,30 @@ app.get('/api/tracks/:id/stream-url', auth, async (req, res) => {
         return res.status(500).json({ error: 'Cloud storage not configured' });
       }
 
+      // Verify file exists in B2 before generating signed URL
+      try {
+        const headCommand = new HeadObjectCommand({
+          Bucket: B2_BUCKET,
+          Key: track.file_key,
+        });
+        await client.send(headCommand);
+      } catch (headErr) {
+        console.error(`File not found in B2: ${track.file_key}`, headErr.message);
+        // File doesn't exist in B2, clear the file_key so we don't keep trying
+        await db.query('UPDATE tracks SET file_key = NULL WHERE id = $1', [req.params.id]);
+        // Fall through to check file_data
+        if (!track.file_data) {
+          return res.status(404).json({ error: 'Audio file not found in cloud storage' });
+        }
+      }
+
       const command = new GetObjectCommand({
         Bucket: B2_BUCKET,
         Key: track.file_key,
       });
 
       const streamUrl = await getSignedUrl(client, command, { expiresIn: 3600 });
+      console.log(`Generated signed URL for ${track.file_key}`);
 
       return res.json({
         url: streamUrl,
