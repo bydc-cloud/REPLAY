@@ -284,21 +284,42 @@ function detectAudioMimeType(audioBase64, fileKey) {
   return { mimeType: 'audio/mpeg', ext: 'mp3' };
 }
 
-// Transcribe audio using OpenAI Whisper with manual retry for network errors
+// Helper to check if an error is retryable (429 rate limit, 5xx server errors, or network issues)
+function isRetryableTranscriptionError(err) {
+  const status = err?.status || err?.response?.status || err?.$metadata?.httpStatusCode;
+  const message = err?.message || '';
+
+  // Network errors
+  if (!status) {
+    return /timeout|ETIMEDOUT|ECONNRESET|ENETUNREACH|socket hang up|Connection error|ENOTFOUND/i.test(message);
+  }
+
+  // Rate limit (429) or server errors (5xx)
+  return status === 429 || status >= 500;
+}
+
+// Transcribe audio using OpenAI Whisper with retry for rate limits, 5xx, and network errors
 async function transcribeAudio(audioBase64, trackId, fileKey = null) {
   if (!openai) {
     console.log('OpenAI not configured, skipping transcription');
     return null;
   }
 
-  const maxRetries = 5; // Increased retries due to Railway network issues
-  const retryDelays = [2000, 4000, 8000, 15000, 30000]; // Longer exponential backoff
+  const maxRetries = 5;
+  const retryDelays = [2000, 4000, 8000, 15000, 30000]; // Exponential backoff
 
-  async function attemptTranscription(attempt) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`Starting transcription for track ${trackId} (attempt ${attempt}/${maxRetries})`);
       const audioBuffer = base64ToBuffer(audioBase64);
       console.log(`Original audio buffer size: ${audioBuffer.length} bytes`);
+
+      if (!audioBuffer || audioBuffer.length === 0) {
+        console.error(`No audio data to transcribe for track ${trackId}`);
+        return null;
+      }
 
       // Detect original format
       const { mimeType, ext } = detectAudioMimeType(audioBase64, fileKey);
@@ -331,25 +352,11 @@ async function transcribeAudio(audioBase64, trackId, fileKey = null) {
         language: transcription.language || 'en'
       };
     } catch (error) {
-      const isNetworkError = error.message?.includes('ECONNRESET') ||
-                            error.message?.includes('Connection error') ||
-                            error.message?.includes('ETIMEDOUT') ||
-                            error.message?.includes('socket hang up') ||
-                            error.message?.includes('ENOTFOUND') ||
-                            error.cause?.code === 'ECONNRESET' ||
-                            error.cause?.code === 'ETIMEDOUT';
+      lastError = error;
+      const status = error?.status || error?.response?.status || error?.$metadata?.httpStatusCode;
+      console.error(`Transcription error (attempt ${attempt}):`, status || '', error.message);
 
-      console.error(`Transcription error (attempt ${attempt}):`, error.message);
-
-      if (isNetworkError && attempt < maxRetries) {
-        const delay = retryDelays[attempt - 1] || 30000;
-        console.log(`Network error detected, retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        return attemptTranscription(attempt + 1);
-      }
-
-      // Final attempt failed or non-retryable error
-      console.error('Transcription error stack:', error.stack);
+      // Log detailed error info
       if (error.response) {
         console.error('OpenAI response status:', error.response.status);
         console.error('OpenAI response data:', JSON.stringify(error.response.data));
@@ -357,14 +364,23 @@ async function transcribeAudio(audioBase64, trackId, fileKey = null) {
       if (error.error) {
         console.error('OpenAI error object:', JSON.stringify(error.error));
       }
-      if (error.cause) {
-        console.error('Error cause:', JSON.stringify(error.cause, Object.getOwnPropertyNames(error.cause), 2));
+
+      // Check if we should retry
+      if (attempt < maxRetries && isRetryableTranscriptionError(error)) {
+        const delay = retryDelays[attempt - 1] || 30000;
+        console.log(`Retryable error (status ${status || 'network'}), retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
       }
+
+      // Final attempt or non-retryable error
+      console.error('Transcription failed permanently:', error.stack);
       return null;
     }
   }
 
-  return attemptTranscription(1);
+  console.error('All transcription attempts exhausted for track:', trackId);
+  return null;
 }
 
 // Signup
