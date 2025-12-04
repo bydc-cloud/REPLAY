@@ -21,6 +21,7 @@ interface PlayerBarProps {
 export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps = {}) => {
   const [fullScreenOpen, setFullScreenOpen] = useState(false);
   const [visualizerModalOpen, setVisualizerModalOpen] = useState(false);
+  const [visualizerInitialMode, setVisualizerInitialMode] = useState<"bars" | "wave" | "pulse" | "circle" | "dots" | "lines" | "lyrics" | undefined>(undefined);
   const [producerPanelExpanded, setProducerPanelExpanded] = useState(false);
   const [equalizerExpanded, setEqualizerExpanded] = useState(false);
   const [showTrackMenu, setShowTrackMenu] = useState(false);
@@ -190,11 +191,20 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
         onProgressChange={(p) => seek((p / 100) * duration)}
         volume={volumePercent}
         onVolumeChange={(v) => setVolume(v / 100)}
+        onLyricsClick={() => {
+          setFullScreenOpen(false);
+          setVisualizerInitialMode("lyrics");
+          setVisualizerModalOpen(true);
+        }}
       />
 
       <VisualizerModal
         isOpen={visualizerModalOpen}
-        onClose={() => setVisualizerModalOpen(false)}
+        onClose={() => {
+          setVisualizerModalOpen(false);
+          setVisualizerInitialMode(undefined);
+        }}
+        initialVisualizer={visualizerInitialMode}
       />
 
       {/* Mobile: Compact Player Footer */}

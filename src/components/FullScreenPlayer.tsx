@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ChevronDown, Heart, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, Volume2, MoreHorizontal, ListMusic, Share2, ListPlus, User, Disc } from "lucide-react";
+import { ChevronDown, Heart, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, Volume2, MoreHorizontal, ListMusic, Share2, ListPlus, User, Disc, Type } from "lucide-react";
 import { PremiumCoverArt } from "./PremiumCoverArt";
 import { useSettings } from "../contexts/SettingsContext";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
@@ -17,6 +17,7 @@ interface FullScreenPlayerProps {
   onProgressChange: (value: number) => void;
   volume: number;
   onVolumeChange: (value: number) => void;
+  onLyricsClick?: () => void;
 }
 
 export const FullScreenPlayer = ({
@@ -30,6 +31,7 @@ export const FullScreenPlayer = ({
   onProgressChange,
   volume,
   onVolumeChange,
+  onLyricsClick,
 }: FullScreenPlayerProps) => {
   const { visualizerVariant } = useSettings();
   const { currentTrack, currentTime, duration, shuffleMode, repeatMode, toggleShuffle, cycleRepeatMode, playNext, playPrevious, audioElement, addToQueue, addToQueueNext } = useAudioPlayer();
@@ -289,19 +291,31 @@ export const FullScreenPlayer = ({
               {currentTrack?.artist || "Unknown Artist"}
             </p>
           </div>
-          <button
-            onClick={onLike}
-            className={`ml-3 p-2.5 rounded-full transition-all duration-300 ease-out active:scale-90 ${
-              liked
-                ? "text-red-500 bg-red-500/10"
-                : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] hover:bg-white/5"
-            }`}
-          >
-            <Heart
-              size={24}
-              className={`transition-transform duration-300 ${liked ? "fill-current scale-110" : "scale-100"}`}
-            />
-          </button>
+          <div className="flex items-center gap-1">
+            {/* Lyrics Button */}
+            {onLyricsClick && (
+              <button
+                onClick={onLyricsClick}
+                className="p-2.5 rounded-full transition-all duration-300 ease-out active:scale-90 text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] hover:bg-white/5"
+                title="View Lyrics"
+              >
+                <Type size={22} />
+              </button>
+            )}
+            <button
+              onClick={onLike}
+              className={`p-2.5 rounded-full transition-all duration-300 ease-out active:scale-90 ${
+                liked
+                  ? "text-red-500 bg-red-500/10"
+                  : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] hover:bg-white/5"
+              }`}
+            >
+              <Heart
+                size={24}
+                className={`transition-transform duration-300 ${liked ? "fill-current scale-110" : "scale-100"}`}
+              />
+            </button>
+          </div>
         </div>
 
         {/* Progress Bar */}

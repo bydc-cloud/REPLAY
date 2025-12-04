@@ -10,10 +10,18 @@ import { useAudioAnalyzer } from "../hooks/useAudioAnalyzer";
 interface VisualizerModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialVisualizer?: "bars" | "wave" | "pulse" | "circle" | "dots" | "lines" | "lyrics";
 }
 
-export const VisualizerModal = ({ isOpen, onClose }: VisualizerModalProps) => {
+export const VisualizerModal = ({ isOpen, onClose, initialVisualizer }: VisualizerModalProps) => {
   const { visualizerVariant, setVisualizerVariant } = useSettings();
+
+  // Set initial visualizer when modal opens with a specific type
+  useEffect(() => {
+    if (isOpen && initialVisualizer && initialVisualizer !== visualizerVariant) {
+      setVisualizerVariant(initialVisualizer);
+    }
+  }, [isOpen, initialVisualizer]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [controlsTimeout, setControlsTimeout] = useState<NodeJS.Timeout | null>(null);
