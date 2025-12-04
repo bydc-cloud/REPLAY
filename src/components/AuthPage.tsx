@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Play, Eye, EyeOff, ArrowLeft, Music, Loader2 } from "lucide-react";
+import { Disc, Eye, EyeOff, ArrowLeft, Music, Loader2 } from "lucide-react";
 import { useAuth } from "../contexts/PostgresAuthContext";
 
 interface AuthPageProps {
@@ -63,8 +63,8 @@ export const AuthPage = ({ onBack, initialMode = "signup" }: AuthPageProps) => {
         </button>
 
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center">
-            <Play className="w-5 h-5 text-white fill-white" />
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500/30 to-pink-500/20 backdrop-blur-sm flex items-center justify-center border border-purple-500/30">
+            <Disc className="w-5 h-5 text-white" />
           </div>
           <span className="text-xl font-black tracking-tight text-white">RHYTHM</span>
         </div>

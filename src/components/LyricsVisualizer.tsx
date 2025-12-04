@@ -170,6 +170,51 @@ export const LyricsVisualizer = ({
 
   // Auto-scroll to active line with debounce to prevent jank
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasInitialScrolled = useRef(false);
+
+  // Immediate scroll when component mounts or lyrics become available
+  // This ensures lyrics sync when player is reopened
+  useEffect(() => {
+    if (hasLyrics && lines.length > 0 && !hasInitialScrolled.current) {
+      // Find the correct line based on current time
+      const adjustedTime = currentTime + SYNC_OFFSET;
+      let initialLineIndex = lines.findIndex(
+        (line) => adjustedTime >= line.startTime && adjustedTime < line.endTime
+      );
+
+      // If no exact match, find the appropriate line
+      if (initialLineIndex === -1) {
+        if (adjustedTime >= lines[lines.length - 1].endTime) {
+          initialLineIndex = lines.length - 1;
+        } else {
+          const upcomingIndex = lines.findIndex(line => line.startTime > adjustedTime);
+          if (upcomingIndex > 0) {
+            initialLineIndex = upcomingIndex - 1;
+          } else if (upcomingIndex === 0) {
+            initialLineIndex = 0;
+          }
+        }
+      }
+
+      if (initialLineIndex !== -1) {
+        setCurrentLineIndex(initialLineIndex);
+        hasInitialScrolled.current = true;
+
+        // Immediate scroll (not smooth) for initial position
+        setTimeout(() => {
+          activeLineRef.current?.scrollIntoView({
+            behavior: "instant",
+            block: "center",
+          });
+        }, 100);
+      }
+    }
+  }, [hasLyrics, lines, currentTime]);
+
+  // Reset initial scroll flag when track changes
+  useEffect(() => {
+    hasInitialScrolled.current = false;
+  }, [trackId]);
 
   useEffect(() => {
     if (activeLineRef.current && containerRef.current) {
@@ -286,8 +331,8 @@ export const LyricsVisualizer = ({
       {/* Lyrics Display - Apple Music style centered layout */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto scrollbar-hide px-4 sm:px-6 md:px-12"
-        style={{ WebkitOverflowScrolling: 'touch' }}
+        className="flex-1 overflow-y-auto scrollbar-hide px-3 sm:px-6 md:px-12 min-h-0"
+        style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
       >
         {isTranscribing ? (
           // Transcribing State - Centered
@@ -343,8 +388,8 @@ export const LyricsVisualizer = ({
           </div>
         ) : (
           // Apple Music Style Lyrics Display - Bar by bar with clear separation
-          <div className="flex flex-col items-center justify-center min-h-full py-[45vh]">
-            <div className="w-full max-w-4xl mx-auto space-y-8 sm:space-y-10 md:space-y-12">
+          <div className="flex flex-col items-center justify-start min-h-full py-[20vh] sm:py-[30vh] md:py-[45vh]">
+            <div className="w-full max-w-4xl mx-auto space-y-6 sm:space-y-8 md:space-y-12">
               {lines.map((line, index) => {
                 const isActive = index === currentLineIndex;
                 const isPast = index < currentLineIndex;
@@ -376,7 +421,7 @@ export const LyricsVisualizer = ({
                     }}
                   >
                     <p
-                      className="font-bold leading-relaxed text-2xl sm:text-4xl md:text-5xl lg:text-6xl"
+                      className="font-bold leading-snug text-2xl sm:text-3xl md:text-4xl lg:text-5xl"
                       style={{
                         color: isActive
                           ? 'white'

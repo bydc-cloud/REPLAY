@@ -1,4 +1,4 @@
-import { Home, Search, Library, Heart, Disc, ListMusic, Plus, X, Folder, Settings, Info, Store, Check, Compass, MessageCircle, User, Upload, Bell } from "lucide-react";
+import { Home, Search, Library, Heart, Disc, ListMusic, Plus, X, Folder, Settings, Info, Store, Check, Compass, MessageCircle, User, Upload, Bell, BarChart3 } from "lucide-react";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
 import { useState, useRef, useEffect } from "react";
 
@@ -59,11 +59,12 @@ interface SidebarProps {
   onClose?: () => void;
   onAboutClick?: () => void;
   onUploadClick?: () => void;
+  onDashboardClick?: () => void;
   notificationCount?: number;
   messageCount?: number;
 }
 
-export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClose, onAboutClick, onUploadClick, notificationCount = 0, messageCount = 0 }: SidebarProps) => {
+export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClose, onAboutClick, onUploadClick, onDashboardClick, notificationCount = 0, messageCount = 0 }: SidebarProps) => {
   // Load playlists from MusicLibrary context
   const { playlists, createPlaylist } = useMusicLibrary();
 
@@ -141,40 +142,8 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
         {/* Logo Header - Fixed at top */}
         <div className="p-6 flex items-center justify-between border-b border-[var(--replay-border)] flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <svg
-                width="32"
-                height="32"
-                viewBox="0 0 32 32"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                {/* Glassmorphism circle background */}
-                <circle
-                  cx="16"
-                  cy="16"
-                  r="15"
-                  fill="currentColor"
-                  fillOpacity="0.1"
-                  className="text-[var(--replay-off-white)]"
-                />
-                {/* Outer glow ring */}
-                <circle
-                  cx="16"
-                  cy="16"
-                  r="14"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeOpacity="0.8"
-                  className="text-[var(--replay-off-white)]"
-                />
-                {/* Play icon */}
-                <path
-                  d="M21 16l-7-4.5v9z"
-                  fill="currentColor"
-                  className="text-[var(--replay-off-white)]"
-                />
-              </svg>
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500/30 to-pink-500/20 backdrop-blur-sm flex items-center justify-center border border-purple-500/30">
+              <Disc className="w-5 h-5 text-[var(--replay-off-white)]" />
             </div>
             <h1 className="text-2xl font-black tracking-tight text-[var(--replay-off-white)]">
               RHYTHM
@@ -241,6 +210,15 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
               label="My Profile"
               active={activeTab === "profile"}
               onClick={() => handleNavClick("profile")}
+            />
+            <NavItem
+              icon={<BarChart3 size={20} />}
+              label="Dashboard"
+              active={activeTab === "dashboard"}
+              onClick={() => {
+                onDashboardClick?.();
+                onClose?.();
+              }}
             />
           </nav>
 

@@ -390,6 +390,64 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_packs_visibility ON packs(visibility) WHERE visibility = 'public';
     `);
 
+    // Transactions table - unified sales/purchases record with payout tracking
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS transactions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        buyer_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        seller_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        item_id UUID NOT NULL,
+        item_type VARCHAR(50) NOT NULL,
+        amount DECIMAL(10,2) NOT NULL,
+        platform_fee DECIMAL(10,2) DEFAULT 0,
+        seller_earnings DECIMAL(10,2) NOT NULL,
+        license_type VARCHAR(50) NOT NULL,
+        payment_method VARCHAR(50),
+        payment_id VARCHAR(255),
+        status VARCHAR(50) DEFAULT 'completed',
+        payout_status VARCHAR(50) DEFAULT 'pending',
+        payout_request_id UUID,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Payout requests table
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS payout_requests (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        amount DECIMAL(10,2) NOT NULL,
+        payment_method VARCHAR(50) NOT NULL,
+        payment_details JSONB,
+        status VARCHAR(50) DEFAULT 'pending',
+        processed_at TIMESTAMP,
+        processor_notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Add payout columns to transactions if missing
+    await db.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'payout_status') THEN
+          ALTER TABLE transactions ADD COLUMN payout_status VARCHAR(50) DEFAULT 'pending';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'transactions' AND column_name = 'payout_request_id') THEN
+          ALTER TABLE transactions ADD COLUMN payout_request_id UUID;
+        END IF;
+      END $$;
+    `);
+
+    // Create indexes for transactions and payouts
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_transactions_seller ON transactions(seller_id);
+      CREATE INDEX IF NOT EXISTS idx_transactions_buyer ON transactions(buyer_id);
+      CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+      CREATE INDEX IF NOT EXISTS idx_transactions_payout_status ON transactions(payout_status);
+      CREATE INDEX IF NOT EXISTS idx_payout_requests_user ON payout_requests(user_id);
+    `);
+
     console.log('Database ready');
   } catch (e) {
     console.error('DB init error:', e.message);
@@ -2532,6 +2590,246 @@ app.post('/api/messages/conversations', auth, async (req, res) => {
   } catch (e) {
     console.error('Start conversation error:', e.message);
     res.status(500).json({ error: 'Failed to start conversation' });
+  }
+});
+
+// ============ ANALYTICS ENDPOINTS ============
+
+// Get analytics stats
+app.get('/api/analytics/stats', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const range = req.query.range || '30d';
+
+    // Calculate date range
+    let daysBack = 30;
+    if (range === '7d') daysBack = 7;
+    else if (range === '90d') daysBack = 90;
+    else if (range === 'all') daysBack = 365 * 10; // "all time"
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - daysBack);
+
+    const prevStartDate = new Date();
+    prevStartDate.setDate(prevStartDate.getDate() - (daysBack * 2));
+
+    // Get current period stats from tracks
+    const tracksResult = await db.query(`
+      SELECT
+        COALESCE(SUM(play_count), 0) as total_plays,
+        COALESCE(SUM(CASE WHEN is_liked THEN 1 ELSE 0 END), 0) as total_likes,
+        COUNT(*) as track_count
+      FROM tracks
+      WHERE user_id = $1
+    `, [req.user.id]);
+
+    // Get sales stats from transactions
+    const salesResult = await db.query(`
+      SELECT
+        COUNT(*) as total_sales,
+        COALESCE(SUM(seller_earnings), 0) as total_earnings
+      FROM transactions
+      WHERE seller_id = $1 AND status = 'completed'
+        AND created_at >= $2
+    `, [req.user.id, startDate.toISOString()]);
+
+    // Get previous period sales for comparison
+    const prevSalesResult = await db.query(`
+      SELECT
+        COUNT(*) as total_sales,
+        COALESCE(SUM(seller_earnings), 0) as total_earnings
+      FROM transactions
+      WHERE seller_id = $1 AND status = 'completed'
+        AND created_at >= $2 AND created_at < $3
+    `, [req.user.id, prevStartDate.toISOString(), startDate.toISOString()]);
+
+    // Get pending payout (unpaid earnings)
+    const pendingResult = await db.query(`
+      SELECT COALESCE(SUM(seller_earnings), 0) as pending
+      FROM transactions
+      WHERE seller_id = $1 AND status = 'completed' AND payout_status = 'pending'
+    `, [req.user.id]);
+
+    // Calculate download count from transactions
+    const downloadsResult = await db.query(`
+      SELECT COUNT(*) as total_downloads
+      FROM transactions
+      WHERE seller_id = $1 AND status = 'completed'
+    `, [req.user.id]);
+
+    // Calculate percentage changes
+    const currentSales = parseInt(salesResult.rows[0]?.total_sales || 0);
+    const prevSales = parseInt(prevSalesResult.rows[0]?.total_sales || 0);
+    const salesChange = prevSales > 0 ? Math.round(((currentSales - prevSales) / prevSales) * 100) : 0;
+
+    const currentEarnings = parseFloat(salesResult.rows[0]?.total_earnings || 0);
+    const prevEarnings = parseFloat(prevSalesResult.rows[0]?.total_earnings || 0);
+    const earningsChange = prevEarnings > 0 ? Math.round(((currentEarnings - prevEarnings) / prevEarnings) * 100) : 0;
+
+    res.json({
+      total_plays: parseInt(tracksResult.rows[0]?.total_plays || 0),
+      total_likes: parseInt(tracksResult.rows[0]?.total_likes || 0),
+      total_downloads: parseInt(downloadsResult.rows[0]?.total_downloads || 0),
+      total_sales: currentSales,
+      total_earnings: currentEarnings,
+      pending_payout: parseFloat(pendingResult.rows[0]?.pending || 0),
+      plays_change: 0, // Would need play history table
+      likes_change: 0, // Would need like history table
+      sales_change: salesChange,
+      earnings_change: earningsChange
+    });
+  } catch (e) {
+    console.error('Analytics stats error:', e.message);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
+// Get top performing items
+app.get('/api/analytics/top-items', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const limit = parseInt(req.query.limit) || 5;
+
+    // Get top beats by sales
+    const beatsResult = await db.query(`
+      SELECT
+        b.id,
+        b.title,
+        'beat' as type,
+        b.play_count as plays,
+        COUNT(t.id) as sales,
+        COALESCE(SUM(t.seller_earnings), 0) as earnings,
+        b.cover_url
+      FROM beats b
+      LEFT JOIN transactions t ON t.item_id = b.id AND t.item_type = 'beat' AND t.status = 'completed'
+      WHERE b.user_id = $1
+      GROUP BY b.id
+      ORDER BY earnings DESC, plays DESC
+      LIMIT $2
+    `, [req.user.id, limit]);
+
+    // Get top sample packs
+    const packsResult = await db.query(`
+      SELECT
+        sp.id,
+        sp.title,
+        'pack' as type,
+        0 as plays,
+        COUNT(t.id) as sales,
+        COALESCE(SUM(t.seller_earnings), 0) as earnings,
+        sp.cover_url
+      FROM sample_packs sp
+      LEFT JOIN transactions t ON t.item_id = sp.id AND t.item_type = 'sample_pack' AND t.status = 'completed'
+      WHERE sp.user_id = $1
+      GROUP BY sp.id
+      ORDER BY earnings DESC
+      LIMIT $2
+    `, [req.user.id, limit]);
+
+    // Combine and sort by earnings
+    const allItems = [...beatsResult.rows, ...packsResult.rows]
+      .sort((a, b) => parseFloat(b.earnings) - parseFloat(a.earnings))
+      .slice(0, limit);
+
+    res.json(allItems);
+  } catch (e) {
+    console.error('Top items error:', e.message);
+    res.status(500).json({ error: 'Failed to fetch top items' });
+  }
+});
+
+// Get sales history for chart
+app.get('/api/analytics/sales-history', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const range = req.query.range || '30d';
+
+    let daysBack = 30;
+    if (range === '7d') daysBack = 7;
+    else if (range === '90d') daysBack = 90;
+    else if (range === 'all') daysBack = 365;
+
+    const result = await db.query(`
+      SELECT
+        DATE(created_at) as date,
+        COUNT(*) as sales,
+        COALESCE(SUM(seller_earnings), 0) as earnings
+      FROM transactions
+      WHERE seller_id = $1 AND status = 'completed'
+        AND created_at >= NOW() - INTERVAL '${daysBack} days'
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC
+    `, [req.user.id]);
+
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Sales history error:', e.message);
+    res.status(500).json({ error: 'Failed to fetch sales history' });
+  }
+});
+
+// Request payout
+app.post('/api/analytics/payout-request', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { payment_method, payment_details } = req.body;
+
+    // Get pending earnings
+    const pendingResult = await db.query(`
+      SELECT COALESCE(SUM(seller_earnings), 0) as pending
+      FROM transactions
+      WHERE seller_id = $1 AND status = 'completed' AND payout_status = 'pending'
+    `, [req.user.id]);
+
+    const pendingAmount = parseFloat(pendingResult.rows[0]?.pending || 0);
+
+    if (pendingAmount < 50) {
+      return res.status(400).json({ error: 'Minimum payout is $50' });
+    }
+
+    // Create payout request
+    const payoutResult = await db.query(`
+      INSERT INTO payout_requests (user_id, amount, payment_method, payment_details, status)
+      VALUES ($1, $2, $3, $4, 'pending')
+      RETURNING *
+    `, [req.user.id, pendingAmount, payment_method, JSON.stringify(payment_details)]);
+
+    // Mark transactions as payout_requested
+    await db.query(`
+      UPDATE transactions
+      SET payout_status = 'requested', payout_request_id = $1
+      WHERE seller_id = $2 AND status = 'completed' AND payout_status = 'pending'
+    `, [payoutResult.rows[0].id, req.user.id]);
+
+    res.json({
+      success: true,
+      payout_id: payoutResult.rows[0].id,
+      amount: pendingAmount,
+      status: 'pending'
+    });
+  } catch (e) {
+    console.error('Payout request error:', e.message);
+    res.status(500).json({ error: 'Failed to create payout request' });
+  }
+});
+
+// Get payout history
+app.get('/api/analytics/payout-history', auth, async (req, res) => {
+  try {
+    const db = getPool();
+
+    const result = await db.query(`
+      SELECT id, amount, payment_method, status, created_at, processed_at
+      FROM payout_requests
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT 20
+    `, [req.user.id]);
+
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Payout history error:', e.message);
+    res.status(500).json({ error: 'Failed to fetch payout history' });
   }
 });
 

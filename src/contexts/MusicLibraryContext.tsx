@@ -651,12 +651,14 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     setTracks(prev => prev.filter(t => t.id !== trackId));
   };
 
-  const toggleLike = useCallback((trackId: string) => {
+  const toggleLike = useCallback(async (trackId: string) => {
     const track = tracks.find(t => t.id === trackId);
     const wasLiked = track?.isLiked ?? false;
+    const newLikedState = !wasLiked;
 
+    // Optimistically update UI
     setTracks(prev => prev.map(t =>
-      t.id === trackId ? { ...t, isLiked: !t.isLiked } : t
+      t.id === trackId ? { ...t, isLiked: newLikedState } : t
     ));
 
     if (track) {
@@ -666,7 +668,35 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
         2000
       );
     }
-  }, [tracks, showToast]);
+
+    // Persist to backend if authenticated
+    if (token && API_URL) {
+      try {
+        const response = await fetch(`${API_URL}/api/tracks/${trackId}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ is_liked: newLikedState })
+        });
+
+        if (!response.ok) {
+          // Revert on failure
+          setTracks(prev => prev.map(t =>
+            t.id === trackId ? { ...t, isLiked: wasLiked } : t
+          ));
+          console.error('Failed to persist like state to backend');
+        }
+      } catch (error) {
+        // Revert on error
+        setTracks(prev => prev.map(t =>
+          t.id === trackId ? { ...t, isLiked: wasLiked } : t
+        ));
+        console.error('Error persisting like state:', error);
+      }
+    }
+  }, [tracks, showToast, token]);
 
   const incrementPlayCount = useCallback((trackId: string) => {
     setTracks(prev => prev.map(track =>

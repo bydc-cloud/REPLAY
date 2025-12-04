@@ -1,0 +1,1398 @@
+RHYTHM Social Beat Marketplace - Architecture Plan
+Overview
+Transform RHYTHM from a personal music organizer into a full social beat marketplace platform with TikTok-style feed, producer tools, social features, and blockchain-transparent payouts. Constraint: All changes ADDITIVE only - no breaking existing UI, components, or state management.
+
+Risk Mitigation Strategy
+HIGH RISK Issues & Mitigations
+Risk	Impact	Mitigation
+Context Provider Overload (11 nested providers)	Performance degradation, re-render cascades	Lazy-load new contexts only when features accessed
+Database migration breaks existing tracks	All tracks become public accidentally	Default visibility='private', run migrations in staging first
+MarketplaceView.tsx backend mismatch	UI breaks when connected to real API	Audit existing component expectations before building API
+No feature flags	Can't disable broken features quickly	Add feature flag system in Phase 0
+No URL routing	Can't share links, no deep linking	Add hash-based routing in Phase 0
+Railway ephemeral filesystem	Watermarking temp files lost on restart	Stream directly to B2 or use persistent volumes
+Stripe Connect approval delay	Can't test payments for weeks	Build with sandbox mode, flag for production
+Safe Migration Order
+1. Add new DB tables (no existing data affected)
+2. Add columns to tracks with safe defaults
+3. Build new API endpoints (don't modify existing ones)
+4. Create new frontend components (don't modify existing ones)
+5. Wire up via feature flags
+6. Gradual rollout per user
+
+Phase 0: Foundation (MUST DO FIRST)
+0.1 Feature Flag System
+File: api/index.js + src/contexts/SettingsContext.tsx
+// Database: Add to users table
+ALTER TABLE users ADD COLUMN feature_flags JSONB DEFAULT '{}';
+
+// API endpoint
+GET /api/me/features → { feed_enabled: false, marketplace_enabled: false, ... }
+PUT /api/me/features → admin-only to enable features per user
+
+// Frontend hook
+const { features } = useFeatureFlags();
+if (features.feed_enabled) { /* show feed tab */ }
+Feature flags to implement:
+* feed_enabled - Show Feed tab in sidebar
+* marketplace_sell_enabled - Allow selling beats
+* social_enabled - Show follows/likes/comments
+* messaging_enabled - Show DMs
+* producer_dashboard_enabled - Show analytics
+0.2 URL Hash Routing
+File: src/App.tsx + new src/hooks/useHashRouter.ts
+// Simple hash-based routing without React Router
+// Preserves existing tab-based navigation but adds URL support
+
+const useHashRouter = () => {
+  const [hash, setHash] = useState(window.location.hash);
+
+  useEffect(() => {
+    const handler = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', handler);
+    return () => window.removeEventListener('hashchange', handler);
+  }, []);
+
+  const navigate = (path: string) => {
+    window.location.hash = path;
+  };
+
+  return { hash, navigate };
+};
+
+// URL patterns:
+// #/feed - FYP feed
+// #/producer/[id] - Producer profile
+// #/track/[id] - Track detail (for sharing)
+// #/messages - DM inbox
+// #/settings - Settings (existing)
+Integration with existing routing:
+* Current activeTab state syncs with hash
+* Existing navigation continues to work
+* URLs become shareable
+* Browser back button works
+0.3 Lazy Context Loading
+File: src/App.tsx + new wrapper components
+// Instead of wrapping everything in all providers at once:
+// OLD: <SocialProvider><FeedProvider><MessagingProvider>...
+
+// NEW: Load contexts on-demand
+const LazyFeedProvider = lazy(() => import('./contexts/FeedContext'));
+const LazySocialProvider = lazy(() => import('./contexts/SocialContext'));
+
+// Only load when accessing those features
+{activeTab === 'feed' && (
+  <Suspense fallback={<FeedSkeleton />}>
+    <LazyFeedProvider>
+      <FeedView />
+    </LazyFeedProvider>
+  </Suspense>
+)}
+
+Phase 1: Database Schema Additions
+New Tables (PostgreSQL)
+-- Producer profiles (extends users)
+CREATE TABLE producer_profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  display_name VARCHAR(100),
+  bio TEXT,
+  avatar_url TEXT,
+  cover_image_url TEXT,
+  website_url TEXT,
+  instagram_handle VARCHAR(50),
+  twitter_handle VARCHAR(50),
+  verified BOOLEAN DEFAULT false,
+  producer_tier VARCHAR(20) DEFAULT 'starter', -- starter, pro, elite
+  total_sales INTEGER DEFAULT 0,
+  total_earnings DECIMAL(12,2) DEFAULT 0,
+  payout_address TEXT, -- crypto wallet or PayPal
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Social follows
+CREATE TABLE follows (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  follower_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  following_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(follower_id, following_id)
+);
+
+-- Track engagement (extends existing tracks)
+CREATE TABLE track_engagement (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  track_id UUID REFERENCES tracks(id) ON DELETE CASCADE,
+  play_count INTEGER DEFAULT 0,
+  like_count INTEGER DEFAULT 0,
+  share_count INTEGER DEFAULT 0,
+  download_count INTEGER DEFAULT 0,
+  trending_score DECIMAL(10,4) DEFAULT 0,
+  last_trending_calc TIMESTAMPTZ,
+  UNIQUE(track_id)
+);
+
+-- Likes
+CREATE TABLE likes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  track_id UUID REFERENCES tracks(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, track_id)
+);
+
+-- Comments
+CREATE TABLE comments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  track_id UUID REFERENCES tracks(id) ON DELETE CASCADE,
+  parent_id UUID REFERENCES comments(id) ON DELETE CASCADE, -- for replies
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Direct messages
+CREATE TABLE conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE conversation_participants (
+  conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  last_read_at TIMESTAMPTZ,
+  PRIMARY KEY(conversation_id, user_id)
+);
+
+CREATE TABLE messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
+  sender_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Beat packs
+CREATE TABLE beat_packs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  producer_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(200) NOT NULL,
+  description TEXT,
+  cover_image_url TEXT,
+  price DECIMAL(10,2) NOT NULL,
+  sale_price DECIMAL(10,2), -- optional discount
+  is_published BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE beat_pack_tracks (
+  pack_id UUID REFERENCES beat_packs(id) ON DELETE CASCADE,
+  track_id UUID REFERENCES tracks(id) ON DELETE CASCADE,
+  position INTEGER NOT NULL,
+  PRIMARY KEY(pack_id, track_id)
+);
+
+-- Licensing tiers
+CREATE TABLE license_tiers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  track_id UUID REFERENCES tracks(id) ON DELETE CASCADE,
+  tier_name VARCHAR(50) NOT NULL, -- basic, premium, exclusive
+  price DECIMAL(10,2) NOT NULL,
+  streams_limit INTEGER, -- null = unlimited
+  distribution_rights TEXT[],
+  pdf_template_key TEXT, -- S3 key for license PDF template
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Purchases
+CREATE TABLE purchases (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  buyer_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  seller_id UUID REFERENCES users(id),
+  track_id UUID REFERENCES tracks(id) ON DELETE SET NULL,
+  pack_id UUID REFERENCES beat_packs(id) ON DELETE SET NULL,
+  license_tier_id UUID REFERENCES license_tiers(id),
+  amount DECIMAL(10,2) NOT NULL,
+  platform_fee DECIMAL(10,2) NOT NULL,
+  seller_payout DECIMAL(10,2) NOT NULL,
+  payment_intent_id TEXT, -- Stripe
+  status VARCHAR(20) DEFAULT 'pending', -- pending, completed, refunded
+  license_pdf_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Payout records (blockchain transparency)
+CREATE TABLE payouts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  producer_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  amount DECIMAL(12,2) NOT NULL,
+  method VARCHAR(20) NOT NULL, -- paypal, crypto, bank
+  transaction_hash TEXT, -- blockchain tx hash if crypto
+  status VARCHAR(20) DEFAULT 'pending',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  completed_at TIMESTAMPTZ
+);
+
+-- Feed algorithm data
+CREATE TABLE feed_interactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  track_id UUID REFERENCES tracks(id) ON DELETE CASCADE,
+  interaction_type VARCHAR(20) NOT NULL, -- view, like, share, purchase, skip
+  duration_seconds INTEGER, -- how long they listened
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Track visibility settings (add to existing tracks table)
+-- ALTER TABLE tracks ADD COLUMN visibility VARCHAR(20) DEFAULT 'private'; -- private, public, unlisted
+-- ALTER TABLE tracks ADD COLUMN is_for_sale BOOLEAN DEFAULT false;
+-- ALTER TABLE tracks ADD COLUMN preview_file_key TEXT; -- watermarked preview
+-- ALTER TABLE tracks ADD COLUMN genre VARCHAR(50);
+-- ALTER TABLE tracks ADD COLUMN tags TEXT[];
+Indexes for Performance
+CREATE INDEX idx_follows_follower ON follows(follower_id);
+CREATE INDEX idx_follows_following ON follows(following_id);
+CREATE INDEX idx_likes_track ON likes(track_id);
+CREATE INDEX idx_likes_user ON likes(user_id);
+CREATE INDEX idx_comments_track ON comments(track_id);
+CREATE INDEX idx_track_engagement_trending ON track_engagement(trending_score DESC);
+CREATE INDEX idx_feed_interactions_user ON feed_interactions(user_id, created_at DESC);
+CREATE INDEX idx_tracks_visibility ON tracks(visibility) WHERE visibility = 'public';
+CREATE INDEX idx_tracks_genre ON tracks(genre) WHERE visibility = 'public';
+CREATE INDEX idx_messages_conversation ON messages(conversation_id, created_at DESC);
+
+Phase 2: API Endpoints
+File: api/index.js (additions)
+Producer Profile Endpoints
+GET    /api/producers/:id           - Get producer profile
+PUT    /api/producers/me            - Update own profile
+GET    /api/producers/:id/tracks    - Get producer's public tracks
+GET    /api/producers/:id/stats     - Get producer analytics
+Social Endpoints
+POST   /api/follow/:userId          - Follow a producer
+DELETE /api/follow/:userId          - Unfollow
+GET    /api/followers/:userId       - Get followers list
+GET    /api/following/:userId       - Get following list
+POST   /api/tracks/:id/like         - Like a track
+DELETE /api/tracks/:id/like         - Unlike
+GET    /api/tracks/:id/comments     - Get comments
+POST   /api/tracks/:id/comments     - Add comment
+DELETE /api/comments/:id            - Delete own comment
+Feed Endpoints
+GET    /api/feed                    - Get personalized FYP feed
+GET    /api/feed/trending           - Get trending tracks
+GET    /api/feed/new                - Get newest releases
+GET    /api/feed/following          - Get from followed producers
+POST   /api/feed/interaction        - Log feed interaction
+Marketplace Endpoints
+GET    /api/marketplace/browse      - Browse beats (filters: genre, bpm, key, price)
+GET    /api/marketplace/packs       - Browse beat packs
+GET    /api/packs/:id               - Get pack details
+POST   /api/packs                   - Create beat pack
+PUT    /api/packs/:id               - Update pack
+DELETE /api/packs/:id               - Delete pack
+Licensing Endpoints
+GET    /api/tracks/:id/licenses     - Get license tiers
+POST   /api/tracks/:id/licenses     - Create license tier
+PUT    /api/licenses/:id            - Update license
+POST   /api/purchase/track/:id      - Purchase track license
+POST   /api/purchase/pack/:id       - Purchase beat pack
+GET    /api/purchases               - Get user's purchases
+GET    /api/sales                   - Get producer's sales
+Messaging Endpoints
+GET    /api/conversations           - Get conversations
+GET    /api/conversations/:id       - Get messages
+POST   /api/conversations           - Start conversation
+POST   /api/conversations/:id/messages - Send message
+Payout Endpoints
+GET    /api/payouts                 - Get payout history
+POST   /api/payouts/request         - Request payout
+GET    /api/payouts/balance         - Get available balance
+
+Phase 3: Feed Algorithm
+Trending Score Calculation
+// Run every 15 minutes via cron job
+function calculateTrendingScore(track) {
+  const now = Date.now();
+  const ageHours = (now - track.createdAt) / (1000 * 60 * 60);
+
+  // Decay factor - newer content scores higher
+  const decay = Math.pow(0.95, ageHours / 24);
+
+  // Engagement weights
+  const engagementScore =
+    (track.playCount * 1) +
+    (track.likeCount * 5) +
+    (track.shareCount * 10) +
+    (track.purchaseCount * 50) +
+    (track.commentCount * 3);
+
+  // Velocity bonus - recent engagement matters more
+  const recentEngagement = getEngagementLast24Hours(track.id);
+  const velocityBonus = recentEngagement * 2;
+
+  return (engagementScore + velocityBonus) * decay;
+}
+FYP Feed Assembly
+async function getFYPFeed(userId, page = 1, limit = 20) {
+  // Get user preferences from interaction history
+  const preferences = await getUserPreferences(userId);
+
+  // Mix: 40% trending, 30% from followed, 20% discovery, 10% new
+  const trending = await getTrendingTracks(limit * 0.4, preferences);
+  const following = await getFollowingTracks(userId, limit * 0.3);
+  const discovery = await getDiscoveryTracks(userId, limit * 0.2, preferences);
+  const newReleases = await getNewTracks(limit * 0.1);
+
+  // Shuffle and dedupe
+  const feed = shuffleWithPriority([
+    ...trending.map(t => ({ ...t, source: 'trending' })),
+    ...following.map(t => ({ ...t, source: 'following' })),
+    ...discovery.map(t => ({ ...t, source: 'discovery' })),
+    ...newReleases.map(t => ({ ...t, source: 'new' }))
+  ]);
+
+  return feed;
+}
+
+Phase 4: Frontend Architecture
+New Context Files
+src/contexts/
+├── SocialContext.tsx        # Follows, likes, comments state
+├── FeedContext.tsx          # FYP feed state and interactions
+├── MarketplaceContext.tsx   # Purchases, sales, licensing
+├── MessagingContext.tsx     # Conversations and messages
+└── ProducerContext.tsx      # Producer profile and analytics
+New Component Structure
+src/components/
+├── feed/
+│   ├── FeedView.tsx           # Main FYP container (swipeable)
+│   ├── FeedCard.tsx           # Individual track card
+│   ├── FeedFilters.tsx        # Genre/mood filters
+│   └── EngagementBar.tsx      # Like/comment/share buttons
+│
+├── social/
+│   ├── ProducerProfile.tsx    # Public producer page
+│   ├── ProducerCard.tsx       # Mini producer preview
+│   ├── FollowButton.tsx       # Follow/unfollow
+│   ├── CommentSection.tsx     # Track comments
+│   ├── CommentInput.tsx       # New comment form
+│   └── ShareModal.tsx         # Share options
+│
+├── marketplace/
+│   ├── MarketplaceView.tsx    # (enhance existing)
+│   ├── BrowseView.tsx         # Browse beats grid
+│   ├── PackView.tsx           # Beat pack detail
+│   ├── PackBuilder.tsx        # Create/edit pack
+│   ├── LicenseSelector.tsx    # License tier picker
+│   ├── PurchaseModal.tsx      # Checkout flow
+│   ├── PurchasedView.tsx      # User's purchases
+│   └── SalesView.tsx          # Producer's sales
+│
+├── messaging/
+│   ├── MessagesView.tsx       # Inbox
+│   ├── ConversationView.tsx   # Single thread
+│   └── MessageInput.tsx       # Compose message
+│
+├── producer/
+│   ├── ProducerDashboard.tsx  # Analytics overview
+│   ├── EarningsChart.tsx      # Revenue visualization
+│   ├── PayoutHistory.tsx      # Payout records
+│   └── PayoutRequest.tsx      # Request payout form
+│
+└── landing/
+    └── LandingPage.tsx        # (update with marketplace hero)
+Routing Updates
+Current routing uses activeTab state in App.tsx. Add new tabs:
+type TabType =
+  | 'home' | 'search' | 'library' | 'liked' | 'albums' | 'queue'
+  | 'settings' | 'marketplace'
+  // New tabs:
+  | 'feed' | 'messages' | 'producer-dashboard' | 'producer-profile';
+Update Sidebar.tsx to include new navigation items.
+
+Phase 5: Watermarking & Previews
+Server-Side Audio Watermarking
+// api/services/watermark.js
+const ffmpeg = require('fluent-ffmpeg');
+const path = require('path');
+
+async function createWatermarkedPreview(inputKey, outputKey, producerName) {
+  // Download from B2
+  const inputPath = await downloadFromB2(inputKey);
+  const outputPath = `/tmp/${outputKey}`;
+  const watermarkAudio = path.join(__dirname, 'assets/watermark.mp3');
+
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      // Mix watermark audio at low volume every 15 seconds
+      .input(watermarkAudio)
+      .complexFilter([
+        '[1:a]volume=0.3,aloop=loop=-1:size=2e+09[watermark]',
+        '[0:a][watermark]amix=inputs=2:duration=first[out]'
+      ])
+      .outputOptions(['-map', '[out]'])
+      // Fade out last 5 seconds
+      .audioFilters('afade=t=out:st=25:d=5')
+      // Limit to 30 seconds
+      .duration(30)
+      // Lower quality for preview
+      .audioBitrate('128k')
+      .save(outputPath)
+      .on('end', () => resolve(outputPath))
+      .on('error', reject);
+  });
+}
+Watermark on Upload
+When producer sets is_for_sale = true:
+1. Generate watermarked 30-second preview
+2. Upload preview to B2 with preview_ prefix
+3. Store preview_file_key in track record
+4. Public feed plays preview only
+5. Full track available after purchase
+
+Phase 6: Payment Integration
+Stripe Connect (Recommended)
+// api/services/stripe.js
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
+// When producer signs up for marketplace
+async function createConnectedAccount(userId, email) {
+  const account = await stripe.accounts.create({
+    type: 'express',
+    email,
+    capabilities: {
+      transfers: { requested: true }
+    }
+  });
+
+  await db.query(
+    'UPDATE producer_profiles SET stripe_account_id = $1 WHERE user_id = $2',
+    [account.id, userId]
+  );
+
+  return account;
+}
+
+// Process purchase
+async function processPurchase(buyerId, sellerId, trackId, licenseTierId, amount) {
+  const platformFee = amount * 0.15; // 15% platform fee
+  const sellerPayout = amount - platformFee;
+
+  const seller = await db.query(
+    'SELECT stripe_account_id FROM producer_profiles WHERE user_id = $1',
+    [sellerId]
+  );
+
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: Math.round(amount * 100), // cents
+    currency: 'usd',
+    transfer_data: {
+      destination: seller.rows[0].stripe_account_id,
+      amount: Math.round(sellerPayout * 100)
+    }
+  });
+
+  return paymentIntent;
+}
+
+Phase 7: Implementation Phases
+MVP (Phase 1) - Core Social + Basic Marketplace
+Backend:
+*  Add new DB tables (producer_profiles, follows, likes, comments, track_engagement)
+*  Add visibility/for_sale columns to tracks table
+*  Implement follow/unfollow endpoints
+*  Implement like/unlike endpoints
+*  Implement comments endpoints
+*  Basic feed endpoint (trending + new)
+Frontend:
+*  Create SocialContext.tsx
+*  Create FeedContext.tsx
+*  Build FeedView.tsx with swipeable cards
+*  Build FeedCard.tsx with engagement buttons
+*  Build ProducerProfile.tsx (basic)
+*  Build CommentSection.tsx
+*  Add "Publish to Feed" option when uploading
+Duration: 2-3 weeks
+
+Phase 2 - Marketplace Foundation
+Backend:
+*  Add licensing tables (license_tiers, purchases)
+*  Implement Stripe Connect integration
+*  Watermarking service for previews
+*  Purchase/licensing endpoints
+*  License PDF generation
+Frontend:
+*  Create MarketplaceContext.tsx
+*  Enhance MarketplaceView.tsx browse
+*  Build LicenseSelector.tsx
+*  Build PurchaseModal.tsx
+*  Build PurchasedView.tsx
+Duration: 2-3 weeks
+
+Phase 3 - Beat Packs & Messaging
+Backend:
+*  Add beat_packs tables
+*  Add messaging tables
+*  Pack CRUD endpoints
+*  Messaging endpoints (polling-based initially)
+Frontend:
+*  Build PackBuilder.tsx
+*  Build PackView.tsx
+*  Create MessagingContext.tsx
+*  Build MessagesView.tsx
+*  Build ConversationView.tsx
+Duration: 2 weeks
+
+Phase 4 - Producer Dashboard & Payouts
+Backend:
+*  Add payouts table
+*  Analytics aggregation endpoints
+*  Payout request processing
+*  Cron job for trending score updates
+Frontend:
+*  Create ProducerContext.tsx
+*  Build ProducerDashboard.tsx
+*  Build EarningsChart.tsx
+*  Build PayoutHistory.tsx
+Duration: 1-2 weeks
+
+Phase 5 - Polish & Blockchain Transparency
+Backend:
+*  Public payout ledger API
+*  Optional crypto payout integration
+*  Feed algorithm refinement
+*  Moderation tools (flag/report)
+Frontend:
+*  Landing page marketplace hero
+*  Onboarding flow for producers
+*  Public transparency page
+*  Mobile-optimized feed gestures
+Duration: 2 weeks
+
+Files to Create
+File	Purpose
+api/services/stripe.js	Stripe Connect integration
+api/services/watermark.js	Audio watermarking with ffmpeg
+api/services/trending.js	Trending score calculation
+api/routes/social.js	Social endpoints (follows, likes, comments)
+api/routes/feed.js	Feed endpoints
+api/routes/marketplace.js	Purchase/licensing endpoints
+api/routes/messaging.js	Messaging endpoints
+api/routes/payouts.js	Payout endpoints
+src/contexts/SocialContext.tsx	Social state management
+src/contexts/FeedContext.tsx	Feed state management
+src/contexts/MarketplaceContext.tsx	Marketplace state
+src/contexts/MessagingContext.tsx	Messaging state
+src/contexts/ProducerContext.tsx	Producer dashboard state
+Files to Modify
+File	Changes
+api/index.js	Import new route modules, add columns to tracks
+src/App.tsx	Add new tabs to routing, wrap with new contexts
+src/components/Sidebar.tsx	Add Feed, Messages, Dashboard nav items
+src/components/MarketplaceView.tsx	Connect to real backend
+src/components/LandingPage.tsx	Add marketplace/social hero section
+src/components/TrackItem.tsx	Add "Publish" / engagement indicators
+Technical Notes
+Real-time Considerations
+* MVP: Polling for messages (every 5s when inbox open)
+* Future: WebSocket with Socket.io for real-time messages and notifications
+Moderation
+* User-reported content flagging
+* Admin review queue (separate admin panel)
+* Auto-flag based on keywords/patterns
+Performance
+* Feed pagination (cursor-based, not offset)
+* Track engagement cached in Redis (future)
+* CDN for preview audio files
+* Lazy load comments (first 10, then load more)
+Mobile
+* Feed cards are swipe-navigable (like TikTok)
+* Pull-to-refresh on feed
+* Bottom sheet for comments (not full page)
+* Native share sheet integration
+
+Future Vision: Public Posting & FYP Discovery
+This section outlines how public track posting will work when enabled later. For now, all tracks remain private.
+The Publishing Flow (Future)
+┌─────────────────────────────────────────────────────────────────┐
+│                     TRACK IN LIBRARY                             │
+│                        (Private)                                 │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    "PUBLISH TO FEED" BUTTON                      │
+│                                                                  │
+│  Clicking opens PublishModal with:                               │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │ □ Post to Discovery Feed (public, anyone can find)          ││
+│  │ □ Post to Followers Only (semi-private)                     ││
+│  │ □ Make Available for Sale                                   ││
+│  │                                                             ││
+│  │ Genre: [Trap ▼]  Mood: [Dark ▼]  Tags: [___________]       ││
+│  │                                                             ││
+│  │ Preview Clip: [0:15 - 0:45] ◀────●────────────────▶        ││
+│  │                                                             ││
+│  │ [ ] Add watermark to preview                                ││
+│  │ [ ] Enable comments                                         ││
+│  │ [ ] Allow reposts                                           ││
+│  │                                                             ││
+│  │              [Cancel]  [Publish →]                          ││
+│  └─────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    TRACK NOW IN SYSTEM                           │
+│                                                                  │
+│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐        │
+│  │   Library    │   │  Discovery   │   │  Marketplace │        │
+│  │   (yours)    │   │    Feed      │   │   (if sale)  │        │
+│  └──────────────┘   └──────────────┘   └──────────────┘        │
+└─────────────────────────────────────────────────────────────────┘
+FYP Feed Experience
+Card Layout (TikTok-inspired but for audio):
+┌─────────────────────────────────────────┐
+│  ┌─────────────────────────────────┐    │
+│  │                                 │    │
+│  │      [Album Art / Waveform]     │    │
+│  │                                 │    │
+│  │    ▶  0:23 ────●───── 2:47     │    │
+│  │                                 │    │
+│  └─────────────────────────────────┘    │
+│                                         │
+│  Track Name                       ♡ 234 │
+│  @producername                    💬 45 │
+│  #trap #dark #140bpm              ↗ 12  │
+│                                         │
+│  [Follow]  [Message]  [Buy $29.99]      │
+│                                         │
+│  ──────── Swipe up for next ────────    │
+└─────────────────────────────────────────┘
+Swipe Gestures:
+* Swipe UP → Next track
+* Swipe DOWN → Previous track
+* Swipe RIGHT → Like + auto-advance
+* Swipe LEFT → Skip (negative signal for algorithm)
+* TAP → Pause/Play
+* LONG PRESS → Share/Save/Report menu
+Discovery Algorithm Behavior
+For New Tracks (0-48 hours):
+1. Show to small random sample (~100 users)
+2. Measure: play-through rate, likes, shares, skips
+3. If engagement > threshold → expand reach
+4. If engagement < threshold → reduce reach
+Feed Composition:
+const feedMix = {
+  trending: 0.35,      // Hot tracks with high recent engagement
+  following: 0.25,     // From producers user follows
+  discovery: 0.25,     // New tracks matching user's taste
+  newReleases: 0.10,   // Brand new (< 24 hours)
+  sponsored: 0.05,     // Paid promotion (future)
+};
+User Preference Learning:
+* Track genres user engages with most
+* BPM ranges they prefer
+* Time of day patterns
+* Skip patterns (what they don't like)
+* Purchase history influence
+Integration with Existing Library
+Key Principle: Your library remains YOUR library. Publishing is opt-in per track.
+// Track states
+type TrackVisibility =
+  | 'private'      // Only you see it (current default, stays default)
+  | 'unlisted'     // Direct link only, not in feeds
+  | 'followers'    // Your followers can see it
+  | 'public';      // In discovery feed for everyone
+
+// A track can be:
+// - In your library (always)
+// - Published to feed (optional)
+// - For sale (optional, requires published)
+// - Purchased by you (shows in "Purchased" section)
+Library View Changes (Future):
+┌─────────────────────────────────────────────────────────────────┐
+│  MY LIBRARY                                                      │
+│                                                                  │
+│  [All] [Private] [Published] [For Sale] [Purchased]              │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │ 🎵 Dark Trap Beat #4              PRIVATE    [Publish →] │   │
+│  │ 🎵 Summer Vibes                   PUBLIC ♡12  [Stats]    │   │
+│  │ 🎵 Chill Lo-Fi Loop               FOR SALE $19  [Edit]   │   │
+│  │ 🎵 (Purchased) Metro Style Beat   LICENSED    [Download] │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+Producer Profile Page (Future)
+┌─────────────────────────────────────────────────────────────────┐
+│  ┌────────┐                                                      │
+│  │ Avatar │  @producername                      [Follow] [DM]    │
+│  └────────┘  "Making beats since 2019"                          │
+│              1.2K followers · 89 tracks · 4.8★                   │
+│                                                                  │
+│  [Beats] [Beat Packs] [About]                                   │
+│                                                                  │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐               │
+│  │ Beat 1  │ │ Beat 2  │ │ Beat 3  │ │ Beat 4  │               │
+│  │ $29     │ │ $49     │ │ $19     │ │ Free    │               │
+│  │ ▶ ♡ 45  │ │ ▶ ♡ 123 │ │ ▶ ♡ 67 │ │ ▶ ♡ 234 │               │
+│  └─────────┘ └─────────┘ └─────────┘ └─────────┘               │
+│                                                                  │
+│  Load more...                                                    │
+└─────────────────────────────────────────────────────────────────┘
+Transition Strategy
+Phase A (Current): All tracks private, no feed
+* Build the infrastructure
+* Feature-flag everything
+Phase B (Soft Launch): Invite-only publishing
+* Enable for beta users via feature flag
+* Test feed algorithm with small group
+* Iterate on UX based on feedback
+Phase C (Public Launch): Anyone can publish
+* Remove feature flag for publishing
+* Moderation tools must be ready
+* Legal: Terms of Service for uploaded content
+Files to Create (Future)
+File	Purpose
+src/components/PublishModal.tsx	Track publishing flow
+src/components/feed/FeedCard.tsx	Swipeable feed card
+src/components/feed/FeedView.tsx	Main feed container
+src/components/ProducerProfile.tsx	Public producer page
+api/routes/feed.js	Feed algorithm endpoints
+api/services/discovery.js	Discovery algorithm logic
+Content Moderation (Required Before Public)
+Automated:
+* Audio fingerprinting (detect copyrighted samples)
+* Waveform analysis (detect silence/noise tracks)
+* Metadata filtering (profanity, spam patterns)
+Manual:
+* User reporting system
+* Admin review queue
+* Strike system (3 strikes = ban)
+* Appeal process
+Legal:
+* DMCA takedown process
+* Terms of Service for uploads
+* License agreement templates
+
+Landing Page Redesign - Full RHYTHM Branding
+File: src/components/LandingPage.tsx The current landing page is functional but doesn't showcase the full vision. We need a complete redesign that:
+1. Establishes RHYTHM as a serious platform (not just another music app)
+2. Shows ALL features (current + coming soon)
+3. Displays a public roadmap to build trust
+4. Converts visitors to users
+New Landing Page Structure
+┌─────────────────────────────────────────────────────────────────┐
+│                         NAVIGATION                               │
+│  [RHYTHM Logo]     Features  Roadmap  Pricing     [Sign In]     │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                         HERO SECTION                             │
+│                                                                  │
+│              🎵 RHYTHM                                           │
+│                                                                  │
+│         "Where Producers Build Their Empire"                    │
+│                                                                  │
+│    Your music. Your library. Your marketplace.                  │
+│    The all-in-one platform for serious producers.               │
+│                                                                  │
+│         [Get Started Free]  [Watch Demo →]                      │
+│                                                                  │
+│    ┌──────────────────────────────────────────────┐             │
+│    │     [Animated App Preview / Screenshots]     │             │
+│    │     - Show waveform visualizer              │             │
+│    │     - Show EQ panel                         │             │
+│    │     - Show library view                     │             │
+│    └──────────────────────────────────────────────┘             │
+│                                                                  │
+│    "Trusted by 1,000+ producers worldwide"                      │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    FEATURES GRID (Current)                       │
+│                                                                  │
+│   "Everything You Need to Create & Organize"                    │
+│                                                                  │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐            │
+│  │ 🎚️ Pro Audio │ │ 📚 Library   │ │ ☁️ Cloud Sync │            │
+│  │              │ │              │ │              │            │
+│  │ 10-band EQ   │ │ Smart org    │ │ Access       │            │
+│  │ 11 presets   │ │ BPM/Key      │ │ anywhere     │            │
+│  │ Effects      │ │ detection    │ │ Secure B2    │            │
+│  └──────────────┘ └──────────────┘ └──────────────┘            │
+│                                                                  │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐            │
+│  │ 🎤 Lyrics    │ │ 🎨 Visualizer│ │ 🎛️ Producer  │            │
+│  │              │ │              │ │   Mode       │            │
+│  │ AI-powered   │ │ 6+ stunning  │ │ A/B loops    │            │
+│  │ transcription│ │ real-time    │ │ Speed/pitch  │            │
+│  │              │ │ animations   │ │ Waveform     │            │
+│  └──────────────┘ └──────────────┘ └──────────────┘            │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                  COMING SOON SECTION                             │
+│                                                                  │
+│   "The Future of RHYTHM"                                        │
+│   (Features in active development)                              │
+│                                                                  │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐            │
+│  │ 🔥 Discovery │ │ 🏪 Market-  │ │ 💬 Social    │            │
+│  │    Feed      │ │   place      │ │              │            │
+│  │              │ │              │ │              │            │
+│  │ TikTok-style │ │ Sell your   │ │ Follow       │            │
+│  │ FYP for      │ │ beats with   │ │ producers,   │            │
+│  │ producers    │ │ licensing    │ │ comment,     │            │
+│  │              │ │              │ │ message      │            │
+│  │ [COMING Q1]  │ │ [COMING Q1]  │ │ [COMING Q2]  │            │
+│  └──────────────┘ └──────────────┘ └──────────────┘            │
+│                                                                  │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐            │
+│  │ 📦 Beat      │ │ 📊 Analytics │ │ 💸 Payouts   │            │
+│  │    Packs     │ │              │ │              │            │
+│  │              │ │              │ │              │            │
+│  │ Bundle and   │ │ See who's   │ │ Transparent  │            │
+│  │ sell track   │ │ playing     │ │ blockchain   │            │
+│  │ collections  │ │ your music  │ │ royalties    │            │
+│  │ [COMING Q2]  │ │ [COMING Q2]  │ │ [COMING Q3]  │            │
+│  └──────────────┘ └──────────────┘ └──────────────┘            │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                     PUBLIC ROADMAP                               │
+│                                                                  │
+│   "Built in Public. Built for You."                             │
+│                                                                  │
+│   ════════════════════════════════════════════════════          │
+│                                                                  │
+│   ✅ LAUNCHED                                                    │
+│   ├── Premium music library with cloud sync                     │
+│   ├── 10-band parametric EQ with 11 presets                    │
+│   ├── AI-powered lyrics transcription (Whisper)                │
+│   ├── BPM & key detection (Essentia.js)                        │
+│   ├── 6+ audio visualizer variants                             │
+│   ├── Producer mode with A/B looping                           │
+│   └── Crossfade & playback speed control                       │
+│                                                                  │
+│   🔨 IN PROGRESS (Q1 2025)                                      │
+│   ├── Feature flag system for beta testing                     │
+│   ├── URL-based routing & shareable links                      │
+│   ├── Social infrastructure (follows, likes)                   │
+│   └── Discovery feed (FYP) beta                                │
+│                                                                  │
+│   📋 PLANNED (Q2 2025)                                          │
+│   ├── Beat marketplace with licensing                          │
+│   ├── Producer profiles & public pages                         │
+│   ├── Direct messaging between users                           │
+│   ├── Beat pack bundles                                        │
+│   └── Analytics dashboard for producers                        │
+│                                                                  │
+│   🔮 FUTURE (Q3-Q4 2025)                                        │
+│   ├── Stripe Connect payouts                                   │
+│   ├── Blockchain-transparent royalties                         │
+│   ├── Mobile app (React Native)                                │
+│   ├── Collaboration tools                                      │
+│   └── AI-powered beat recommendations                          │
+│                                                                  │
+│   [View Full Changelog →]                                       │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    FEATURE SHOWCASE                              │
+│                                                                  │
+│   Interactive demos / screenshots of key features:              │
+│                                                                  │
+│   1. AUDIO ENGINE                                               │
+│      ┌─────────────────────────────────────────┐                │
+│      │  [Interactive EQ Visualization]         │                │
+│      │  Show the 10-band EQ in action          │                │
+│      │  Let visitors drag frequency bands      │                │
+│      └─────────────────────────────────────────┘                │
+│      "Studio-grade 10-band parametric EQ with 11 presets"      │
+│                                                                  │
+│   2. VISUALIZERS                                                │
+│      ┌─────────────────────────────────────────┐                │
+│      │  [Carousel of Visualizer Variants]      │                │
+│      │  - Bars                                 │                │
+│      │  - Circular                             │                │
+│      │  - Waveform                             │                │
+│      │  - Particles                            │                │
+│      │  - Spectrum                             │                │
+│      │  - Reactive Glow                        │                │
+│      └─────────────────────────────────────────┘                │
+│      "6 stunning real-time audio visualizations"               │
+│                                                                  │
+│   3. SMART ORGANIZATION                                         │
+│      ┌─────────────────────────────────────────┐                │
+│      │  [Library Screenshot]                   │                │
+│      │  Showing BPM, Key, tags                │                │
+│      │  Smart playlists                        │                │
+│      └─────────────────────────────────────────┘                │
+│      "Auto-detect BPM, key, and organize your entire library"  │
+│                                                                  │
+│   4. LYRICS                                                     │
+│      ┌─────────────────────────────────────────┐                │
+│      │  [Apple Music-style Lyrics Demo]        │                │
+│      │  Synced, scrolling, beautiful          │                │
+│      └─────────────────────────────────────────┘                │
+│      "AI-powered transcription, synced to the beat"            │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    PRICING SECTION                               │
+│                                                                  │
+│   "Start Free. Grow When Ready."                                │
+│                                                                  │
+│  ┌──────────────────┐ ┌──────────────────┐                     │
+│  │     FREE         │ │    PRO           │                     │
+│  │                  │ │   $9.99/mo       │                     │
+│  │ ✓ Unlimited      │ │                  │                     │
+│  │   local tracks   │ │ Everything in    │                     │
+│  │ ✓ Full EQ        │ │ Free, plus:      │                     │
+│  │ ✓ All visualizers│ │                  │                     │
+│  │ ✓ Basic cloud    │ │ ✓ Unlimited      │                     │
+│  │   (50 tracks)    │ │   cloud storage  │                     │
+│  │ ✓ Lyrics (5/mo)  │ │ ✓ Unlimited      │                     │
+│  │                  │ │   transcription  │                     │
+│  │ [Get Started]    │ │ ✓ Early access   │                     │
+│  │                  │ │   to new features│                     │
+│  │                  │ │ ✓ Priority       │                     │
+│  │                  │ │   support        │                     │
+│  │                  │ │                  │                     │
+│  │                  │ │ [Start Free      │                     │
+│  │                  │ │  Trial →]        │                     │
+│  └──────────────────┘ └──────────────────┘                     │
+│                                                                  │
+│   * Marketplace fees separate. Producers keep 85% of sales.    │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    TESTIMONIALS                                  │
+│                                                                  │
+│   "What Producers Are Saying"                                   │
+│                                                                  │
+│   ┌────────────────────────────────────────────────┐           │
+│   │ "Finally, a music player that gets producers.  │           │
+│   │  The BPM detection and EQ are game changers."  │           │
+│   │                                                │           │
+│   │  — @beatmaker_jay, 50K+ Spotify streams        │           │
+│   └────────────────────────────────────────────────┘           │
+│                                                                  │
+│   ┌────────────────────────────────────────────────┐           │
+│   │ "I switched from iTunes and never looked back. │           │
+│   │  The visualizers alone are worth it."          │           │
+│   │                                                │           │
+│   │  — @prodbyname, YouTube producer               │           │
+│   └────────────────────────────────────────────────┘           │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    CTA SECTION                                   │
+│                                                                  │
+│           Ready to Take Control of Your Music?                  │
+│                                                                  │
+│     Join thousands of producers building their empire.          │
+│                                                                  │
+│                   [Get Started Free →]                          │
+│                                                                  │
+│            No credit card required. Free forever tier.          │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                         FOOTER                                   │
+│                                                                  │
+│  [RHYTHM Logo]                                                   │
+│  For Artists, by Artists                                        │
+│                                                                  │
+│  Product          Company         Legal                         │
+│  --------         -------         -----                         │
+│  Features         About           Terms                         │
+│  Roadmap          Blog            Privacy                       │
+│  Pricing          Careers         DMCA                          │
+│  Changelog        Press Kit                                     │
+│                                                                  │
+│  [Twitter] [Instagram] [Discord] [GitHub]                       │
+│                                                                  │
+│  © 2025 RHYTHM. Made with ♡ for producers everywhere.           │
+└─────────────────────────────────────────────────────────────────┘
+Landing Page Implementation Tasks
+Task	Priority	Description
+Hero section redesign	HIGH	New tagline, animated preview
+Current features grid	HIGH	6 cards with icons showing existing features
+Coming soon section	HIGH	6 cards with "Coming Q1/Q2" badges
+Public roadmap	HIGH	Timeline view of completed/in-progress/planned
+Feature showcase	MEDIUM	Interactive demos of EQ, visualizers, library
+Pricing section	MEDIUM	Free vs Pro tiers (can be placeholder for now)
+Testimonials	LOW	Placeholder for future social proof
+Footer redesign	MEDIUM	Full links, social icons
+Copy/Messaging
+Tagline Options:
+1. "Where Producers Build Their Empire"
+2. "Your Music. Your Way. Your Platform."
+3. "The Producer's All-in-One Platform"
+4. "Create. Organize. Sell. Repeat."
+Value Props:
+1. For Listeners: "Premium music experience with studio-grade audio"
+2. For Producers: "All the tools you need to organize and eventually sell your beats"
+3. For Beatmakers: "Your music stays yours. Full control, full ownership."
+SEO & Meta Tags
+<!-- Update index.html -->
+<title>RHYTHM - Premium Music Platform for Producers | Organize, Play, Sell</title>
+<meta name="description" content="The all-in-one music platform for producers. Studio-grade EQ, AI lyrics, BPM detection, cloud sync, and coming soon: beat marketplace. Free to start.">
+<meta name="keywords" content="music player, beat maker, producer tools, sell beats, music organizer, EQ, visualizer">
+
+<!-- Open Graph -->
+<meta property="og:title" content="RHYTHM - Where Producers Build Their Empire">
+<meta property="og:description" content="Premium music platform with 10-band EQ, AI lyrics, and beat marketplace coming soon.">
+<meta property="og:image" content="/og-image.png"> <!-- Need to create -->
+<meta property="og:type" content="website">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="RHYTHM - Premium Music Platform">
+<meta name="twitter:description" content="The producer's all-in-one platform. Free to start.">
+Assets Needed
+Asset	Purpose	Notes
+og-image.png	Social sharing preview	1200x630px, show app UI
+hero-animation.mp4	Hero section background	Subtle visualizer loop
+feature-icons/	Feature grid icons	SVG, match brand colors
+screenshot-*.png	Feature showcase	High-quality app screenshots
+favicon.ico	Browser tab	Updated RHYTHM logo
+apple-touch-icon.png	iOS home screen	180x180px
+Complete Implementation Order Summary
+Sprint 1: Foundation + Landing Page
+Goal: Safe foundation that doesn't break anything + marketing presence
+#	Task	Files	Notes
+1.1	Add feature_flags column to users	api/index.js	Safe: new column with default
+1.2	Create feature flags API endpoints	api/index.js	GET/PUT /api/me/features
+1.3	Create useFeatureFlags hook	src/hooks/useFeatureFlags.ts	New file
+1.4	Add useHashRouter hook	src/hooks/useHashRouter.ts	New file
+1.5	Integrate hash routing with App.tsx	src/App.tsx	Sync activeTab with hash
+1.6	Landing page redesign	src/components/LandingPage.tsx	Full rewrite
+1.7	Update SEO meta tags	index.html	Title, description, OG
+1.8	Create OG image asset	public/og-image.png	1200x630px
+Sprint 2: Database + Social Infrastructure
+Goal: Build the data layer without touching frontend
+#	Task	Files	Notes
+2.1	Create producer_profiles table	api/index.js	New table
+2.2	Create follows table	api/index.js	New table
+2.3	Create likes table	api/index.js	New table
+2.4	Create comments table	api/index.js	New table
+2.5	Create track_engagement table	api/index.js	New table
+2.6	Add visibility column to tracks	api/index.js	DEFAULT 'private'
+2.7	Add performance indexes	api/index.js	All new tables
+2.8	Create social API routes	api/routes/social.js	New file
+Sprint 3: Social Frontend (Behind Flag)
+Goal: Build social UI, hidden until enabled
+#	Task	Files	Notes
+3.1	Create SocialContext	src/contexts/SocialContext.tsx	New file, lazy loaded
+3.2	Create FeedContext	src/contexts/FeedContext.tsx	New file, lazy loaded
+3.3	Build FeedView component	src/components/feed/FeedView.tsx	New file
+3.4	Build FeedCard component	src/components/feed/FeedCard.tsx	New file
+3.5	Build ProducerProfile	src/components/social/ProducerProfile.tsx	New file
+3.6	Add Feed nav item (flagged)	src/components/Sidebar.tsx	Gated by feature flag
+3.7	Wire up routing	src/App.tsx	Add 'feed' tab case
+Sprint 4: Marketplace Backend
+Goal: Payments and licensing infrastructure
+#	Task	Files	Notes
+4.1	Create license_tiers table	api/index.js	New table
+4.2	Create purchases table	api/index.js	New table
+4.3	Create beat_packs tables	api/index.js	Two new tables
+4.4	Stripe Connect setup	api/services/stripe.js	New file
+4.5	Marketplace API routes	api/routes/marketplace.js	New file
+4.6	Watermarking service	api/services/watermark.js	New file, needs ffmpeg
+Sprint 5: Marketplace Frontend
+Goal: Connect existing MarketplaceView to real backend
+#	Task	Files	Notes
+5.1	Create MarketplaceContext	src/contexts/MarketplaceContext.tsx	New file
+5.2	Audit MarketplaceView.tsx	src/components/MarketplaceView.tsx	Understand expectations
+5.3	Connect Browse tab to API	src/components/MarketplaceView.tsx	Replace mock data
+5.4	Build LicenseSelector	src/components/marketplace/LicenseSelector.tsx	New file
+5.5	Build PurchaseModal	src/components/marketplace/PurchaseModal.tsx	New file
+Sprint 6: Messaging & Dashboard
+Goal: Complete social features
+#	Task	Files	Notes
+6.1	Create messaging tables	api/index.js	3 new tables
+6.2	Create MessagingContext	src/contexts/MessagingContext.tsx	New file
+6.3	Build MessagesView	src/components/messaging/MessagesView.tsx	New file
+6.4	Build ProducerDashboard	src/components/producer/ProducerDashboard.tsx	New file
+6.5	Create ProducerContext	src/contexts/ProducerContext.tsx	New file
+Files Summary
+New Files to Create
+api/
+├── routes/
+│   ├── social.js          # Follows, likes, comments
+│   ├── feed.js            # FYP algorithm
+│   ├── marketplace.js     # Purchases, licensing
+│   ├── messaging.js       # DMs
+│   └── payouts.js         # Producer payouts
+├── services/
+│   ├── stripe.js          # Stripe Connect
+│   ├── watermark.js       # Audio watermarking
+│   ├── trending.js        # Trending score calc
+│   └── discovery.js       # Feed algorithm
+
+src/
+├── hooks/
+│   ├── useFeatureFlags.ts
+│   └── useHashRouter.ts
+├── contexts/
+│   ├── SocialContext.tsx
+│   ├── FeedContext.tsx
+│   ├── MarketplaceContext.tsx
+│   ├── MessagingContext.tsx
+│   └── ProducerContext.tsx
+├── components/
+│   ├── feed/
+│   │   ├── FeedView.tsx
+│   │   ├── FeedCard.tsx
+│   │   └── FeedFilters.tsx
+│   ├── social/
+│   │   ├── ProducerProfile.tsx
+│   │   ├── FollowButton.tsx
+│   │   └── CommentSection.tsx
+│   ├── marketplace/
+│   │   ├── LicenseSelector.tsx
+│   │   ├── PurchaseModal.tsx
+│   │   └── PackBuilder.tsx
+│   ├── messaging/
+│   │   ├── MessagesView.tsx
+│   │   └── ConversationView.tsx
+│   └── producer/
+│       ├── ProducerDashboard.tsx
+│       └── EarningsChart.tsx
+Files to Modify
+api/index.js                    # DB tables, import routes
+src/App.tsx                     # Hash routing, lazy contexts
+src/components/Sidebar.tsx      # New nav items (flagged)
+src/components/LandingPage.tsx  # Full redesign
+src/components/MarketplaceView.tsx  # Connect to real API
+index.html                      # SEO meta tags
+public/manifest.json            # App name/description
+
+Checkpoints
+Before each sprint, verify:
+*  Previous sprint deployed and working
+*  No console errors in production
+*  Feature flags working as expected
+*  Database migrations ran successfully
+*  All existing functionality still works
+Rollback plan: Each sprint's changes should be independently revertable via feature flags or database rollback.
+
+Shareable Links (Spotify-style)
+Current State
+* Using Railway URL: https://[app-name].up.railway.app
+* No custom domain yet
+* Hash routing will enable: https://[domain]/#/track/abc123
+Future Custom Domain
+When you get a custom domain (e.g., rhythm.fm, rhythmmusic.app, getrhythm.io):
+1. Add custom domain in Railway dashboard
+2. Update BASE_URL env variable
+3. Update OG meta tags
+4. All share links will automatically use new domain
+Shareable URL Patterns
+# Current (Railway)
+https://[app].up.railway.app/#/track/[id]
+https://[app].up.railway.app/#/playlist/[id]
+https://[app].up.railway.app/#/producer/[id]
+https://[app].up.railway.app/#/pack/[id]
+
+# Future (Custom Domain)
+https://rhythm.fm/track/[id]      # Or with hash: /#/track/[id]
+https://rhythm.fm/playlist/[id]
+https://rhythm.fm/@[username]     # Producer profile
+https://rhythm.fm/pack/[id]
+Share Link Features (Like Spotify)
+When someone clicks a RHYTHM share link:
+1. If logged in: Opens directly in app, plays track/shows playlist
+2. If not logged in: Shows preview page with:
+    * Album art
+    * Track name & producer
+    * 30-second preview (watermarked if for sale)
+    * "Open in RHYTHM" button
+    * "Get RHYTHM Free" CTA
+Share Preview Page Design
+┌─────────────────────────────────────────────────────────────────┐
+│                        SHARE PREVIEW PAGE                        │
+│                   (for non-logged-in visitors)                   │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │                                                             ││
+│  │     ┌────────────────────┐                                  ││
+│  │     │                    │                                  ││
+│  │     │    [Album Art]     │                                  ││
+│  │     │      300x300       │                                  ││
+│  │     │                    │                                  ││
+│  │     └────────────────────┘                                  ││
+│  │                                                             ││
+│  │              "Dark Trap Beat #4"                            ││
+│  │               by @producername                              ││
+│  │                                                             ││
+│  │     🎵 140 BPM  •  F# Minor  •  Trap                       ││
+│  │                                                             ││
+│  │     ┌──────────────────────────────────────────┐           ││
+│  │     │  ▶  0:00 ────────────────────── 0:30     │           ││
+│  │     │        [30-second preview player]        │           ││
+│  │     └──────────────────────────────────────────┘           ││
+│  │                                                             ││
+│  │     [🎧 Open in RHYTHM]    [💰 Buy License - $29]          ││
+│  │                                                             ││
+│  │     ─────────────────────────────────────────────          ││
+│  │                                                             ││
+│  │     Don't have RHYTHM?                                     ││
+│  │     [Get RHYTHM Free →]                                    ││
+│  │                                                             ││
+│  │     "The all-in-one platform for producers"                ││
+│  │                                                             ││
+│  └─────────────────────────────────────────────────────────────┘│
+│                                                                  │
+│  [RHYTHM Logo]  Features  Pricing  Download                     │
+└─────────────────────────────────────────────────────────────────┘
+Implementation
+New File: src/components/SharePreview.tsx
+// Detect if coming from share link without auth
+// Show preview page instead of auth wall
+
+const SharePreview = ({ type, id }: { type: 'track' | 'playlist' | 'producer' | 'pack', id: string }) => {
+  const { isAuthenticated } = useAuth();
+  const [data, setData] = useState(null);
+
+  // Fetch public metadata (no auth required)
+  useEffect(() => {
+    fetch(`/api/public/${type}/${id}`)
+      .then(res => res.json())
+      .then(setData);
+  }, [type, id]);
+
+  // If logged in, redirect to full app
+  if (isAuthenticated) {
+    return <Navigate to={`/#/${type}/${id}`} />;
+  }
+
+  // Show preview for non-logged-in users
+  return <PreviewPage data={data} type={type} />;
+};
+API Endpoints for Public Access:
+GET /api/public/track/:id     → { title, artist, albumArt, bpm, key, previewUrl }
+GET /api/public/playlist/:id  → { name, trackCount, creator, coverArt }
+GET /api/public/producer/:id  → { username, bio, avatar, trackCount }
+GET /api/public/pack/:id      → { title, trackCount, price, coverArt }
+OG Meta Tags for Share Links
+Each shareable page needs dynamic OG tags for rich previews on social media:
+<!-- Dynamic per-track -->
+<meta property="og:title" content="Dark Trap Beat #4 - @producername">
+<meta property="og:description" content="140 BPM • F# Minor • Listen on RHYTHM">
+<meta property="og:image" content="https://rhythm.fm/api/og/track/abc123"> <!-- Dynamic image -->
+<meta property="og:audio" content="https://rhythm.fm/api/preview/abc123"> <!-- 30s preview -->
+<meta property="og:type" content="music.song">
+
+<!-- Twitter Player Card (plays audio inline) -->
+<meta name="twitter:card" content="player">
+<meta name="twitter:player" content="https://rhythm.fm/embed/track/abc123">
+<meta name="twitter:player:width" content="480">
+<meta name="twitter:player:height" content="200">
+Embed Player (Like Spotify/SoundCloud)
+Future feature: Embeddable player for websites
+<!-- Embed code users can copy -->
+<iframe
+  src="https://rhythm.fm/embed/track/abc123"
+  width="100%"
+  height="152"
+  frameborder="0"
+  allow="autoplay; encrypted-media"
+></iframe>
+Share Button Locations
+Add share buttons to:
+*  Track item menu (three dots)
+*  Now playing bar
+*  Playlist header
+*  Producer profile
+*  Beat pack page
+Native Share API
+const shareTrack = async (track: Track) => {
+  const shareData = {
+    title: track.title,
+    text: `Listen to "${track.title}" by @${track.artist} on RHYTHM`,
+    url: `${window.location.origin}/#/track/${track.id}`
+  };
+
+  if (navigator.share) {
+    // Native share sheet on mobile
+    await navigator.share(shareData);
+  } else {
+    // Fallback: copy to clipboard
+    await navigator.clipboard.writeText(shareData.url);
+    toast.success('Link copied!');
+  }
+};
+Database Support
+-- Track share analytics
+CREATE TABLE share_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  track_id UUID REFERENCES tracks(id),
+  playlist_id UUID REFERENCES playlists(id),
+  sharer_id UUID REFERENCES users(id),
+  platform VARCHAR(20), -- twitter, instagram, copy, native
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Public track metadata (cached for fast public access)
+CREATE TABLE public_track_cache (
+  track_id UUID PRIMARY KEY REFERENCES tracks(id) ON DELETE CASCADE,
+  metadata JSONB NOT NULL, -- { title, artist, albumArt, bpm, key, previewUrl }
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+Domain Recommendations
+When choosing a domain, consider:
+Domain	Pros	Cons
+rhythm.fm	Clean, music-focused	Likely taken/expensive
+rhythmmusic.app	Descriptive, available	Long
+getrhythm.io	Tech-forward	Less memorable
+rhythmbeats.com	Producer-focused	Generic
+userhythm.com	Available pattern	Less clean
+Priority order for domain setup:
+1. Buy domain (Namecheap, Google Domains, etc.)
+2. Add to Railway (custom domain settings)
+3. SSL auto-configured by Railway
+4. Update BASE_URL environment variable
+5. Update all hardcoded URLs (OG tags, share links)
+6. Set up email for domain (optional: hello@rhythm.fm)
+Stayed in plan mode
+Tool interrupted
+what do you think about this plan now? will it break anythiing?
+Looking at the updated plan, here's my honest assessment:
+What Won't Break ✅
+1. Database additions - All new tables, no modifications to existing ones
+2. New API endpoints - Added alongside existing ones, not replacing
+3. New components - Created in new directories (feed/, social/, marketplace/, etc.)
+4. Feature flags - Everything hidden by default until enabled
+5. Visibility default - 'private' means existing tracks stay private
+6. Hash routing - Additive, syncs with existing activeTab state
+Remaining Concerns ⚠️
+1. The LandingPage.tsx rewrite is risky
+The plan calls for a "full rewrite" of the landing page. This is the ONE component we're completely replacing rather than adding to. Mitigation: We could instead:
+* Keep existing LandingPage as LandingPageLegacy.tsx
+* Build new one alongside it
+* Feature flag to switch between them
+* Only remove old one after new one is validated
+2. Sidebar.tsx modifications
+Adding new nav items could affect layout, especially on mobile. Mitigation: Feature-flag each new nav item so they only appear when enabled.
+3. Context Provider Performance
+Even with lazy loading, we're still adding complexity. Mitigation: The plan addresses this with React.lazy() and Suspense - should be fine.
+4. MarketplaceView.tsx connection
+Connecting real backend to existing UI is the trickiest part. Mitigation: The plan says "audit first" which is correct. Need to verify the mock data structure matches API response.
+My Verdict
+The plan is safe IF we:
+1. ✅ Do Phase 0 first (feature flags + routing)
+2. ✅ Keep existing LandingPage until new one is validated
+3. ✅ Feature-flag ALL new nav items
+4. ✅ Don't modify existing components, only add new ones
+5. ✅ Run migrations in staging first
+6. ✅ Test after each sprint before proceeding
+Risk level: LOW - because everything is additive and feature-flagged. The worst case is a new feature doesn't work, but existing functionality stays intact. Want me to add the "keep LandingPageLegacy" safeguard to the plan, or are you ready to start implementation?

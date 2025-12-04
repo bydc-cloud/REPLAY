@@ -91,16 +91,18 @@ export function FeedView() {
     loadData();
   }, [isAuthenticated, fetchFeed, fetchDiscoverTracks]);
 
-  const handleLike = async (trackId: string) => {
+  const handleLike = async (track: DiscoverTrack) => {
     if (!token) return;
 
     try {
-      await fetch(`${API_URL}/api/tracks/${trackId}/like`, {
+      await fetch(`${API_URL}/api/tracks/${track.id}/like`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
       // Refresh discover tracks to update counts
       fetchDiscoverTracks();
+      // Auto-play the track when liking it
+      handlePlayTrack(track);
     } catch (err) {
       console.error('Failed to like track:', err);
     }
@@ -315,7 +317,7 @@ export function FeedView() {
                     {/* Social Actions */}
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => handleLike(track.id)}
+                        onClick={() => handleLike(track)}
                         className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
                       >
                         <Heart className="w-4 h-4 text-white/60" />

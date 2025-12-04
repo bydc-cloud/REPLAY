@@ -1,4 +1,4 @@
-import { Menu } from "lucide-react";
+import { Menu, Disc } from "lucide-react";
 import { useState, useEffect, useCallback, useContext } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { PlayerBar } from "./components/PlayerBar";
@@ -30,6 +30,7 @@ import { useHashRouter } from "./hooks/useHashRouter";
 import { LazyContextLoader } from "./components/LazyContextLoader";
 import { TrackUploadModal } from "./components/TrackUploadModal";
 import { NotificationsView } from "./components/NotificationsView";
+import { AnalyticsDashboard } from "./components/AnalyticsDashboard";
 import NotificationsContext from "./contexts/NotificationsContext";
 import MessagingContext from "./contexts/MessagingContext";
 
@@ -52,6 +53,7 @@ function AppContent() {
   const [queueDrawerOpen, setQueueDrawerOpen] = useState(false);
   const [miniPlayerOpen, setMiniPlayerOpen] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [dashboardOpen, setDashboardOpen] = useState(false);
   const { visualizerVariant, setVisualizerVariant } = useSettings();
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -101,41 +103,8 @@ function AppContent() {
           </div>
           {/* Logo */}
           <div className="flex items-center justify-center gap-2 mb-3">
-            <div className="relative">
-              <svg
-                width="32"
-                height="32"
-                viewBox="0 0 32 32"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <circle
-                  cx="16"
-                  cy="16"
-                  r="14"
-                  fill="url(#loading-logo-gradient)"
-                  stroke="url(#loading-logo-stroke)"
-                  strokeWidth="1.5"
-                />
-                <path
-                  d="M13 11L21 16L13 21V11Z"
-                  fill="url(#loading-play-gradient)"
-                />
-                <defs>
-                  <linearGradient id="loading-logo-gradient" x1="0" y1="0" x2="32" y2="32">
-                    <stop offset="0%" stopColor="#e8e8e8" stopOpacity="0.15" />
-                    <stop offset="100%" stopColor="#e8e8e8" stopOpacity="0.05" />
-                  </linearGradient>
-                  <linearGradient id="loading-logo-stroke" x1="0" y1="0" x2="32" y2="32">
-                    <stop offset="0%" stopColor="#e8e8e8" />
-                    <stop offset="100%" stopColor="#999999" />
-                  </linearGradient>
-                  <linearGradient id="loading-play-gradient" x1="14" y1="11.5" x2="21" y2="20.5">
-                    <stop offset="0%" stopColor="#e8e8e8" />
-                    <stop offset="100%" stopColor="#cccccc" />
-                  </linearGradient>
-                </defs>
-              </svg>
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500/30 to-pink-500/20 backdrop-blur-sm flex items-center justify-center border border-purple-500/30">
+              <Disc className="w-5 h-5 text-[var(--replay-off-white)]" />
             </div>
             <span className="text-xl font-black tracking-tight text-[var(--replay-off-white)]">
               RHYTHM
@@ -236,6 +205,7 @@ function AppContent() {
         onClose={() => setSidebarOpen(false)}
         onAboutClick={() => setCurrentView("about")}
         onUploadClick={() => setUploadModalOpen(true)}
+        onDashboardClick={() => setDashboardOpen(true)}
         notificationCount={notificationCount}
         messageCount={messageCount}
       />
@@ -333,6 +303,12 @@ function AppContent() {
       <TrackUploadModal
         isOpen={uploadModalOpen}
         onClose={() => setUploadModalOpen(false)}
+      />
+
+      {/* Analytics Dashboard Modal */}
+      <AnalyticsDashboard
+        isOpen={dashboardOpen}
+        onClose={() => setDashboardOpen(false)}
       />
     </div>
   );

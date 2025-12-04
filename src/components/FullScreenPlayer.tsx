@@ -271,12 +271,12 @@ export const FullScreenPlayer = ({
       </div>
 
       {/* Content Area - Flex layout to fit viewport */}
-      <div className="flex-1 flex flex-col px-5 py-4 min-h-0">
+      <div className="flex-1 flex flex-col px-5 py-4 min-h-0 overflow-hidden">
         {/* Album Art OR Lyrics - Centered and properly sized for mobile */}
-        <div className="flex-1 flex items-center justify-center min-h-0 mb-4">
+        <div className="flex-1 flex items-center justify-center min-h-0 mb-4 overflow-hidden">
           {showLyricsMode ? (
-            // Full lyrics view when lyrics mode is selected
-            <div className="w-full h-full rounded-xl overflow-hidden">
+            // Full lyrics view when lyrics mode is selected - ensure proper sizing on mobile
+            <div className="w-full h-full min-h-[200px] rounded-xl overflow-hidden flex flex-col">
               <LyricsVisualizer
                 currentTime={currentTime}
                 duration={duration}

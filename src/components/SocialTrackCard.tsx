@@ -95,6 +95,10 @@ export function SocialTrackCard({
         });
         setIsLiked(true);
         setLikesCount(prev => prev + 1);
+        // Auto-play the track when liking it
+        if (!isCurrentTrack || !isPlaying) {
+          handlePlay();
+        }
       }
     } catch (err) {
       console.error('Failed to toggle like:', err);
