@@ -404,11 +404,11 @@ export const LyricsVisualizer = ({
         )}
       </div>
 
-      {/* Track Info Overlay at Top - Hidden on mobile in visualizer modal (shown in modal header) */}
+      {/* Track Info Overlay at Top - Only shown on desktop (mobile shows in floating controls) */}
       <div className="absolute top-0 left-0 right-0 p-3 sm:p-4 md:p-6 bg-gradient-to-b from-black/80 to-transparent pointer-events-none hidden md:block">
         <div className="text-center">
-          <h2 className="text-sm sm:text-base md:text-lg font-semibold text-white/90 truncate">{trackTitle}</h2>
-          <p className="text-xs sm:text-sm text-white/50">{trackArtist}</p>
+          <h2 className="text-base md:text-lg font-semibold text-white/90 truncate">{trackTitle}</h2>
+          <p className="text-sm text-white/50">{trackArtist}</p>
         </div>
       </div>
 

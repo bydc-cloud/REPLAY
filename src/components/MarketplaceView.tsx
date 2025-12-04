@@ -22,11 +22,13 @@ import {
   CreditCard,
   Download,
   AlertCircle,
+  Package,
 } from "lucide-react";
 import { useAuth } from "../contexts/PostgresAuthContext";
 import { useAudioPlayer } from "../contexts/AudioPlayerContext";
 import { PremiumCoverArt } from "./PremiumCoverArt";
 import { BeatUploadModal } from "./BeatUploadModal";
+import { SamplePackUploadModal } from "./SamplePackUploadModal";
 
 interface Beat {
   id: string;

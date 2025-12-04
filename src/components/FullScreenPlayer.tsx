@@ -124,9 +124,9 @@ export const FullScreenPlayer = ({
           <ChevronDown size={28} />
         </button>
         <div className="flex-1 text-center">
-          <p className="text-xs text-[var(--replay-mid-grey)]">Now Playing</p>
+          <p className="text-xs text-[var(--replay-mid-grey)]">{showLyricsMode ? "Lyrics" : "Now Playing"}</p>
           <p className="text-sm text-[var(--replay-off-white)] font-semibold truncate px-2">
-            {currentTrack?.album || "Unknown Album"}
+            {showLyricsMode ? (currentTrack?.title || "No Track") : (currentTrack?.album || "Unknown Album")}
           </p>
         </div>
         <div className="relative z-30" ref={menuRef}>
@@ -353,11 +353,16 @@ export const FullScreenPlayer = ({
           </div>
         </div>
 
-        {/* Floating Controls for Lyrics Mode */}
+        {/* Floating Controls for Lyrics Mode - includes track info */}
         {showLyricsMode && (
-          <div className="flex items-center justify-between mb-3 flex-shrink-0 bg-black/50 backdrop-blur-sm rounded-xl px-3 py-2">
+          <div className="flex items-center justify-between mb-3 flex-shrink-0 bg-black/60 backdrop-blur-md rounded-xl px-4 py-3">
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-white/80 truncate">{formatTime(currentTime)} / {formatTime(duration)}</p>
+              <h2 className="text-base font-semibold text-white truncate">
+                {currentTrack?.title || "No Track"}
+              </h2>
+              <p className="text-sm text-white/60 truncate">
+                {currentTrack?.artist || "Unknown Artist"}
+              </p>
             </div>
             <div className="flex items-center gap-1">
               {/* Album Art Toggle */}
