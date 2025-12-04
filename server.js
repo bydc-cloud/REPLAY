@@ -179,6 +179,23 @@ async function initDB() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tracks' AND column_name = 'file_key') THEN
           ALTER TABLE tracks ADD COLUMN file_key TEXT;
         END IF;
+        -- RHYTHM Marketplace: Add visibility and sale columns to tracks
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tracks' AND column_name = 'visibility') THEN
+          ALTER TABLE tracks ADD COLUMN visibility VARCHAR(20) DEFAULT 'private';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tracks' AND column_name = 'is_for_sale') THEN
+          ALTER TABLE tracks ADD COLUMN is_for_sale BOOLEAN DEFAULT false;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tracks' AND column_name = 'genre') THEN
+          ALTER TABLE tracks ADD COLUMN genre VARCHAR(50);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tracks' AND column_name = 'tags') THEN
+          ALTER TABLE tracks ADD COLUMN tags TEXT[];
+        END IF;
+        -- Feature flags for users
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'feature_flags') THEN
+          ALTER TABLE users ADD COLUMN feature_flags JSONB DEFAULT '{}';
+        END IF;
       END $$;
     `);
 
@@ -200,6 +217,177 @@ async function initDB() {
         PRIMARY KEY (playlist_id, track_id)
       )
     `);
+
+    // ============================================
+    // RHYTHM Social Beat Marketplace - Phase 1 Tables
+    // ============================================
+
+    // Producer profiles - extended user info for sellers
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS producer_profiles (
+        user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        display_name VARCHAR(255),
+        bio TEXT,
+        avatar_url TEXT,
+        banner_url TEXT,
+        website VARCHAR(500),
+        social_links JSONB DEFAULT '{}',
+        is_verified BOOLEAN DEFAULT false,
+        stripe_account_id VARCHAR(255),
+        stripe_onboarded BOOLEAN DEFAULT false,
+        total_sales INTEGER DEFAULT 0,
+        total_earnings DECIMAL(10,2) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Follows - who follows whom
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS follows (
+        follower_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        following_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (follower_id, following_id)
+      )
+    `);
+
+    // Track likes - separate from is_liked for social features
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS track_likes (
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        track_id UUID REFERENCES tracks(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, track_id)
+      )
+    `);
+
+    // Reposts - users sharing others' tracks
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS reposts (
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        track_id UUID REFERENCES tracks(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, track_id)
+      )
+    `);
+
+    // Comments on tracks
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS comments (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        track_id UUID REFERENCES tracks(id) ON DELETE CASCADE,
+        parent_id UUID REFERENCES comments(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        timestamp_ms INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Beat packs - bundles of tracks for sale
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS packs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        cover_url TEXT,
+        price DECIMAL(10,2) NOT NULL,
+        sale_price DECIMAL(10,2),
+        license_type VARCHAR(50) DEFAULT 'basic',
+        visibility VARCHAR(20) DEFAULT 'private',
+        download_count INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Pack tracks - tracks included in a pack
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS pack_tracks (
+        pack_id UUID REFERENCES packs(id) ON DELETE CASCADE,
+        track_id UUID REFERENCES tracks(id) ON DELETE CASCADE,
+        position INTEGER DEFAULT 0,
+        PRIMARY KEY (pack_id, track_id)
+      )
+    `);
+
+    // Sales/purchases record
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS sales (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        buyer_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        seller_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        track_id UUID REFERENCES tracks(id) ON DELETE SET NULL,
+        pack_id UUID REFERENCES packs(id) ON DELETE SET NULL,
+        amount DECIMAL(10,2) NOT NULL,
+        platform_fee DECIMAL(10,2) DEFAULT 0,
+        seller_earnings DECIMAL(10,2) NOT NULL,
+        license_type VARCHAR(50) NOT NULL,
+        stripe_payment_id VARCHAR(255),
+        status VARCHAR(50) DEFAULT 'completed',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Activity feed events
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS feed_events (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        event_type VARCHAR(50) NOT NULL,
+        target_type VARCHAR(50) NOT NULL,
+        target_id UUID NOT NULL,
+        metadata JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Messages / conversations
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS conversations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS conversation_participants (
+        conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        last_read_at TIMESTAMP,
+        PRIMARY KEY (conversation_id, user_id)
+      )
+    `);
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
+        sender_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        content TEXT,
+        message_type VARCHAR(50) DEFAULT 'text',
+        attachment_id UUID,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create indexes for performance
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
+      CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
+      CREATE INDEX IF NOT EXISTS idx_track_likes_track ON track_likes(track_id);
+      CREATE INDEX IF NOT EXISTS idx_comments_track ON comments(track_id);
+      CREATE INDEX IF NOT EXISTS idx_feed_events_user ON feed_events(user_id);
+      CREATE INDEX IF NOT EXISTS idx_feed_events_created ON feed_events(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
+      CREATE INDEX IF NOT EXISTS idx_tracks_visibility ON tracks(visibility) WHERE visibility = 'public';
+      CREATE INDEX IF NOT EXISTS idx_packs_visibility ON packs(visibility) WHERE visibility = 'public';
+    `);
+
     console.log('Database ready');
   } catch (e) {
     console.error('DB init error:', e.message);
@@ -325,9 +513,16 @@ async function transcribeAudio(audioBase64, trackId, fileKey = null) {
       const { mimeType, ext } = detectAudioMimeType(audioBase64, fileKey);
       console.log(`Detected audio format: ${mimeType} (.${ext})`);
 
-      // Compress audio if needed to reduce upload size
+      // Compress audio if needed to reduce upload size (especially for large WAV/AIFF files)
       const { buffer: finalBuffer, ext: finalExt, compressed } = await compressAudioForTranscription(audioBuffer, ext);
       const finalMimeType = compressed ? 'audio/mpeg' : mimeType;
+
+      // OpenAI Whisper has a 25MB limit - check AFTER compression attempt
+      const MAX_SIZE_BYTES = 25 * 1024 * 1024; // 25MB
+      if (finalBuffer.length > MAX_SIZE_BYTES) {
+        console.log(`Audio still too large after compression (${(finalBuffer.length / 1024 / 1024).toFixed(1)}MB > 25MB limit). Skipping track ${trackId}`);
+        return null;
+      }
 
       // Use toFile helper with correct MIME type
       const audioFile = await toFile(finalBuffer, `audio-${trackId}.${finalExt}`, { type: finalMimeType });
@@ -478,6 +673,79 @@ app.put('/api/auth/profile', auth, async (req, res) => {
   }
 });
 
+// ============================================
+// RHYTHM Marketplace: Feature Flags
+// ============================================
+
+// Default feature flags for new/existing users
+const DEFAULT_FEATURE_FLAGS = {
+  feed_enabled: false,
+  marketplace_sell_enabled: false,
+  social_enabled: false,
+  messaging_enabled: false,
+  producer_dashboard_enabled: false
+};
+
+// Get current user's feature flags
+app.get('/api/me/features', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const result = await db.query(
+      'SELECT feature_flags FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    // Merge defaults with user's flags (user flags override defaults)
+    const userFlags = result.rows[0].feature_flags || {};
+    const mergedFlags = { ...DEFAULT_FEATURE_FLAGS, ...userFlags };
+    res.json(mergedFlags);
+  } catch (e) {
+    console.error('Get feature flags error:', e.message);
+    res.status(500).json({ error: 'Failed to get feature flags' });
+  }
+});
+
+// Update feature flags (admin-only in future, for now any authenticated user)
+app.put('/api/me/features', auth, async (req, res) => {
+  try {
+    const { flags } = req.body;
+    if (!flags || typeof flags !== 'object') {
+      return res.status(400).json({ error: 'Invalid flags object' });
+    }
+
+    // Only allow valid flag keys
+    const validKeys = Object.keys(DEFAULT_FEATURE_FLAGS);
+    const sanitizedFlags = {};
+    for (const key of validKeys) {
+      if (key in flags && typeof flags[key] === 'boolean') {
+        sanitizedFlags[key] = flags[key];
+      }
+    }
+
+    const db = getPool();
+    const result = await db.query(
+      `UPDATE users SET feature_flags = feature_flags || $1::jsonb WHERE id = $2 RETURNING feature_flags`,
+      [JSON.stringify(sanitizedFlags), req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const mergedFlags = { ...DEFAULT_FEATURE_FLAGS, ...result.rows[0].feature_flags };
+    res.json(mergedFlags);
+  } catch (e) {
+    console.error('Update feature flags error:', e.message);
+    res.status(500).json({ error: 'Failed to update feature flags' });
+  }
+});
+
+// ============================================
+// Existing Track Endpoints
+// ============================================
+
 // Get tracks
 app.get('/api/tracks', auth, async (req, res) => {
   try {
@@ -485,6 +753,7 @@ app.get('/api/tracks', auth, async (req, res) => {
     const result = await db.query(
       `SELECT id, user_id, title, artist, album, duration, cover_url, play_count, is_liked,
               lyrics_status, created_at, bpm, musical_key, energy, analyzed_at, file_key,
+              visibility, is_for_sale, genre, tags,
               (file_data IS NOT NULL OR file_key IS NOT NULL) as has_audio,
               (lyrics_text IS NOT NULL AND lyrics_text != '') as has_lyrics
        FROM tracks WHERE user_id = $1 ORDER BY created_at DESC`,
@@ -1491,6 +1760,777 @@ app.post('/api/transcribe-all', auth, async (req, res) => {
     console.log('Batch transcription complete');
   } catch (e) {
     console.error('Transcribe-all error:', e.message);
+  }
+});
+
+// ============================================
+// RHYTHM Social Beat Marketplace - Phase 1 API Endpoints
+// ============================================
+
+// ---- PRODUCER PROFILES ----
+
+// Get producer profile
+app.get('/api/producers/:userId', async (req, res) => {
+  try {
+    const db = getPool();
+    const { userId } = req.params;
+
+    const result = await db.query(`
+      SELECT
+        pp.*,
+        u.username,
+        u.email,
+        (SELECT COUNT(*) FROM follows WHERE following_id = pp.user_id) as followers_count,
+        (SELECT COUNT(*) FROM follows WHERE follower_id = pp.user_id) as following_count,
+        (SELECT COUNT(*) FROM tracks WHERE user_id = pp.user_id AND visibility = 'public') as tracks_count
+      FROM producer_profiles pp
+      JOIN users u ON u.id = pp.user_id
+      WHERE pp.user_id = $1
+    `, [userId]);
+
+    if (result.rows.length === 0) {
+      // Return basic user info if no producer profile exists
+      const userResult = await db.query('SELECT id, username FROM users WHERE id = $1', [userId]);
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      return res.json({ user_id: userId, username: userResult.rows[0].username, is_producer: false });
+    }
+
+    res.json({ ...result.rows[0], is_producer: true });
+  } catch (e) {
+    console.error('Get producer profile error:', e.message);
+    res.status(500).json({ error: 'Failed to get producer profile' });
+  }
+});
+
+// Create/update producer profile
+app.put('/api/me/producer-profile', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { display_name, bio, avatar_url, banner_url, website, social_links } = req.body;
+
+    const result = await db.query(`
+      INSERT INTO producer_profiles (user_id, display_name, bio, avatar_url, banner_url, website, social_links)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (user_id) DO UPDATE SET
+        display_name = COALESCE(EXCLUDED.display_name, producer_profiles.display_name),
+        bio = COALESCE(EXCLUDED.bio, producer_profiles.bio),
+        avatar_url = COALESCE(EXCLUDED.avatar_url, producer_profiles.avatar_url),
+        banner_url = COALESCE(EXCLUDED.banner_url, producer_profiles.banner_url),
+        website = COALESCE(EXCLUDED.website, producer_profiles.website),
+        social_links = COALESCE(EXCLUDED.social_links, producer_profiles.social_links),
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING *
+    `, [req.user.id, display_name, bio, avatar_url, banner_url, website, social_links || {}]);
+
+    res.json(result.rows[0]);
+  } catch (e) {
+    console.error('Update producer profile error:', e.message);
+    res.status(500).json({ error: 'Failed to update producer profile' });
+  }
+});
+
+// ---- FOLLOWS ----
+
+// Follow a user
+app.post('/api/users/:userId/follow', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { userId } = req.params;
+
+    if (userId === req.user.id) {
+      return res.status(400).json({ error: 'Cannot follow yourself' });
+    }
+
+    await db.query(`
+      INSERT INTO follows (follower_id, following_id)
+      VALUES ($1, $2)
+      ON CONFLICT DO NOTHING
+    `, [req.user.id, userId]);
+
+    // Create feed event
+    await db.query(`
+      INSERT INTO feed_events (user_id, event_type, target_type, target_id)
+      VALUES ($1, 'follow', 'user', $2)
+    `, [req.user.id, userId]);
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Follow error:', e.message);
+    res.status(500).json({ error: 'Failed to follow user' });
+  }
+});
+
+// Unfollow a user
+app.delete('/api/users/:userId/follow', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { userId } = req.params;
+
+    await db.query('DELETE FROM follows WHERE follower_id = $1 AND following_id = $2', [req.user.id, userId]);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Unfollow error:', e.message);
+    res.status(500).json({ error: 'Failed to unfollow user' });
+  }
+});
+
+// Get followers
+app.get('/api/users/:userId/followers', async (req, res) => {
+  try {
+    const db = getPool();
+    const { userId } = req.params;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
+
+    const result = await db.query(`
+      SELECT u.id, u.username, pp.display_name, pp.avatar_url
+      FROM follows f
+      JOIN users u ON u.id = f.follower_id
+      LEFT JOIN producer_profiles pp ON pp.user_id = u.id
+      WHERE f.following_id = $1
+      ORDER BY f.created_at DESC
+      LIMIT $2 OFFSET $3
+    `, [userId, limit, offset]);
+
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Get followers error:', e.message);
+    res.status(500).json({ error: 'Failed to get followers' });
+  }
+});
+
+// Get following
+app.get('/api/users/:userId/following', async (req, res) => {
+  try {
+    const db = getPool();
+    const { userId } = req.params;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
+
+    const result = await db.query(`
+      SELECT u.id, u.username, pp.display_name, pp.avatar_url
+      FROM follows f
+      JOIN users u ON u.id = f.following_id
+      LEFT JOIN producer_profiles pp ON pp.user_id = u.id
+      WHERE f.follower_id = $1
+      ORDER BY f.created_at DESC
+      LIMIT $2 OFFSET $3
+    `, [userId, limit, offset]);
+
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Get following error:', e.message);
+    res.status(500).json({ error: 'Failed to get following' });
+  }
+});
+
+// ---- TRACK LIKES ----
+
+// Like a track
+app.post('/api/tracks/:trackId/like', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { trackId } = req.params;
+
+    await db.query(`
+      INSERT INTO track_likes (user_id, track_id)
+      VALUES ($1, $2)
+      ON CONFLICT DO NOTHING
+    `, [req.user.id, trackId]);
+
+    // Create feed event
+    await db.query(`
+      INSERT INTO feed_events (user_id, event_type, target_type, target_id)
+      VALUES ($1, 'like', 'track', $2)
+    `, [req.user.id, trackId]);
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Like error:', e.message);
+    res.status(500).json({ error: 'Failed to like track' });
+  }
+});
+
+// Unlike a track
+app.delete('/api/tracks/:trackId/like', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { trackId } = req.params;
+
+    await db.query('DELETE FROM track_likes WHERE user_id = $1 AND track_id = $2', [req.user.id, trackId]);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Unlike error:', e.message);
+    res.status(500).json({ error: 'Failed to unlike track' });
+  }
+});
+
+// Get track likes count
+app.get('/api/tracks/:trackId/likes', async (req, res) => {
+  try {
+    const db = getPool();
+    const { trackId } = req.params;
+
+    const result = await db.query('SELECT COUNT(*) as count FROM track_likes WHERE track_id = $1', [trackId]);
+    res.json({ count: parseInt(result.rows[0].count) });
+  } catch (e) {
+    console.error('Get likes error:', e.message);
+    res.status(500).json({ error: 'Failed to get likes' });
+  }
+});
+
+// ---- REPOSTS ----
+
+// Repost a track
+app.post('/api/tracks/:trackId/repost', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { trackId } = req.params;
+
+    await db.query(`
+      INSERT INTO reposts (user_id, track_id)
+      VALUES ($1, $2)
+      ON CONFLICT DO NOTHING
+    `, [req.user.id, trackId]);
+
+    // Create feed event
+    await db.query(`
+      INSERT INTO feed_events (user_id, event_type, target_type, target_id)
+      VALUES ($1, 'repost', 'track', $2)
+    `, [req.user.id, trackId]);
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Repost error:', e.message);
+    res.status(500).json({ error: 'Failed to repost track' });
+  }
+});
+
+// Remove repost
+app.delete('/api/tracks/:trackId/repost', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { trackId } = req.params;
+
+    await db.query('DELETE FROM reposts WHERE user_id = $1 AND track_id = $2', [req.user.id, trackId]);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Remove repost error:', e.message);
+    res.status(500).json({ error: 'Failed to remove repost' });
+  }
+});
+
+// ---- COMMENTS ----
+
+// Get comments for a track
+app.get('/api/tracks/:trackId/comments', async (req, res) => {
+  try {
+    const db = getPool();
+    const { trackId } = req.params;
+
+    const result = await db.query(`
+      SELECT c.*, u.username, pp.display_name, pp.avatar_url
+      FROM comments c
+      JOIN users u ON u.id = c.user_id
+      LEFT JOIN producer_profiles pp ON pp.user_id = u.id
+      WHERE c.track_id = $1
+      ORDER BY c.created_at ASC
+    `, [trackId]);
+
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Get comments error:', e.message);
+    res.status(500).json({ error: 'Failed to get comments' });
+  }
+});
+
+// Add comment
+app.post('/api/tracks/:trackId/comments', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { trackId } = req.params;
+    const { content, parent_id, timestamp_ms } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: 'Comment content required' });
+    }
+
+    const result = await db.query(`
+      INSERT INTO comments (user_id, track_id, parent_id, content, timestamp_ms)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `, [req.user.id, trackId, parent_id || null, content.trim(), timestamp_ms || null]);
+
+    // Create feed event
+    await db.query(`
+      INSERT INTO feed_events (user_id, event_type, target_type, target_id, metadata)
+      VALUES ($1, 'comment', 'track', $2, $3)
+    `, [req.user.id, trackId, JSON.stringify({ comment_id: result.rows[0].id })]);
+
+    res.json(result.rows[0]);
+  } catch (e) {
+    console.error('Add comment error:', e.message);
+    res.status(500).json({ error: 'Failed to add comment' });
+  }
+});
+
+// Delete comment
+app.delete('/api/comments/:commentId', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { commentId } = req.params;
+
+    // Only allow deleting own comments
+    const result = await db.query('DELETE FROM comments WHERE id = $1 AND user_id = $2 RETURNING id', [commentId, req.user.id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Comment not found or not authorized' });
+    }
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Delete comment error:', e.message);
+    res.status(500).json({ error: 'Failed to delete comment' });
+  }
+});
+
+// ---- ACTIVITY FEED ----
+
+// Get feed for current user (from people they follow)
+app.get('/api/feed', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
+
+    const result = await db.query(`
+      SELECT
+        fe.*,
+        u.username,
+        pp.display_name,
+        pp.avatar_url,
+        CASE
+          WHEN fe.target_type = 'track' THEN (SELECT row_to_json(t) FROM tracks t WHERE t.id = fe.target_id)
+          WHEN fe.target_type = 'user' THEN (SELECT row_to_json(u2) FROM users u2 WHERE u2.id = fe.target_id)
+          ELSE NULL
+        END as target_data
+      FROM feed_events fe
+      JOIN users u ON u.id = fe.user_id
+      LEFT JOIN producer_profiles pp ON pp.user_id = u.id
+      WHERE fe.user_id IN (SELECT following_id FROM follows WHERE follower_id = $1)
+         OR fe.user_id = $1
+      ORDER BY fe.created_at DESC
+      LIMIT $2 OFFSET $3
+    `, [req.user.id, limit, offset]);
+
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Get feed error:', e.message);
+    res.status(500).json({ error: 'Failed to get feed' });
+  }
+});
+
+// ---- PUBLIC TRACKS (Discovery) ----
+
+// Get public tracks for feed/discovery
+app.get('/api/discover/tracks', async (req, res) => {
+  try {
+    const db = getPool();
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
+    const genre = req.query.genre;
+
+    let query = `
+      SELECT
+        t.*,
+        u.username,
+        pp.display_name,
+        pp.avatar_url,
+        (SELECT COUNT(*) FROM track_likes WHERE track_id = t.id) as likes_count,
+        (SELECT COUNT(*) FROM reposts WHERE track_id = t.id) as reposts_count,
+        (SELECT COUNT(*) FROM comments WHERE track_id = t.id) as comments_count
+      FROM tracks t
+      JOIN users u ON u.id = t.user_id
+      LEFT JOIN producer_profiles pp ON pp.user_id = u.id
+      WHERE t.visibility = 'public'
+    `;
+
+    const params = [];
+    let paramCount = 0;
+
+    if (genre) {
+      paramCount++;
+      query += ` AND t.genre = $${paramCount}`;
+      params.push(genre);
+    }
+
+    paramCount++;
+    params.push(limit);
+    paramCount++;
+    params.push(offset);
+
+    query += ` ORDER BY t.created_at DESC LIMIT $${paramCount - 1} OFFSET $${paramCount}`;
+
+    const result = await db.query(query, params);
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Get discover tracks error:', e.message);
+    res.status(500).json({ error: 'Failed to get tracks' });
+  }
+});
+
+// ---- BEAT PACKS ----
+
+// Get user's packs
+app.get('/api/me/packs', auth, async (req, res) => {
+  try {
+    const db = getPool();
+
+    const result = await db.query(`
+      SELECT p.*,
+        (SELECT COUNT(*) FROM pack_tracks WHERE pack_id = p.id) as track_count
+      FROM packs p
+      WHERE p.user_id = $1
+      ORDER BY p.created_at DESC
+    `, [req.user.id]);
+
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Get packs error:', e.message);
+    res.status(500).json({ error: 'Failed to get packs' });
+  }
+});
+
+// Create a pack
+app.post('/api/packs', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { title, description, cover_url, price, license_type, track_ids } = req.body;
+
+    if (!title || !price) {
+      return res.status(400).json({ error: 'Title and price required' });
+    }
+
+    const result = await db.query(`
+      INSERT INTO packs (user_id, title, description, cover_url, price, license_type)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+    `, [req.user.id, title, description, cover_url, price, license_type || 'basic']);
+
+    const packId = result.rows[0].id;
+
+    // Add tracks to pack
+    if (track_ids && track_ids.length > 0) {
+      for (let i = 0; i < track_ids.length; i++) {
+        await db.query(`
+          INSERT INTO pack_tracks (pack_id, track_id, position)
+          VALUES ($1, $2, $3)
+          ON CONFLICT DO NOTHING
+        `, [packId, track_ids[i], i]);
+      }
+    }
+
+    res.json(result.rows[0]);
+  } catch (e) {
+    console.error('Create pack error:', e.message);
+    res.status(500).json({ error: 'Failed to create pack' });
+  }
+});
+
+// Get pack details
+app.get('/api/packs/:packId', async (req, res) => {
+  try {
+    const db = getPool();
+    const { packId } = req.params;
+
+    const packResult = await db.query(`
+      SELECT p.*, u.username, pp.display_name, pp.avatar_url
+      FROM packs p
+      JOIN users u ON u.id = p.user_id
+      LEFT JOIN producer_profiles pp ON pp.user_id = u.id
+      WHERE p.id = $1
+    `, [packId]);
+
+    if (packResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Pack not found' });
+    }
+
+    const pack = packResult.rows[0];
+
+    // Get tracks in pack
+    const tracksResult = await db.query(`
+      SELECT t.id, t.title, t.artist, t.duration, t.cover_url, t.bpm, t.musical_key, t.genre
+      FROM pack_tracks pt
+      JOIN tracks t ON t.id = pt.track_id
+      WHERE pt.pack_id = $1
+      ORDER BY pt.position
+    `, [packId]);
+
+    res.json({ ...pack, tracks: tracksResult.rows });
+  } catch (e) {
+    console.error('Get pack error:', e.message);
+    res.status(500).json({ error: 'Failed to get pack' });
+  }
+});
+
+// Update pack
+app.put('/api/packs/:packId', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { packId } = req.params;
+    const { title, description, cover_url, price, sale_price, license_type, visibility } = req.body;
+
+    const result = await db.query(`
+      UPDATE packs SET
+        title = COALESCE($1, title),
+        description = COALESCE($2, description),
+        cover_url = COALESCE($3, cover_url),
+        price = COALESCE($4, price),
+        sale_price = $5,
+        license_type = COALESCE($6, license_type),
+        visibility = COALESCE($7, visibility),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $8 AND user_id = $9
+      RETURNING *
+    `, [title, description, cover_url, price, sale_price, license_type, visibility, packId, req.user.id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Pack not found or not authorized' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (e) {
+    console.error('Update pack error:', e.message);
+    res.status(500).json({ error: 'Failed to update pack' });
+  }
+});
+
+// Delete pack
+app.delete('/api/packs/:packId', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { packId } = req.params;
+
+    const result = await db.query('DELETE FROM packs WHERE id = $1 AND user_id = $2 RETURNING id', [packId, req.user.id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Pack not found or not authorized' });
+    }
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Delete pack error:', e.message);
+    res.status(500).json({ error: 'Failed to delete pack' });
+  }
+});
+
+// Browse public packs
+app.get('/api/discover/packs', async (req, res) => {
+  try {
+    const db = getPool();
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
+
+    const result = await db.query(`
+      SELECT
+        p.*,
+        u.username,
+        pp.display_name,
+        pp.avatar_url,
+        (SELECT COUNT(*) FROM pack_tracks WHERE pack_id = p.id) as track_count
+      FROM packs p
+      JOIN users u ON u.id = p.user_id
+      LEFT JOIN producer_profiles pp ON pp.user_id = u.id
+      WHERE p.visibility = 'public'
+      ORDER BY p.created_at DESC
+      LIMIT $1 OFFSET $2
+    `, [limit, offset]);
+
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Get discover packs error:', e.message);
+    res.status(500).json({ error: 'Failed to get packs' });
+  }
+});
+
+// ---- MESSAGING ----
+
+// Get conversations
+app.get('/api/messages/conversations', auth, async (req, res) => {
+  try {
+    const db = getPool();
+
+    const result = await db.query(`
+      SELECT
+        c.*,
+        (
+          SELECT json_agg(json_build_object('user_id', u.id, 'username', u.username, 'avatar_url', pp.avatar_url))
+          FROM conversation_participants cp2
+          JOIN users u ON u.id = cp2.user_id
+          LEFT JOIN producer_profiles pp ON pp.user_id = u.id
+          WHERE cp2.conversation_id = c.id AND cp2.user_id != $1
+        ) as other_participants,
+        (
+          SELECT row_to_json(m)
+          FROM messages m
+          WHERE m.conversation_id = c.id
+          ORDER BY m.created_at DESC
+          LIMIT 1
+        ) as last_message,
+        (
+          SELECT COUNT(*)
+          FROM messages m
+          WHERE m.conversation_id = c.id
+            AND m.created_at > COALESCE(cp.last_read_at, '1970-01-01')
+            AND m.sender_id != $1
+        ) as unread_count
+      FROM conversations c
+      JOIN conversation_participants cp ON cp.conversation_id = c.id AND cp.user_id = $1
+      ORDER BY c.updated_at DESC
+    `, [req.user.id]);
+
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Get conversations error:', e.message);
+    res.status(500).json({ error: 'Failed to get conversations' });
+  }
+});
+
+// Get messages in a conversation
+app.get('/api/messages/conversations/:conversationId', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { conversationId } = req.params;
+    const limit = parseInt(req.query.limit) || 50;
+    const before = req.query.before;
+
+    // Verify user is participant
+    const participantCheck = await db.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2',
+      [conversationId, req.user.id]
+    );
+
+    if (participantCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'Not a participant' });
+    }
+
+    let query = `
+      SELECT m.*, u.username, pp.avatar_url
+      FROM messages m
+      JOIN users u ON u.id = m.sender_id
+      LEFT JOIN producer_profiles pp ON pp.user_id = u.id
+      WHERE m.conversation_id = $1
+    `;
+    const params = [conversationId];
+
+    if (before) {
+      query += ` AND m.created_at < $2`;
+      params.push(before);
+    }
+
+    query += ` ORDER BY m.created_at DESC LIMIT $${params.length + 1}`;
+    params.push(limit);
+
+    const result = await db.query(query, params);
+
+    // Mark as read
+    await db.query(
+      'UPDATE conversation_participants SET last_read_at = CURRENT_TIMESTAMP WHERE conversation_id = $1 AND user_id = $2',
+      [conversationId, req.user.id]
+    );
+
+    res.json(result.rows.reverse());
+  } catch (e) {
+    console.error('Get messages error:', e.message);
+    res.status(500).json({ error: 'Failed to get messages' });
+  }
+});
+
+// Send message
+app.post('/api/messages/conversations/:conversationId', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { conversationId } = req.params;
+    const { content, message_type, attachment_id } = req.body;
+
+    // Verify user is participant
+    const participantCheck = await db.query(
+      'SELECT 1 FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2',
+      [conversationId, req.user.id]
+    );
+
+    if (participantCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'Not a participant' });
+    }
+
+    const result = await db.query(`
+      INSERT INTO messages (conversation_id, sender_id, content, message_type, attachment_id)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `, [conversationId, req.user.id, content, message_type || 'text', attachment_id]);
+
+    // Update conversation timestamp
+    await db.query('UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = $1', [conversationId]);
+
+    res.json(result.rows[0]);
+  } catch (e) {
+    console.error('Send message error:', e.message);
+    res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+// Start new conversation
+app.post('/api/messages/conversations', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { user_id, initial_message } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({ error: 'user_id required' });
+    }
+
+    if (user_id === req.user.id) {
+      return res.status(400).json({ error: 'Cannot message yourself' });
+    }
+
+    // Check if conversation already exists between these users
+    const existingConvo = await db.query(`
+      SELECT c.id FROM conversations c
+      WHERE EXISTS (SELECT 1 FROM conversation_participants WHERE conversation_id = c.id AND user_id = $1)
+        AND EXISTS (SELECT 1 FROM conversation_participants WHERE conversation_id = c.id AND user_id = $2)
+        AND (SELECT COUNT(*) FROM conversation_participants WHERE conversation_id = c.id) = 2
+    `, [req.user.id, user_id]);
+
+    let conversationId;
+
+    if (existingConvo.rows.length > 0) {
+      conversationId = existingConvo.rows[0].id;
+    } else {
+      // Create new conversation
+      const convoResult = await db.query('INSERT INTO conversations DEFAULT VALUES RETURNING id');
+      conversationId = convoResult.rows[0].id;
+
+      // Add participants
+      await db.query('INSERT INTO conversation_participants (conversation_id, user_id) VALUES ($1, $2), ($1, $3)',
+        [conversationId, req.user.id, user_id]);
+    }
+
+    // Send initial message if provided
+    if (initial_message) {
+      await db.query(`
+        INSERT INTO messages (conversation_id, sender_id, content)
+        VALUES ($1, $2, $3)
+      `, [conversationId, req.user.id, initial_message]);
+
+      await db.query('UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = $1', [conversationId]);
+    }
+
+    res.json({ conversation_id: conversationId });
+  } catch (e) {
+    console.error('Start conversation error:', e.message);
+    res.status(500).json({ error: 'Failed to start conversation' });
   }
 });
 

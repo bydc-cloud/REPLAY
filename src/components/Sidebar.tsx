@@ -1,4 +1,4 @@
-import { Home, Search, Library, Heart, Disc, ListMusic, Plus, X, Folder, Settings, Info, Store, Check } from "lucide-react";
+import { Home, Search, Library, Heart, Disc, ListMusic, Plus, X, Folder, Settings, Info, Store, Check, Compass, MessageCircle, User } from "lucide-react";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
 import { useState, useRef, useEffect } from "react";
 
@@ -188,6 +188,12 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
               onClick={() => handleNavClick("home")}
             />
             <NavItem
+              icon={<Compass size={20} />}
+              label="Discover"
+              active={activeTab === "feed"}
+              onClick={() => handleNavClick("feed")}
+            />
+            <NavItem
               icon={<Search size={20} />}
               label="Search"
               active={activeTab === "search"}
@@ -204,6 +210,18 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
               label="Liked Songs"
               active={activeTab === "liked"}
               onClick={() => handleNavClick("liked")}
+            />
+            <NavItem
+              icon={<MessageCircle size={20} />}
+              label="Messages"
+              active={activeTab === "messages"}
+              onClick={() => handleNavClick("messages")}
+            />
+            <NavItem
+              icon={<User size={20} />}
+              label="My Profile"
+              active={activeTab === "profile"}
+              onClick={() => handleNavClick("profile")}
             />
           </nav>
 

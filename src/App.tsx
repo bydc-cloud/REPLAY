@@ -1,5 +1,5 @@
 import { Menu } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { PlayerBar } from "./components/PlayerBar";
 import { HomeView } from "./components/HomeView";
@@ -11,6 +11,9 @@ import { AlbumArtBackground } from "./components/AlbumArtBackground";
 import { QueueDrawer } from "./components/QueueDrawer";
 import { SettingsView } from "./components/SettingsView";
 import { MarketplaceView } from "./components/MarketplaceView";
+import { FeedView } from "./components/FeedView";
+import { MessagesView } from "./components/MessagesView";
+import { ProducerProfileView } from "./components/ProducerProfileView";
 import { SettingsProvider, useSettings } from "./contexts/SettingsContext";
 import { PostgresAuthProvider, useAuth } from "./contexts/PostgresAuthContext";
 import { MusicLibraryProvider } from "./contexts/MusicLibraryContext";
@@ -23,20 +26,30 @@ import { MiniPlayer } from "./components/MiniPlayer";
 import { ToastProvider } from "./contexts/ToastContext";
 import { ToastContainer } from "./components/ToastContainer";
 import { GlobalImportProgress } from "./components/GlobalImportProgress";
+import { useHashRouter } from "./hooks/useHashRouter";
+import { LazyContextLoader } from "./components/LazyContextLoader";
 
 type AppView = "landing" | "auth" | "app" | "about";
 type AuthMode = "signin" | "signup";
 
 function AppContent() {
-  const [activeTab, setActiveTab] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [queueDrawerOpen, setQueueDrawerOpen] = useState(false);
   const [miniPlayerOpen, setMiniPlayerOpen] = useState(false);
   const { visualizerVariant, setVisualizerVariant } = useSettings();
   const { isAuthenticated, isLoading } = useAuth();
 
+  // Hash-based routing for shareable URLs
+  const { route, navigate, getTabFromRoute } = useHashRouter();
+  const activeTab = getTabFromRoute();
+
   const [currentView, setCurrentView] = useState<AppView>("landing");
   const [authMode, setAuthMode] = useState<AuthMode>("signup");
+
+  // Navigate to tab via hash
+  const setActiveTab = useCallback((tab: string) => {
+    navigate(tab);
+  }, [navigate]);
 
   // Handle authentication state changes
   useEffect(() => {
@@ -149,9 +162,17 @@ function AppContent() {
   }
 
   const renderView = () => {
+    // Handle producer profile routes like /producer/user-id
+    if (activeTab.startsWith('producer/')) {
+      const userId = activeTab.replace('producer/', '');
+      return <ProducerProfileView userId={userId} onBack={() => setActiveTab('feed')} />;
+    }
+
     switch (activeTab) {
       case "home":
         return <HomeView onTabChange={setActiveTab} />;
+      case "feed":
+        return <FeedView />;
       case "search":
         return <SearchView />;
       case "library":
@@ -162,6 +183,10 @@ function AppContent() {
         return <AlbumsView />;
       case "queue":
         return <QueueView />;
+      case "messages":
+        return <MessagesView />;
+      case "profile":
+        return <ProducerProfileView onBack={() => setActiveTab('home')} />;
       case "settings":
         return (
           <SettingsView
@@ -287,10 +312,12 @@ function AppWithAudioPlayer() {
   return (
     <AudioEffectsProvider>
       <AudioPlayerProvider>
-        <DragDropOverlay>
-          <GlobalImportProgress />
-          <AppContent />
-        </DragDropOverlay>
+        <LazyContextLoader>
+          <DragDropOverlay>
+            <GlobalImportProgress />
+            <AppContent />
+          </DragDropOverlay>
+        </LazyContextLoader>
       </AudioPlayerProvider>
     </AudioEffectsProvider>
   );
