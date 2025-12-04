@@ -212,6 +212,50 @@ function base64ToBuffer(base64Data) {
   return Buffer.from(base64, 'base64');
 }
 
+// Compress audio buffer to MP3 with lower bitrate for faster uploads
+async function compressAudioForTranscription(audioBuffer, originalExt) {
+  // If file is under 1MB, no compression needed
+  if (audioBuffer.length < 1024 * 1024) {
+    console.log('Audio file small enough, skipping compression');
+    return { buffer: audioBuffer, ext: originalExt || 'mp3', compressed: false };
+  }
+
+  console.log(`Compressing ${audioBuffer.length} bytes for transcription...`);
+
+  try {
+    const { execSync } = require('child_process');
+    const tempInputPath = `/tmp/transcription_input_${Date.now()}.${originalExt || 'mp3'}`;
+    const tempOutputPath = `/tmp/transcription_output_${Date.now()}.mp3`;
+
+    // Write input file
+    fs.writeFileSync(tempInputPath, audioBuffer);
+
+    // Compress to 32kbps mono MP3 (good enough for speech recognition)
+    // Whisper works fine with low bitrate audio
+    execSync(`ffmpeg -i "${tempInputPath}" -ac 1 -ar 16000 -b:a 32k -y "${tempOutputPath}"`, {
+      stdio: 'pipe',
+      timeout: 60000 // 60 second timeout
+    });
+
+    // Read compressed file
+    const compressedBuffer = fs.readFileSync(tempOutputPath);
+    console.log(`Compressed from ${audioBuffer.length} to ${compressedBuffer.length} bytes (${Math.round(compressedBuffer.length / audioBuffer.length * 100)}%)`);
+
+    // Cleanup temp files
+    try {
+      fs.unlinkSync(tempInputPath);
+      fs.unlinkSync(tempOutputPath);
+    } catch (e) {
+      // Ignore cleanup errors
+    }
+
+    return { buffer: compressedBuffer, ext: 'mp3', compressed: true };
+  } catch (error) {
+    console.log('ffmpeg compression failed, using original:', error.message);
+    return { buffer: audioBuffer, ext: originalExt || 'mp3', compressed: false };
+  }
+}
+
 // Detect MIME type from file extension or data URI
 function detectAudioMimeType(audioBase64, fileKey) {
   // Check file extension from fileKey
@@ -254,16 +298,20 @@ async function transcribeAudio(audioBase64, trackId, fileKey = null) {
     try {
       console.log(`Starting transcription for track ${trackId} (attempt ${attempt}/${maxRetries})`);
       const audioBuffer = base64ToBuffer(audioBase64);
-      console.log(`Audio buffer size: ${audioBuffer.length} bytes`);
+      console.log(`Original audio buffer size: ${audioBuffer.length} bytes`);
 
-      // Detect correct MIME type
+      // Detect original format
       const { mimeType, ext } = detectAudioMimeType(audioBase64, fileKey);
       console.log(`Detected audio format: ${mimeType} (.${ext})`);
 
-      // Use toFile helper with correct MIME type
-      const audioFile = await toFile(audioBuffer, `audio-${trackId}.${ext}`, { type: mimeType });
+      // Compress audio if needed to reduce upload size
+      const { buffer: finalBuffer, ext: finalExt, compressed } = await compressAudioForTranscription(audioBuffer, ext);
+      const finalMimeType = compressed ? 'audio/mpeg' : mimeType;
 
-      console.log(`Sending ${audioBuffer.length} bytes to Whisper API...`);
+      // Use toFile helper with correct MIME type
+      const audioFile = await toFile(finalBuffer, `audio-${trackId}.${finalExt}`, { type: finalMimeType });
+
+      console.log(`Sending ${finalBuffer.length} bytes to Whisper API${compressed ? ' (compressed)' : ''}...`);
 
       const transcription = await openai.audio.transcriptions.create({
         file: audioFile,
