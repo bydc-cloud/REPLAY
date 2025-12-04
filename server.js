@@ -1225,6 +1225,7 @@ app.post('/api/tracks/from-b2-batch', auth, async (req, res) => {
 });
 
 // Get streaming URL for B2 track
+// Returns info about audio source - frontend uses proxy-stream for B2 tracks
 app.get('/api/tracks/:id/stream-url', auth, async (req, res) => {
   try {
     const db = getPool();
@@ -1239,29 +1240,14 @@ app.get('/api/tracks/:id/stream-url', auth, async (req, res) => {
 
     const track = result.rows[0];
 
+    // If track has file_key, indicate B2 source - frontend will use proxy-stream
     if (track.file_key) {
       const client = getS3Client();
       if (!client) {
         return res.status(500).json({ error: 'Cloud storage not configured' });
       }
 
-      // Verify file exists in B2 before generating signed URL
-      try {
-        const headCommand = new HeadObjectCommand({
-          Bucket: B2_BUCKET,
-          Key: track.file_key,
-        });
-        await client.send(headCommand);
-      } catch (headErr) {
-        console.error(`File not found in B2: ${track.file_key}`, headErr.message);
-        // File doesn't exist in B2, clear the file_key so we don't keep trying
-        await db.query('UPDATE tracks SET file_key = NULL WHERE id = $1', [req.params.id]);
-        // Fall through to check file_data
-        if (!track.file_data) {
-          return res.status(404).json({ error: 'Audio file not found in cloud storage' });
-        }
-      }
-
+      // Generate signed URL (frontend uses proxy, but we return this for compatibility)
       const command = new GetObjectCommand({
         Bucket: B2_BUCKET,
         Key: track.file_key,
@@ -1273,7 +1259,8 @@ app.get('/api/tracks/:id/stream-url', auth, async (req, res) => {
       return res.json({
         url: streamUrl,
         expiresIn: 3600,
-        source: 'b2'
+        source: 'b2',
+        fileKey: track.file_key
       });
     }
 
