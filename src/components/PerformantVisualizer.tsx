@@ -394,17 +394,17 @@ export const PerformantVisualizer = ({
     };
   }, [frequencyData, barCount, variant, isReady, size, isPlaying, demoMode, isMP3Theme]);
 
-  // Enhanced Bars Visualizer - VIBRANT rainbow style
+  // Enhanced Bars Visualizer - VIBRANT rainbow style - Full width edge-to-edge
   if (variant === "bars") {
     return (
-      <div ref={containerRef} className={`${containerClass} flex items-end justify-center gap-[2px] px-2 relative`}>
+      <div ref={containerRef} className={`${containerClass} flex items-end justify-between gap-[1px] px-0 relative`}>
         {Array.from({ length: barCount }).map((_, i) => {
           const hue = (i / barCount) * 280; // Full rainbow spread
           return (
             <div
               key={i}
               ref={el => { if (el) barsRef.current[i] = el; }}
-              className="flex-1 max-w-[5px] h-full rounded-t-sm origin-bottom"
+              className="flex-1 h-full rounded-t-sm origin-bottom"
               style={{
                 background: `linear-gradient(to top,
                   hsl(${hue}, 85%, 45%),
@@ -421,17 +421,17 @@ export const PerformantVisualizer = ({
     );
   }
 
-  // Enhanced Wave Visualizer - Flowing rainbow
+  // Enhanced Wave Visualizer - Flowing rainbow - Full width edge-to-edge
   if (variant === "wave") {
     return (
-      <div ref={containerRef} className={`${containerClass} flex items-center justify-center gap-[1px] relative overflow-hidden`}>
+      <div ref={containerRef} className={`${containerClass} flex items-center justify-between gap-[1px] px-0 relative overflow-hidden`}>
         {Array.from({ length: barCount }).map((_, i) => {
           const hue = (i / barCount) * 300;
           return (
             <div
               key={i}
               ref={el => { if (el) barsRef.current[i] = el; }}
-              className="w-[2px] md:w-[3px] h-20 md:h-28 rounded-sm origin-center"
+              className="flex-1 h-20 md:h-28 rounded-sm origin-center"
               style={{
                 background: `linear-gradient(to top,
                   hsl(${hue}, 80%, 45%),

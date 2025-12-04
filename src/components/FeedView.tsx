@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Heart, MessageCircle, Repeat2, Play, Pause, UserPlus, Music, Loader2, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Heart, MessageCircle, Repeat2, Play, Pause, UserPlus, Music, Loader2, RefreshCw, Share2, Bookmark, ChevronUp, Sliders } from 'lucide-react';
 import { useAuth } from '../contexts/PostgresAuthContext';
 import { useAudioPlayer } from '../contexts/AudioPlayerContext';
+import { useSettings } from '../contexts/SettingsContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://replay-production-9240.up.railway.app';
 
@@ -41,15 +42,175 @@ interface DiscoverTrack {
   reposts_count: number;
   comments_count: number;
   user_id: string;
+  is_beat?: boolean;
+  play_count?: number;
 }
 
+// Demo/seeded tracks for testing the TikTok-style feed
+const DEMO_TRACKS: DiscoverTrack[] = [
+  {
+    id: 'demo-1',
+    title: 'Midnight Dreams',
+    artist: 'CloudNine',
+    cover_url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop',
+    duration: 195,
+    bpm: 128,
+    musical_key: 'Am',
+    genre: 'Lo-Fi',
+    username: 'cloudnine',
+    display_name: 'CloudNine',
+    likes_count: 1243,
+    reposts_count: 89,
+    comments_count: 45,
+    user_id: 'demo-user-1',
+    is_beat: false,
+    play_count: 15420
+  },
+  {
+    id: 'demo-2',
+    title: 'Tokyo Drift',
+    artist: 'BeatMaker808',
+    cover_url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&h=400&fit=crop',
+    duration: 180,
+    bpm: 140,
+    musical_key: 'Cm',
+    genre: 'Trap',
+    username: 'beatmaker808',
+    display_name: 'BeatMaker808',
+    likes_count: 3521,
+    reposts_count: 234,
+    comments_count: 128,
+    user_id: 'demo-user-2',
+    is_beat: true,
+    play_count: 45230
+  },
+  {
+    id: 'demo-3',
+    title: 'Summer Vibes',
+    artist: 'MelodyMaster',
+    cover_url: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400&h=400&fit=crop',
+    duration: 210,
+    bpm: 100,
+    musical_key: 'F',
+    genre: 'R&B',
+    username: 'melodymaster',
+    display_name: 'MelodyMaster',
+    likes_count: 892,
+    reposts_count: 56,
+    comments_count: 23,
+    user_id: 'demo-user-3',
+    is_beat: false,
+    play_count: 8920
+  },
+  {
+    id: 'demo-4',
+    title: 'Dark Matter',
+    artist: 'ProdByNova',
+    cover_url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&h=400&fit=crop',
+    duration: 165,
+    bpm: 145,
+    musical_key: 'Gm',
+    genre: 'Drill',
+    username: 'prodbynova',
+    display_name: 'ProdByNova',
+    likes_count: 5678,
+    reposts_count: 412,
+    comments_count: 234,
+    user_id: 'demo-user-4',
+    is_beat: true,
+    play_count: 78900
+  },
+  {
+    id: 'demo-5',
+    title: 'Ocean Waves',
+    artist: 'ChillBeats',
+    cover_url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop',
+    duration: 240,
+    bpm: 85,
+    musical_key: 'D',
+    genre: 'Ambient',
+    username: 'chillbeats',
+    display_name: 'ChillBeats',
+    likes_count: 2134,
+    reposts_count: 167,
+    comments_count: 89,
+    user_id: 'demo-user-5',
+    is_beat: false,
+    play_count: 23450
+  },
+  {
+    id: 'demo-6',
+    title: 'Neon Streets',
+    artist: 'SynthWave',
+    cover_url: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&h=400&fit=crop',
+    duration: 200,
+    bpm: 120,
+    musical_key: 'Em',
+    genre: 'Synthwave',
+    username: 'synthwave',
+    display_name: 'SynthWave',
+    likes_count: 4521,
+    reposts_count: 289,
+    comments_count: 156,
+    user_id: 'demo-user-6',
+    is_beat: true,
+    play_count: 56780
+  },
+  {
+    id: 'demo-7',
+    title: 'Purple Rain',
+    artist: 'LoFiKing',
+    cover_url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop',
+    duration: 185,
+    bpm: 90,
+    musical_key: 'Bb',
+    genre: 'Lo-Fi',
+    username: 'lofiking',
+    display_name: 'LoFiKing',
+    likes_count: 1876,
+    reposts_count: 123,
+    comments_count: 67,
+    user_id: 'demo-user-7',
+    is_beat: false,
+    play_count: 19870
+  },
+  {
+    id: 'demo-8',
+    title: 'Hard Knock',
+    artist: 'TrapGod',
+    cover_url: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=400&h=400&fit=crop',
+    duration: 175,
+    bpm: 150,
+    musical_key: 'Dm',
+    genre: 'Trap',
+    username: 'trapgod',
+    display_name: 'TrapGod',
+    likes_count: 8932,
+    reposts_count: 567,
+    comments_count: 345,
+    user_id: 'demo-user-8',
+    is_beat: true,
+    play_count: 123400
+  }
+];
+
+type FeedTab = 'following' | 'discover' | 'beats';
+
 export function FeedView() {
-  const { token, isAuthenticated } = useAuth();
+  const { token, isAuthenticated, user } = useAuth();
   const { currentTrack, isPlaying, togglePlayPause, setQueue } = useAudioPlayer();
+  const { developerMode } = useSettings();
   const [feed, setFeed] = useState<FeedEvent[]>([]);
   const [discoverTracks, setDiscoverTracks] = useState<DiscoverTrack[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'feed' | 'discover'>('discover');
+  const [activeTab, setActiveTab] = useState<FeedTab>('discover');
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [likedTracks, setLikedTracks] = useState<Set<string>>(new Set());
+  const [savedTracks, setSavedTracks] = useState<Set<string>>(new Set());
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isScrolling, setIsScrolling] = useState(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
 
   const fetchFeed = useCallback(async () => {
     if (!token) return;
@@ -72,10 +233,17 @@ export function FeedView() {
       const response = await fetch(`${API_URL}/api/discover/tracks?limit=20`);
       if (response.ok) {
         const data = await response.json();
-        setDiscoverTracks(data);
+        // Merge with demo tracks for a fuller experience
+        const merged = [...data, ...DEMO_TRACKS.filter(dt => !data.find((t: DiscoverTrack) => t.id === dt.id))];
+        setDiscoverTracks(merged.length > 0 ? merged : DEMO_TRACKS);
+      } else {
+        // Use demo tracks if API fails
+        setDiscoverTracks(DEMO_TRACKS);
       }
     } catch (err) {
       console.error('Failed to fetch discover tracks:', err);
+      // Use demo tracks on error
+      setDiscoverTracks(DEMO_TRACKS);
     }
   }, []);
 
@@ -91,7 +259,26 @@ export function FeedView() {
     loadData();
   }, [isAuthenticated, fetchFeed, fetchDiscoverTracks]);
 
+  // Get filtered tracks based on active tab
+  const getFilteredTracks = useCallback(() => {
+    if (activeTab === 'beats') {
+      return discoverTracks.filter(t => t.is_beat);
+    }
+    return discoverTracks;
+  }, [activeTab, discoverTracks]);
+
   const handleLike = async (track: DiscoverTrack) => {
+    // Optimistic update
+    setLikedTracks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(track.id)) {
+        newSet.delete(track.id);
+      } else {
+        newSet.add(track.id);
+      }
+      return newSet;
+    });
+
     if (!token) return;
 
     try {
@@ -99,13 +286,21 @@ export function FeedView() {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
-      // Refresh discover tracks to update counts
-      fetchDiscoverTracks();
-      // Auto-play the track when liking it
-      handlePlayTrack(track);
     } catch (err) {
       console.error('Failed to like track:', err);
     }
+  };
+
+  const handleSave = (track: DiscoverTrack) => {
+    setSavedTracks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(track.id)) {
+        newSet.delete(track.id);
+      } else {
+        newSet.add(track.id);
+      }
+      return newSet;
+    });
   };
 
   const handleRepost = async (trackId: string) => {
@@ -123,7 +318,6 @@ export function FeedView() {
   };
 
   const handlePlayTrack = (track: DiscoverTrack) => {
-    // Convert to queue format - cast as any to satisfy Track type for social playback
     const queueTrack = {
       id: track.id,
       title: track.title,
@@ -131,29 +325,20 @@ export function FeedView() {
       album: '',
       duration: track.duration,
       coverUrl: track.cover_url || '',
-      fileUrl: '', // Social tracks stream from API
+      fileUrl: '',
       fileData: null,
       fileKey: null,
       playCount: 0,
-      isLiked: false,
+      isLiked: likedTracks.has(track.id),
       addedAt: new Date()
     };
     setQueue([queueTrack as any], 0);
   };
 
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-    return date.toLocaleDateString();
+  const formatCount = (count: number) => {
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
+    return count.toString();
   };
 
   const formatDuration = (seconds: number) => {
@@ -162,250 +347,500 @@ export function FeedView() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getEventDescription = (event: FeedEvent) => {
-    const name = event.display_name || event.username;
-    switch (event.event_type) {
-      case 'like':
-        return `${name} liked a track`;
-      case 'repost':
-        return `${name} reposted a track`;
-      case 'comment':
-        return `${name} commented on a track`;
-      case 'follow':
-        return `${name} followed someone`;
-      case 'upload':
-        return `${name} uploaded a new track`;
-      default:
-        return `${name} did something`;
+  // TikTok-style vertical scroll handling
+  const handleScroll = useCallback(() => {
+    if (!containerRef.current) return;
+
+    const container = containerRef.current;
+    const scrollTop = container.scrollTop;
+    const itemHeight = container.clientHeight;
+    const newIndex = Math.round(scrollTop / itemHeight);
+
+    if (newIndex !== currentIndex) {
+      setCurrentIndex(newIndex);
     }
+
+    // Show scrolling indicator
+    setIsScrolling(true);
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    scrollTimeoutRef.current = setTimeout(() => {
+      setIsScrolling(false);
+    }, 150);
+  }, [currentIndex]);
+
+  // Snap to item on scroll end
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let scrollEndTimeout: NodeJS.Timeout;
+
+    const handleScrollEnd = () => {
+      clearTimeout(scrollEndTimeout);
+      scrollEndTimeout = setTimeout(() => {
+        const itemHeight = container.clientHeight;
+        const targetScroll = currentIndex * itemHeight;
+        container.scrollTo({
+          top: targetScroll,
+          behavior: 'smooth'
+        });
+      }, 100);
+    };
+
+    container.addEventListener('scroll', handleScrollEnd, { passive: true });
+    return () => container.removeEventListener('scroll', handleScrollEnd);
+  }, [currentIndex]);
+
+  const scrollToIndex = (index: number) => {
+    if (!containerRef.current) return;
+    const itemHeight = containerRef.current.clientHeight;
+    containerRef.current.scrollTo({
+      top: index * itemHeight,
+      behavior: 'smooth'
+    });
+    setCurrentIndex(index);
   };
 
-  const getEventIcon = (eventType: string) => {
-    switch (eventType) {
-      case 'like':
-        return <Heart className="w-4 h-4 text-pink-500" fill="currentColor" />;
-      case 'repost':
-        return <Repeat2 className="w-4 h-4 text-green-500" />;
-      case 'comment':
-        return <MessageCircle className="w-4 h-4 text-blue-500" />;
-      case 'follow':
-        return <UserPlus className="w-4 h-4 text-purple-500" />;
-      default:
-        return <Music className="w-4 h-4 text-white/60" />;
-    }
-  };
+  const filteredTracks = getFilteredTracks();
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-white/60" />
+      <div className="flex items-center justify-center h-screen bg-black">
+        <div className="text-center">
+          <div className="flex items-end justify-center gap-1 h-12 mb-4">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="w-1.5 rounded-full bg-white/60"
+                style={{
+                  height: '100%',
+                  animation: `audioLoading 1s ease-in-out ${i * 0.1}s infinite`,
+                }}
+              />
+            ))}
+          </div>
+          <p className="text-white/40 text-sm">Loading your feed...</p>
+        </div>
+        <style>{`
+          @keyframes audioLoading {
+            0%, 100% { transform: scaleY(0.3); opacity: 0.5; }
+            50% { transform: scaleY(1); opacity: 1; }
+          }
+        `}</style>
       </div>
     );
   }
 
   return (
-    <div className="p-4 md:p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-white">
-          {activeTab === 'feed' ? 'Your Feed' : 'Discover'}
-        </h1>
-        <button
-          onClick={() => {
-            setLoading(true);
-            Promise.all([fetchFeed(), fetchDiscoverTracks()]).then(() => setLoading(false));
-          }}
-          className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-        >
-          <RefreshCw className="w-5 h-5 text-white/60" />
-        </button>
-      </div>
+    <div className="h-screen bg-black flex flex-col overflow-hidden">
+      {/* TikTok-style Top Tabs - Fixed at top */}
+      <div className="absolute top-0 left-0 right-0 z-50 pt-4 pb-2 px-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
+        <div className="flex items-center justify-center gap-1">
+          {/* Following tab - only for authenticated users */}
+          {isAuthenticated && (
+            <button
+              onClick={() => setActiveTab('following')}
+              className={`px-5 py-2.5 text-sm font-semibold transition-all rounded-full ${
+                activeTab === 'following'
+                  ? 'text-white bg-white/15'
+                  : 'text-white/50 hover:text-white/70'
+              }`}
+            >
+              Following
+            </button>
+          )}
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setActiveTab('discover')}
-          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-            activeTab === 'discover'
-              ? 'bg-white text-black'
-              : 'bg-white/10 text-white/60 hover:bg-white/20'
-          }`}
-        >
-          Discover
-        </button>
-        {isAuthenticated && (
           <button
-            onClick={() => setActiveTab('feed')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-              activeTab === 'feed'
-                ? 'bg-white text-black'
-                : 'bg-white/10 text-white/60 hover:bg-white/20'
+            onClick={() => setActiveTab('discover')}
+            className={`px-5 py-2.5 text-sm font-semibold transition-all rounded-full ${
+              activeTab === 'discover'
+                ? 'text-white bg-white/15'
+                : 'text-white/50 hover:text-white/70'
             }`}
           >
-            Following
+            Discover
           </button>
-        )}
+
+          {/* Beats tab - only for developer/producer mode */}
+          {developerMode && (
+            <button
+              onClick={() => setActiveTab('beats')}
+              className={`px-5 py-2.5 text-sm font-semibold transition-all rounded-full flex items-center gap-1.5 ${
+                activeTab === 'beats'
+                  ? 'text-white bg-white/15'
+                  : 'text-white/50 hover:text-white/70'
+              }`}
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              Beats
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Content */}
-      {activeTab === 'discover' ? (
-        <div className="space-y-3">
-          {discoverTracks.length === 0 ? (
-            <div className="text-center py-12">
-              <Music className="w-12 h-12 mx-auto text-white/20 mb-4" />
-              <p className="text-white/60">No public tracks yet</p>
-              <p className="text-white/40 text-sm mt-1">Be the first to share your music!</p>
+      {/* Refresh button */}
+      <button
+        onClick={() => {
+          setLoading(true);
+          Promise.all([fetchFeed(), fetchDiscoverTracks()]).then(() => setLoading(false));
+        }}
+        className="absolute top-4 right-4 z-50 p-2.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors backdrop-blur-sm"
+      >
+        <RefreshCw className="w-4 h-4 text-white/70" />
+      </button>
+
+      {/* TikTok-style Full Screen Feed */}
+      {activeTab !== 'following' ? (
+        <div
+          ref={containerRef}
+          className="flex-1 overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+          onScroll={handleScroll}
+          style={{ scrollSnapType: 'y mandatory' }}
+        >
+          {filteredTracks.length === 0 ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center px-8">
+                <Music className="w-16 h-16 mx-auto text-white/20 mb-4" />
+                <p className="text-white/60 text-lg font-medium mb-2">
+                  {activeTab === 'beats' ? 'No beats found' : 'No tracks yet'}
+                </p>
+                <p className="text-white/40 text-sm">
+                  {activeTab === 'beats'
+                    ? 'Check back soon for new beats from producers'
+                    : 'Be the first to share your music!'}
+                </p>
+              </div>
             </div>
           ) : (
-            discoverTracks.map((track) => {
+            filteredTracks.map((track, index) => {
               const isCurrentTrack = currentTrack?.id === track.id;
+              const isLiked = likedTracks.has(track.id);
+              const isSaved = savedTracks.has(track.id);
+              const isActive = index === currentIndex;
+
               return (
                 <div
                   key={track.id}
-                  className="bg-white/5 hover:bg-white/10 rounded-xl p-4 transition-all group"
+                  className="h-screen w-full snap-start snap-always relative flex items-center justify-center"
+                  style={{ scrollSnapAlign: 'start' }}
                 >
-                  <div className="flex items-center gap-4">
-                    {/* Cover Art */}
-                    <div className="relative w-16 h-16 md:w-20 md:h-20 flex-shrink-0">
-                      {track.cover_url ? (
+                  {/* Background - Cover art blurred */}
+                  <div className="absolute inset-0 overflow-hidden">
+                    {track.cover_url ? (
+                      <>
                         <img
                           src={track.cover_url}
-                          alt={track.title}
-                          className="w-full h-full object-cover rounded-lg"
+                          alt=""
+                          className="absolute inset-0 w-full h-full object-cover scale-110 blur-3xl opacity-40"
                         />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-purple-500/30 to-pink-500/30 rounded-lg flex items-center justify-center">
-                          <Music className="w-8 h-8 text-white/40" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/80" />
+                      </>
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-black to-zinc-900" />
+                    )}
+                  </div>
+
+                  {/* Main Content */}
+                  <div className="relative z-10 flex flex-col items-center justify-center w-full h-full px-4 pb-32 pt-20">
+                    {/* Album Art with Play Button */}
+                    <div className="relative mb-8 group">
+                      <div
+                        className={`w-64 h-64 md:w-80 md:h-80 rounded-2xl overflow-hidden shadow-2xl transform transition-all duration-500 ${
+                          isActive ? 'scale-100' : 'scale-95 opacity-80'
+                        } ${isCurrentTrack && isPlaying ? 'animate-pulse-slow' : ''}`}
+                        onClick={() => isCurrentTrack ? togglePlayPause() : handlePlayTrack(track)}
+                      >
+                        {track.cover_url ? (
+                          <img
+                            src={track.cover_url}
+                            alt={track.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-zinc-700 to-zinc-900 flex items-center justify-center">
+                            <Music className="w-24 h-24 text-white/30" />
+                          </div>
+                        )}
+
+                        {/* Play/Pause overlay */}
+                        <div className={`absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity ${
+                          isCurrentTrack && isPlaying ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'
+                        }`}>
+                          <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
+                            {isCurrentTrack && isPlaying ? (
+                              <Pause className="w-10 h-10 text-white" fill="currentColor" />
+                            ) : (
+                              <Play className="w-10 h-10 text-white ml-1" fill="currentColor" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Vinyl record effect when playing */}
+                      {isCurrentTrack && isPlaying && (
+                        <div className="absolute -z-10 inset-0 flex items-center justify-center">
+                          <div className="w-72 h-72 md:w-96 md:h-96 rounded-full bg-gradient-to-br from-zinc-800 to-black animate-spin-slow opacity-60"
+                            style={{ animationDuration: '8s' }}
+                          />
                         </div>
                       )}
-                      <button
-                        onClick={() => isCurrentTrack ? togglePlayPause() : handlePlayTrack(track)}
-                        className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
-                      >
-                        {isCurrentTrack && isPlaying ? (
-                          <Pause className="w-8 h-8 text-white" fill="currentColor" />
-                        ) : (
-                          <Play className="w-8 h-8 text-white" fill="currentColor" />
-                        )}
-                      </button>
                     </div>
 
                     {/* Track Info */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-white truncate">{track.title}</h3>
-                      <p className="text-sm text-white/60 truncate">{track.artist}</p>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-white/40">
-                          {track.display_name || track.username}
-                        </span>
-                        {track.bpm && (
-                          <span className="text-xs text-white/40">{track.bpm} BPM</span>
-                        )}
+                    <div className="text-center mb-6 max-w-md">
+                      <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 truncate px-4">
+                        {track.title}
+                      </h2>
+                      <p className="text-white/60 text-lg mb-3">{track.artist}</p>
+
+                      {/* Tags */}
+                      <div className="flex items-center justify-center gap-2 flex-wrap">
                         {track.genre && (
-                          <span className="text-xs px-2 py-0.5 bg-white/10 rounded-full text-white/60">
+                          <span className="px-3 py-1 bg-white/10 rounded-full text-xs text-white/70">
                             {track.genre}
                           </span>
                         )}
+                        {track.bpm && (
+                          <span className="px-3 py-1 bg-white/10 rounded-full text-xs text-white/70">
+                            {track.bpm} BPM
+                          </span>
+                        )}
+                        {track.musical_key && (
+                          <span className="px-3 py-1 bg-white/10 rounded-full text-xs text-white/70">
+                            {track.musical_key}
+                          </span>
+                        )}
+                        <span className="px-3 py-1 bg-white/10 rounded-full text-xs text-white/70">
+                          {formatDuration(track.duration)}
+                        </span>
                       </div>
                     </div>
 
-                    {/* Duration */}
-                    <span className="text-sm text-white/40 hidden md:block">
-                      {formatDuration(track.duration)}
-                    </span>
+                    {/* Producer Info */}
+                    <button
+                      className="flex items-center gap-3 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors mb-4"
+                      onClick={() => {
+                        // Navigate to producer profile
+                        window.location.hash = `#/producer/${track.user_id}`;
+                      }}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center overflow-hidden">
+                        {track.avatar_url ? (
+                          <img src={track.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-white text-sm font-bold">
+                            {(track.display_name || track.username).charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-white/80 text-sm font-medium">
+                        @{track.username}
+                      </span>
+                    </button>
 
-                    {/* Social Actions */}
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleLike(track)}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
-                      >
-                        <Heart className="w-4 h-4 text-white/60" />
-                        <span className="text-xs text-white/60">{track.likes_count}</span>
-                      </button>
-                      <button
-                        onClick={() => handleRepost(track.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
-                      >
-                        <Repeat2 className="w-4 h-4 text-white/60" />
-                        <span className="text-xs text-white/60">{track.reposts_count}</span>
-                      </button>
-                      <button className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors">
-                        <MessageCircle className="w-4 h-4 text-white/60" />
-                        <span className="text-xs text-white/60">{track.comments_count}</span>
-                      </button>
-                    </div>
+                    {/* Play count */}
+                    {track.play_count !== undefined && (
+                      <div className="flex items-center gap-1 text-white/40 text-sm">
+                        <Play className="w-3.5 h-3.5" />
+                        <span>{formatCount(track.play_count)} plays</span>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Right Side Actions - TikTok style */}
+                  <div className="absolute right-4 bottom-40 flex flex-col items-center gap-5 z-20">
+                    {/* Like */}
+                    <button
+                      onClick={() => handleLike(track)}
+                      className="flex flex-col items-center gap-1 group"
+                    >
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+                        isLiked
+                          ? 'bg-red-500 scale-110'
+                          : 'bg-white/10 hover:bg-white/20'
+                      }`}>
+                        <Heart
+                          className={`w-6 h-6 transition-all ${isLiked ? 'text-white fill-current' : 'text-white'}`}
+                          fill={isLiked ? 'currentColor' : 'none'}
+                        />
+                      </div>
+                      <span className="text-white/70 text-xs font-medium">
+                        {formatCount(track.likes_count + (isLiked ? 1 : 0))}
+                      </span>
+                    </button>
+
+                    {/* Comment */}
+                    <button className="flex flex-col items-center gap-1 group">
+                      <div className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all">
+                        <MessageCircle className="w-6 h-6 text-white" />
+                      </div>
+                      <span className="text-white/70 text-xs font-medium">
+                        {formatCount(track.comments_count)}
+                      </span>
+                    </button>
+
+                    {/* Repost */}
+                    <button
+                      onClick={() => handleRepost(track.id)}
+                      className="flex flex-col items-center gap-1 group"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all">
+                        <Repeat2 className="w-6 h-6 text-white" />
+                      </div>
+                      <span className="text-white/70 text-xs font-medium">
+                        {formatCount(track.reposts_count)}
+                      </span>
+                    </button>
+
+                    {/* Save/Bookmark */}
+                    <button
+                      onClick={() => handleSave(track)}
+                      className="flex flex-col items-center gap-1 group"
+                    >
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+                        isSaved ? 'bg-yellow-500' : 'bg-white/10 hover:bg-white/20'
+                      }`}>
+                        <Bookmark
+                          className={`w-6 h-6 ${isSaved ? 'text-white fill-current' : 'text-white'}`}
+                          fill={isSaved ? 'currentColor' : 'none'}
+                        />
+                      </div>
+                      <span className="text-white/70 text-xs font-medium">Save</span>
+                    </button>
+
+                    {/* Share */}
+                    <button className="flex flex-col items-center gap-1 group">
+                      <div className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all">
+                        <Share2 className="w-6 h-6 text-white" />
+                      </div>
+                      <span className="text-white/70 text-xs font-medium">Share</span>
+                    </button>
+                  </div>
+
+                  {/* Scroll indicator */}
+                  {index < filteredTracks.length - 1 && (
+                    <div className="absolute bottom-24 left-1/2 -translate-x-1/2 animate-bounce">
+                      <ChevronUp className="w-6 h-6 text-white/40 rotate-180" />
+                    </div>
+                  )}
                 </div>
               );
             })
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        /* Following Feed - Activity style */
+        <div className="flex-1 overflow-y-auto pt-16 pb-32 px-4">
           {feed.length === 0 ? (
-            <div className="text-center py-12">
-              <UserPlus className="w-12 h-12 mx-auto text-white/20 mb-4" />
-              <p className="text-white/60">Your feed is empty</p>
-              <p className="text-white/40 text-sm mt-1">Follow producers to see their activity</p>
+            <div className="flex flex-col items-center justify-center h-full">
+              <UserPlus className="w-16 h-16 text-white/20 mb-4" />
+              <p className="text-white/60 text-lg font-medium mb-2">Your feed is empty</p>
+              <p className="text-white/40 text-sm text-center max-w-xs">
+                Follow producers to see their activity and new releases here
+              </p>
             </div>
           ) : (
-            feed.map((event) => (
-              <div
-                key={event.id}
-                className="bg-white/5 hover:bg-white/10 rounded-xl p-4 transition-all"
-              >
-                <div className="flex items-start gap-3">
-                  {/* Avatar */}
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
-                    {event.avatar_url ? (
-                      <img
-                        src={event.avatar_url}
-                        alt={event.username}
-                        className="w-full h-full object-cover rounded-full"
-                      />
-                    ) : (
-                      <span className="text-white font-bold text-sm">
-                        {(event.display_name || event.username).charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Event Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      {getEventIcon(event.event_type)}
-                      <p className="text-sm text-white/80">{getEventDescription(event)}</p>
+            <div className="space-y-3 max-w-2xl mx-auto">
+              {feed.map((event) => (
+                <div
+                  key={event.id}
+                  className="bg-white/5 hover:bg-white/8 rounded-2xl p-4 transition-all"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {event.avatar_url ? (
+                        <img src={event.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white font-bold">
+                          {(event.display_name || event.username).charAt(0).toUpperCase()}
+                        </span>
+                      )}
                     </div>
-                    <span className="text-xs text-white/40">{formatTimeAgo(event.created_at)}</span>
-
-                    {/* Target Track Preview */}
-                    {event.target_data && event.target_type === 'track' && (
-                      <div className="mt-3 flex items-center gap-3 p-2 bg-white/5 rounded-lg">
-                        {event.target_data.cover_url ? (
-                          <img
-                            src={event.target_data.cover_url}
-                            alt={event.target_data.title}
-                            className="w-10 h-10 rounded object-cover"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 bg-white/10 rounded flex items-center justify-center">
-                            <Music className="w-5 h-5 text-white/40" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white/90 text-sm">
+                        <span className="font-semibold">{event.display_name || event.username}</span>
+                        {' '}
+                        <span className="text-white/50">
+                          {event.event_type === 'like' && 'liked a track'}
+                          {event.event_type === 'repost' && 'reposted a track'}
+                          {event.event_type === 'comment' && 'commented on a track'}
+                          {event.event_type === 'follow' && 'followed someone'}
+                          {event.event_type === 'upload' && 'uploaded a new track'}
+                        </span>
+                      </p>
+                      {event.target_data && event.target_type === 'track' && (
+                        <div className="mt-2 flex items-center gap-3 p-3 bg-white/5 rounded-xl">
+                          {event.target_data.cover_url ? (
+                            <img
+                              src={event.target_data.cover_url}
+                              alt=""
+                              className="w-12 h-12 rounded-lg object-cover"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
+                              <Music className="w-6 h-6 text-white/40" />
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-white font-medium truncate">{event.target_data.title}</p>
+                            <p className="text-white/50 text-sm truncate">{event.target_data.artist}</p>
                           </div>
-                        )}
-                        <div className="min-w-0">
-                          <p className="text-sm text-white truncate">{event.target_data.title}</p>
-                          <p className="text-xs text-white/60 truncate">{event.target_data.artist}</p>
+                          <button className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+                            <Play className="w-5 h-5 text-black ml-0.5" fill="currentColor" />
+                          </button>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
       )}
+
+      {/* Progress dots indicator */}
+      {activeTab !== 'following' && filteredTracks.length > 1 && (
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-1.5 z-30">
+          {filteredTracks.slice(0, Math.min(10, filteredTracks.length)).map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => scrollToIndex(idx)}
+              className={`w-1.5 rounded-full transition-all ${
+                idx === currentIndex
+                  ? 'h-6 bg-white'
+                  : 'h-1.5 bg-white/30 hover:bg-white/50'
+              }`}
+            />
+          ))}
+        </div>
+      )}
+
+      <style>{`
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+          animation: spin-slow 8s linear infinite;
+        }
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.8; }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 2s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 }

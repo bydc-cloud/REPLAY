@@ -224,51 +224,8 @@ function AppContent() {
                 <Menu size={24} />
               </button>
               <div className="flex items-center gap-2 flex-1">
-                <div className="relative">
-                  <svg
-                    width="24"
-                    height="24"
-                    viewBox="0 0 32 32"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    {/* Glassmorphism circle background */}
-                    <circle
-                      cx="16"
-                      cy="16"
-                      r="15"
-                      fill="url(#mobile-logo-gradient)"
-                      fillOpacity="0.1"
-                    />
-                    {/* Outer glow ring */}
-                    <circle
-                      cx="16"
-                      cy="16"
-                      r="14"
-                      stroke="url(#mobile-logo-stroke)"
-                      strokeWidth="1.5"
-                      strokeOpacity="0.8"
-                    />
-                    {/* Play icon with gradient */}
-                    <path
-                      d="M21 16l-7-4.5v9z"
-                      fill="url(#mobile-play-gradient)"
-                    />
-                    <defs>
-                      <linearGradient id="mobile-logo-gradient" x1="0" y1="0" x2="32" y2="32">
-                        <stop offset="0%" stopColor="#e8e8e8" stopOpacity="0.15" />
-                        <stop offset="100%" stopColor="#e8e8e8" stopOpacity="0.05" />
-                      </linearGradient>
-                      <linearGradient id="mobile-logo-stroke" x1="0" y1="0" x2="32" y2="32">
-                        <stop offset="0%" stopColor="#e8e8e8" />
-                        <stop offset="100%" stopColor="#999999" />
-                      </linearGradient>
-                      <linearGradient id="mobile-play-gradient" x1="14" y1="11.5" x2="21" y2="20.5">
-                        <stop offset="0%" stopColor="#e8e8e8" />
-                        <stop offset="100%" stopColor="#cccccc" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500/30 to-pink-500/20 backdrop-blur-sm flex items-center justify-center border border-purple-500/30">
+                  <Disc className="w-4 h-4 text-[var(--replay-off-white)]" />
                 </div>
                 <h1 className="text-lg font-black tracking-tight text-[var(--replay-off-white)]">
                   RHYTHM

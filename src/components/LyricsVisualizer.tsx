@@ -457,14 +457,14 @@ export const LyricsVisualizer = ({
         </div>
       </div>
 
-      {/* Subtle Audio Visualizer at Bottom - Smaller on mobile */}
+      {/* Subtle Audio Visualizer at Bottom - Full width on all devices */}
       {isPlaying && hasLyrics && (
-        <div className="absolute bottom-0 left-0 right-0 h-12 sm:h-16 md:h-24 pointer-events-none flex items-end justify-center gap-[2px] sm:gap-[3px] px-4 sm:px-6 md:px-8 pb-2 sm:pb-3 md:pb-4">
-          {/* Show fewer bars on mobile using CSS visibility */}
-          {audioLevels.slice(0, 32).map((level, i) => (
+        <div className="absolute bottom-0 left-0 right-0 h-12 sm:h-16 md:h-24 pointer-events-none flex items-end justify-between gap-[1px] sm:gap-[2px] px-0 pb-2 sm:pb-3 md:pb-4">
+          {/* Show fewer bars on mobile, more on desktop - bars stretch to fill width */}
+          {audioLevels.slice(0, 48).map((level, i) => (
             <div
               key={i}
-              className={`flex-1 max-w-1 sm:max-w-1.5 rounded-full ${i >= 24 ? 'hidden sm:block' : ''}`}
+              className={`flex-1 rounded-full ${i >= 32 ? 'hidden md:block' : i >= 24 ? 'hidden sm:block' : ''}`}
               style={{
                 height: `${Math.max(3, level * 50)}px`,
                 background: `linear-gradient(to top,

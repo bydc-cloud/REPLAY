@@ -259,7 +259,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             style={{ animation: 'float 8s ease-in-out infinite' }}
           />
           <div
-            className="absolute bottom-1/4 right-1/4 w-[200px] md:w-[500px] h-[200px] md:h-[500px] bg-pink-500/[0.10] md:bg-pink-500/[0.12] rounded-full blur-[50px] md:blur-[100px]"
+            className="absolute bottom-1/4 right-1/4 w-[200px] md:w-[500px] h-[200px] md:h-[500px] bg-indigo-500/[0.08] md:bg-indigo-500/[0.10] rounded-full blur-[50px] md:blur-[100px]"
             style={{ animation: 'float 10s ease-in-out infinite 2s' }}
           />
           <div
@@ -276,12 +276,12 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             style={{ animation: 'float 9s ease-in-out infinite 1s' }}
           />
 
-          {/* Animated audio bars in hero background - Fewer on mobile for performance */}
-          <div className="absolute bottom-0 left-0 right-0 h-32 md:h-64 flex items-end justify-center gap-[2px] md:gap-1 opacity-[0.12] md:opacity-[0.15] px-4 md:px-10">
-            {Array(30).fill(0).map((_, i) => (
+          {/* Animated audio bars in hero background - Full width edge-to-edge */}
+          <div className="absolute bottom-0 left-0 right-0 h-32 md:h-64 flex items-end justify-between gap-[1px] md:gap-[2px] opacity-[0.12] md:opacity-[0.15] px-0">
+            {Array(40).fill(0).map((_, i) => (
               <div
                 key={i}
-                className="flex-1 rounded-t max-w-2 md:max-w-none"
+                className="flex-1 rounded-t"
                 style={{
                   height: `${20 + Math.sin(i * 0.4) * 40 + 30}%`,
                   background: `linear-gradient(to top, hsl(${260 + (i % 20) * 5}, 80%, 50%), hsl(${300 + (i % 15) * 3}, 85%, 60%))`,
@@ -461,7 +461,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
               </button>
             )}
             <div className="relative">
-              <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-purple-500/30 to-pink-500/20 backdrop-blur-sm flex items-center justify-center border border-purple-500/30">
+              <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-violet-500/30 to-indigo-500/20 backdrop-blur-sm flex items-center justify-center border border-violet-500/30">
                 <Disc className="w-5 h-5 md:w-6 md:h-6 text-white" />
               </div>
             </div>
@@ -518,7 +518,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white mb-4 md:mb-6 leading-[1.1]">
               Your Music.
               <br />
-              <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">Your Way.</span>
+              <span className="bg-gradient-to-r from-purple-400 via-violet-300 to-indigo-400 bg-clip-text text-transparent">Your Way.</span>
             </h1>
 
             <p className="text-base md:text-lg lg:text-xl text-white/50 mb-8 md:mb-10 max-w-2xl mx-auto leading-relaxed px-4">
@@ -636,16 +636,16 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                 >
                   {/* NEW badge for new features */}
                   {feature.isNew && (
-                    <div className="absolute top-3 right-3 px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full text-[10px] font-bold text-white uppercase tracking-wider">
+                    <div className="absolute top-3 right-3 px-2 py-0.5 bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full text-[10px] font-bold text-white uppercase tracking-wider">
                       New
                     </div>
                   )}
                   <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-all duration-300 ${
                     feature.isNew
-                      ? "bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30"
+                      ? "bg-gradient-to-br from-violet-500/20 to-indigo-500/20 border border-violet-500/30"
                       : "bg-white/10"
                   }`}>
-                    <Icon className={`w-5 h-5 md:w-6 md:h-6 ${feature.isNew ? "text-purple-300" : "text-white"}`} />
+                    <Icon className={`w-5 h-5 md:w-6 md:h-6 ${feature.isNew ? "text-violet-300" : "text-white"}`} />
                   </div>
                   <h3 className="text-lg md:text-xl font-bold text-white mb-2">{feature.title}</h3>
                   <p className="text-white/50 text-sm md:text-base leading-relaxed">{feature.description}</p>
@@ -739,12 +739,12 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                     <p className="text-white/20 text-sm md:text-xl mt-3 md:mt-4 blur-[1px] transform scale-75">Running through my mind like water</p>
                   </div>
                 ) : (
-                  // Audio Bars Preview - Real EQ style
-                  <div className="absolute bottom-0 left-0 right-0 flex items-end justify-center gap-1 md:gap-2 px-4 md:px-12 pb-6 md:pb-12 h-full pt-20">
-                    {Array(32).fill(0).map((_, i) => (
+                  // Audio Bars Preview - Real EQ style - Full width
+                  <div className="absolute bottom-0 left-0 right-0 flex items-end justify-between gap-[2px] md:gap-1 px-0 pb-6 md:pb-12 h-full pt-20">
+                    {Array(48).fill(0).map((_, i) => (
                       <div
                         key={i}
-                        className="flex-1 rounded-t max-w-3"
+                        className="flex-1 rounded-t"
                         style={{
                           height: `${20 + Math.sin(i * 0.3 + Date.now() / 500) * 30 + Math.random() * 30}%`,
                           background: `linear-gradient(to top,
@@ -789,7 +789,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                 <div className={`absolute inset-0 transition-opacity duration-300 ${activeVisualizer === index ? 'opacity-70' : 'opacity-40 group-hover:opacity-50'}`}>
                   {/* Bars - index 0 */}
                   {index === 0 && (
-                    <div className="absolute bottom-0 left-0 right-0 flex items-end justify-center gap-[2px] p-2 h-2/3">
+                    <div className="absolute bottom-0 left-0 right-0 flex items-end justify-between gap-[1px] px-1 pb-2 h-2/3">
                       {Array(5).fill(0).map((_, i) => (
                         <div
                           key={i}
@@ -846,7 +846,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                         {Array(8).fill(0).map((_, i) => (
                           <div
                             key={i}
-                            className="absolute w-1.5 h-1.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500"
+                            className="absolute w-1.5 h-1.5 rounded-full bg-gradient-to-r from-violet-500 to-indigo-500"
                             style={{
                               left: `${50 + 35 * Math.cos((i * 45 * Math.PI) / 180)}%`,
                               top: `${50 + 35 * Math.sin((i * 45 * Math.PI) / 180)}%`,
@@ -893,7 +893,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                   {index === 6 && (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div
-                        className="text-[10px] font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent"
+                        className="text-[10px] font-bold bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent"
                         style={{ animation: 'miniLyricsGlow 2s ease-in-out infinite' }}
                       >
                         Aa
@@ -904,7 +904,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                 <span className="relative z-10 text-white font-medium text-[10px] md:text-xs flex items-center gap-1">
                   {name}
                   {name === "Lyrics" && (
-                    <span className="px-1 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded text-[6px] font-bold uppercase">AI</span>
+                    <span className="px-1 py-0.5 bg-gradient-to-r from-violet-500 to-indigo-500 rounded text-[6px] font-bold uppercase">AI</span>
                   )}
                 </span>
               </button>
@@ -967,12 +967,12 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       </section>
 
       {/* Creator Profiles & Community Section */}
-      <section className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-pink-500/[0.03] to-transparent">
+      <section className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-violet-500/[0.02] to-transparent">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 md:mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-pink-500/10 border border-pink-500/20 mb-4 md:mb-6">
-              <Users className="w-4 h-4 text-pink-400" />
-              <span className="text-xs md:text-sm font-medium text-pink-300">Connect & Create</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 mb-4 md:mb-6">
+              <Users className="w-4 h-4 text-violet-400" />
+              <span className="text-xs md:text-sm font-medium text-violet-300">Connect & Create</span>
             </div>
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 md:mb-4">
               Build Your Creator Profile
@@ -984,9 +984,9 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Profile Preview Card */}
-            <div className="p-6 rounded-2xl bg-gradient-to-br from-[#0a0a12] to-[#15151f] border border-pink-500/20 relative overflow-hidden">
+            <div className="p-6 rounded-2xl bg-gradient-to-br from-[#0a0a12] to-[#15151f] border border-violet-500/20 relative overflow-hidden">
               <div className="flex items-start gap-4 mb-6">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-2xl font-bold text-white flex-shrink-0">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-2xl font-bold text-white flex-shrink-0">
                   P
                 </div>
                 <div className="flex-1">
@@ -1007,7 +1007,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                   <p className="text-xs text-white/40">Total Plays</p>
                 </div>
                 <div className="p-3 rounded-xl bg-white/5 text-center">
-                  <p className="text-lg font-bold text-pink-400">234</p>
+                  <p className="text-lg font-bold text-violet-400">234</p>
                   <p className="text-xs text-white/40">Licenses Sold</p>
                 </div>
                 <div className="p-3 rounded-xl bg-white/5 text-center">
@@ -1044,10 +1044,10 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
 
             {/* Feature List */}
             <div className="space-y-4">
-              <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-pink-500/30 transition-colors">
+              <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-violet-500/30 transition-colors">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center flex-shrink-0">
-                    <Users className="w-5 h-5 text-pink-400" />
+                  <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center flex-shrink-0">
+                    <Users className="w-5 h-5 text-violet-400" />
                   </div>
                   <div>
                     <h4 className="font-bold text-white mb-1">Your Brand, Your Way</h4>
@@ -1056,10 +1056,10 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                 </div>
               </div>
 
-              <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-pink-500/30 transition-colors">
+              <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-violet-500/30 transition-colors">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center flex-shrink-0">
-                    <TrendingUp className="w-5 h-5 text-pink-400" />
+                  <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center flex-shrink-0">
+                    <TrendingUp className="w-5 h-5 text-violet-400" />
                   </div>
                   <div>
                     <h4 className="font-bold text-white mb-1">Discovery Feed</h4>
@@ -1068,10 +1068,10 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                 </div>
               </div>
 
-              <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-pink-500/30 transition-colors">
+              <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-violet-500/30 transition-colors">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center flex-shrink-0">
-                    <MessageSquare className="w-5 h-5 text-pink-400" />
+                  <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center flex-shrink-0">
+                    <MessageSquare className="w-5 h-5 text-violet-400" />
                   </div>
                   <div>
                     <h4 className="font-bold text-white mb-1">Direct Messaging <span className="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 text-[10px] rounded font-bold">COMING SOON</span></h4>
@@ -1080,10 +1080,10 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                 </div>
               </div>
 
-              <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-pink-500/30 transition-colors">
+              <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-violet-500/30 transition-colors">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center flex-shrink-0">
-                    <BarChart3 className="w-5 h-5 text-pink-400" />
+                  <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center flex-shrink-0">
+                    <BarChart3 className="w-5 h-5 text-violet-400" />
                   </div>
                   <div>
                     <h4 className="font-bold text-white mb-1">Real Analytics</h4>
@@ -1092,10 +1092,10 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                 </div>
               </div>
 
-              <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-pink-500/30 transition-colors">
+              <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-violet-500/30 transition-colors">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-pink-500/20 flex items-center justify-center flex-shrink-0">
-                    <Store className="w-5 h-5 text-pink-400" />
+                  <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center flex-shrink-0">
+                    <Store className="w-5 h-5 text-violet-400" />
                   </div>
                   <div>
                     <h4 className="font-bold text-white mb-1">Marketplace <span className="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 text-[10px] rounded font-bold">IN PROGRESS</span></h4>
@@ -1107,7 +1107,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
           </div>
 
           {/* Quote */}
-          <div className="mt-12 p-6 md:p-8 rounded-2xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 text-center">
+          <div className="mt-12 p-6 md:p-8 rounded-2xl bg-gradient-to-r from-violet-500/10 to-indigo-500/10 border border-violet-500/20 text-center">
             <blockquote className="text-lg md:text-xl text-white/80 italic mb-4">
               "Finally a platform that puts creators first. Real tools, real community, real payouts."
             </blockquote>
@@ -1207,7 +1207,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                   <span className="text-purple-400 font-bold">70% to Creators</span>
                 </div>
                 <div className="h-8 rounded-full overflow-hidden flex bg-white/5">
-                  <div className="h-full bg-gradient-to-r from-purple-500 to-pink-400 flex items-center justify-center text-sm font-bold text-white" style={{ width: '70%' }}>
+                  <div className="h-full bg-gradient-to-r from-violet-500 to-indigo-400 flex items-center justify-center text-sm font-bold text-white" style={{ width: '70%' }}>
                     70% Creators
                   </div>
                   <div className="h-full bg-white/10 flex items-center justify-center text-xs text-white/60" style={{ width: '30%' }}>
@@ -1244,11 +1244,11 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
           </div>
 
           {/* Blockchain Verification Visual */}
-          <div className="p-6 md:p-8 rounded-2xl bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-purple-500/10 border border-purple-500/20">
+          <div className="p-6 md:p-8 rounded-2xl bg-gradient-to-r from-violet-500/10 via-indigo-500/10 to-violet-500/10 border border-violet-500/20">
             <div className="flex flex-col md:flex-row items-center gap-6 md:gap-8">
               {/* Blockchain Icon */}
               <div className="flex-shrink-0">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 flex items-center justify-center">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 border border-violet-500/30 flex items-center justify-center">
                   <Blocks className="w-10 h-10 text-purple-400" />
                 </div>
               </div>
@@ -1263,7 +1263,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                   {[
                     { label: 'Sale', value: '$29.99', color: 'green' },
                     { label: 'Verify', value: '✓', color: 'purple' },
-                    { label: 'Split', value: '85/15', color: 'pink' },
+                    { label: 'Split', value: '85/15', color: 'violet' },
                     { label: 'Record', value: 'Block #', color: 'purple' },
                     { label: 'Payout', value: '$25.49', color: 'green' },
                   ].map((block, i) => (
@@ -1281,7 +1281,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                         <p className="text-sm font-bold text-white">{block.value}</p>
                       </div>
                       {i < 4 && (
-                        <div className="w-4 h-0.5 bg-gradient-to-r from-purple-500/50 to-pink-500/50" />
+                        <div className="w-4 h-0.5 bg-gradient-to-r from-violet-500/50 to-indigo-500/50" />
                       )}
                     </div>
                   ))}
@@ -1504,7 +1504,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                     className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:border-cyan-500/30 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center text-xs font-bold text-white">
                         {tx.producer.charAt(1).toUpperCase()}
                       </div>
                       <div>
@@ -1659,8 +1659,8 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             </div>
 
             {/* Pro Tier */}
-            <div className="p-6 md:p-8 rounded-2xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/30 relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full text-xs font-bold text-white">
+            <div className="p-6 md:p-8 rounded-2xl bg-gradient-to-br from-violet-500/10 to-indigo-500/10 border border-violet-500/30 relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full text-xs font-bold text-white">
                 COMING SOON
               </div>
               <div className="mb-6">
@@ -1723,7 +1723,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
             <div className="text-center p-6">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/20 flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 border border-violet-500/20 flex items-center justify-center mx-auto mb-4">
                 <DollarSign className="w-8 h-8 text-purple-400" />
               </div>
               <h3 className="text-lg font-bold text-white mb-2">Fair Revenue Split</h3>
@@ -1733,7 +1733,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             </div>
 
             <div className="text-center p-6">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/20 flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 border border-violet-500/20 flex items-center justify-center mx-auto mb-4">
                 <Users className="w-8 h-8 text-purple-400" />
               </div>
               <h3 className="text-lg font-bold text-white mb-2">Real Connections</h3>
@@ -1743,7 +1743,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             </div>
 
             <div className="text-center p-6">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/20 flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 border border-violet-500/20 flex items-center justify-center mx-auto mb-4">
                 <Shield className="w-8 h-8 text-purple-400" />
               </div>
               <h3 className="text-lg font-bold text-white mb-2">Your Music, Protected</h3>
@@ -1781,7 +1781,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                 </ul>
               </div>
               <div className="text-center md:text-right">
-                <p className="text-5xl md:text-7xl font-black bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent mb-2">
+                <p className="text-5xl md:text-7xl font-black bg-gradient-to-r from-violet-400 via-indigo-400 to-violet-400 bg-clip-text text-transparent mb-2">
                   85%
                 </p>
                 <p className="text-white/40 text-sm">goes directly to you</p>
@@ -1820,11 +1820,11 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       {/* CTA Section */}
       <section className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="p-8 md:p-12 rounded-2xl md:rounded-3xl bg-gradient-to-br from-purple-500/20 to-pink-500/10 border border-purple-500/20 relative overflow-hidden">
+          <div className="p-8 md:p-12 rounded-2xl md:rounded-3xl bg-gradient-to-br from-violet-500/15 to-indigo-500/10 border border-violet-500/20 relative overflow-hidden">
             {/* Background glow */}
             <div className="absolute inset-0 pointer-events-none">
               <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-[100px]" />
-              <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-pink-500/20 rounded-full blur-[100px]" />
+              <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-500/15 rounded-full blur-[100px]" />
             </div>
 
             <div className="relative z-10">
@@ -1867,7 +1867,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             {/* Brand */}
             <div className="col-span-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500/30 to-pink-500/20 border border-purple-500/30 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500/30 to-indigo-500/20 border border-violet-500/30 flex items-center justify-center">
                   <Disc className="w-6 h-6 text-white" />
                 </div>
                 <span className="text-xl font-black text-white">RHYTHM</span>
@@ -1941,7 +1941,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
               © 2025 RHYTHM. All rights reserved.
             </p>
             <p className="text-xs text-white/30">
-              Made with <span className="text-pink-500">♥</span> for producers everywhere.
+              Made with <span className="text-violet-400">♥</span> for producers everywhere.
             </p>
           </div>
         </div>
