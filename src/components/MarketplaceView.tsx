@@ -60,7 +60,7 @@ interface ProducerProfile {
   is_verified: boolean;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || "https://sublime-light-production-53e3.up.railway.app";
+const API_URL = import.meta.env.VITE_API_URL || "https://replay-production-9240.up.railway.app";
 
 export const MarketplaceView = () => {
   const { token } = useAuth();
@@ -78,6 +78,9 @@ export const MarketplaceView = () => {
   const [myPurchases, setMyPurchases] = useState<any[]>([]);
   const [selectedBeat, setSelectedBeat] = useState<Beat | null>(null);
   const [previewingBeatId, setPreviewingBeatId] = useState<string | null>(null);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
 
   // Fetch beats from marketplace
   const fetchBeats = useCallback(async () => {
@@ -183,6 +186,48 @@ export const MarketplaceView = () => {
       style: "currency",
       currency: "USD",
     }).format(price);
+  };
+
+  // Purchase a beat
+  const handlePurchase = async (beat: Beat) => {
+    if (!token) {
+      setPurchaseError("Please sign in to purchase beats");
+      return;
+    }
+
+    setPurchasing(true);
+    setPurchaseError(null);
+
+    try {
+      const response = await fetch(`${API_URL}/api/marketplace/purchase`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          beat_id: beat.id,
+          license_type: beat.license_type,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Refresh purchases list
+        fetchMyPurchases();
+        // Close modal and show success
+        setSelectedBeat(null);
+        alert(`Successfully purchased "${beat.title}"! Check your purchases to download.`);
+      } else {
+        const errorData = await response.json();
+        setPurchaseError(errorData.error || "Failed to complete purchase");
+      }
+    } catch (error) {
+      console.error("Purchase error:", error);
+      setPurchaseError("Network error. Please try again.");
+    } finally {
+      setPurchasing(false);
+    }
   };
 
   // Filter beats by search query
@@ -430,15 +475,18 @@ export const MarketplaceView = () => {
               Start selling your beats to millions of artists worldwide
             </p>
 
-            <div className="border-2 border-dashed border-[var(--replay-border)] rounded-2xl p-8 text-center hover:border-purple-500/50 transition-colors cursor-pointer">
-              <UploadCloud className="mx-auto text-[var(--replay-mid-grey)] mb-4" size={48} />
-              <p className="text-[var(--replay-off-white)] font-semibold mb-2">
-                Drop your beat here or click to browse
+            <button
+              onClick={() => setUploadModalOpen(true)}
+              className="w-full border-2 border-dashed border-[var(--replay-border)] rounded-2xl p-8 text-center hover:border-purple-500/50 hover:bg-purple-500/5 transition-all cursor-pointer group"
+            >
+              <UploadCloud className="mx-auto text-[var(--replay-mid-grey)] mb-4 group-hover:text-purple-400 transition-colors" size={48} />
+              <p className="text-[var(--replay-off-white)] font-semibold mb-2 group-hover:text-purple-300 transition-colors">
+                Click to upload your beat
               </p>
               <p className="text-sm text-[var(--replay-mid-grey)]">
-                MP3, WAV, FLAC up to 100MB
+                MP3, WAV, FLAC, AAC, OGG up to 100MB
               </p>
-            </div>
+            </button>
           </div>
 
           {/* My Listings */}
@@ -651,14 +699,46 @@ export const MarketplaceView = () => {
                 </div>
               </div>
 
+              {/* Purchase Error */}
+              {purchaseError && (
+                <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-xl mb-4">
+                  <AlertCircle className="text-red-400 flex-shrink-0" size={18} />
+                  <p className="text-sm text-red-300">{purchaseError}</p>
+                </div>
+              )}
+
               {/* Purchase Button */}
-              <button className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl font-bold text-lg transition-all">
-                Purchase for {formatPrice(selectedBeat.price)}
+              <button
+                onClick={() => handlePurchase(selectedBeat)}
+                disabled={purchasing}
+                className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {purchasing ? (
+                  <>
+                    <Loader2 className="animate-spin" size={20} />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard size={20} />
+                    Purchase for {formatPrice(selectedBeat.price)}
+                  </>
+                )}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Beat Upload Modal */}
+      <BeatUploadModal
+        isOpen={uploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        onSuccess={() => {
+          fetchMyBeats();
+          setUploadModalOpen(false);
+        }}
+      />
     </div>
   );
 };
