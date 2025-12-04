@@ -354,7 +354,7 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-purple-900 via-indigo-800 to-pink-900" />
+            <div className="w-full h-full bg-gradient-to-br from-violet-900 via-indigo-800 to-zinc-900" />
           )}
           {/* Gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent" />
@@ -366,7 +366,7 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
           <div className="flex flex-col md:flex-row md:items-end gap-4 md:gap-6">
             {/* Avatar */}
             <div className="relative group">
-              <div className="w-36 h-36 md:w-48 md:h-48 rounded-full border-4 border-[#0a0a0a] overflow-hidden bg-gradient-to-br from-purple-500 to-pink-500 shadow-2xl">
+              <div className="w-36 h-36 md:w-48 md:h-48 rounded-full border-4 border-[#0a0a0a] overflow-hidden bg-gradient-to-br from-violet-500 to-indigo-600 shadow-2xl">
                 {profile.avatar_url ? (
                   <img
                     src={profile.avatar_url}
