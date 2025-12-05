@@ -897,13 +897,22 @@ app.get('/api/tracks/:id/stream', async (req, res) => {
 });
 
 // Get track lyrics
+// Allows: own tracks OR public tracks (for discovery feature)
 app.get('/api/lyrics/:id', auth, async (req, res) => {
   try {
     const db = getPool();
-    const result = await db.query(
+    // First try user's own track
+    let result = await db.query(
       'SELECT lyrics_text, lyrics_segments, lyrics_status FROM tracks WHERE id = $1 AND user_id = $2',
       [req.params.id, req.user.id]
     );
+    // If not found, check public tracks
+    if (result.rows.length === 0) {
+      result = await db.query(
+        "SELECT lyrics_text, lyrics_segments, lyrics_status FROM tracks WHERE id = $1 AND visibility = 'public'",
+        [req.params.id]
+      );
+    }
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
 
     const track = result.rows[0];
@@ -923,16 +932,29 @@ app.get('/api/lyrics/:id', auth, async (req, res) => {
 });
 
 // Transcribe a track
+// Allows: own tracks OR public tracks (for discovery feature)
 app.post('/api/transcribe/:id', auth, async (req, res) => {
   console.log('=== TRANSCRIPTION ENDPOINT HIT ===', req.params.id);
   try {
     const db = getPool();
     const trackId = req.params.id;
 
-    const result = await db.query(
+    // First try to find user's own track
+    let result = await db.query(
       'SELECT id, file_data, file_key, lyrics_status FROM tracks WHERE id = $1 AND user_id = $2',
       [trackId, req.user.id]
     );
+
+    // If not found, check if it's a public track (for discovery)
+    if (result.rows.length === 0) {
+      result = await db.query(
+        "SELECT id, file_data, file_key, lyrics_status FROM tracks WHERE id = $1 AND visibility = 'public'",
+        [trackId]
+      );
+      if (result.rows.length > 0) {
+        console.log(`Transcribing public track ${trackId} requested by user ${req.user.id}`);
+      }
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Track not found' });
