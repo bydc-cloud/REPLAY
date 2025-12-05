@@ -581,8 +581,8 @@ export function FeedView() {
 
   return (
     <div className="fixed inset-0 bg-black">
-      {/* Top Tabs - Floating over content */}
-      <div className="fixed top-0 left-0 right-0 z-30 px-4 pt-3 pb-2 pointer-events-none">
+      {/* Top Tabs - Floating over content, below mobile header */}
+      <div className="fixed top-16 md:top-0 left-0 right-0 z-30 px-4 pt-3 pb-2 pointer-events-none">
         <div className="flex items-center justify-center gap-6 pointer-events-auto">
           {isAuthenticated && (
             <button
@@ -702,13 +702,13 @@ export function FeedView() {
                       </button>
 
                       {/* Main Content Area - Centered on mobile, bottom on desktop */}
-                      <div className="absolute inset-0 flex flex-col justify-center items-center md:justify-end pb-24 md:pb-28 px-4 md:px-6">
+                      <div className="absolute inset-0 flex flex-col justify-center items-center md:justify-end pt-28 md:pt-0 pb-28 md:pb-28 px-4 md:px-6">
                         {/* Mobile: Centered card layout */}
-                        <div className="w-full max-w-sm md:max-w-none md:hidden">
+                        <div className="w-full max-w-sm md:max-w-none md:hidden flex flex-col items-center">
                           {/* Centered album art for mobile */}
-                          <div className="flex justify-center mb-6">
+                          <div className="flex justify-center mb-4">
                             <div
-                              className="relative w-48 h-48 sm:w-56 sm:h-56 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/20 cursor-pointer active:scale-95 transition-transform"
+                              className="relative w-40 h-40 sm:w-48 sm:h-48 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/20 cursor-pointer active:scale-95 transition-transform"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (currentTrack?.id === track.id) {
@@ -739,16 +739,16 @@ export function FeedView() {
                           </div>
 
                           {/* Track info - centered */}
-                          <div className="text-center mb-6">
-                            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 line-clamp-2 px-2">
+                          <div className="text-center mb-4 w-full">
+                            <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 line-clamp-2 px-2">
                               {track.title}
                             </h2>
-                            <p className="text-white/70 text-lg mb-4">
+                            <p className="text-white/70 text-base mb-3">
                               {track.artist}
                             </p>
 
                             {/* Track metadata tags - centered */}
-                            <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
+                            <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
                               {track.genre && (
                                 <span className="px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-full text-sm text-white/90 font-medium">
                                   #{track.genre}
@@ -773,7 +773,7 @@ export function FeedView() {
                           </div>
 
                           {/* Producer info - centered */}
-                          <div className="flex items-center justify-center gap-3 mb-6">
+                          <div className="flex items-center justify-center gap-3 mb-4">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -814,26 +814,26 @@ export function FeedView() {
                           </div>
 
                           {/* Action buttons - horizontal row on mobile */}
-                          <div className="flex items-center justify-center gap-6">
+                          <div className="flex items-center justify-center gap-4">
                             {/* Like button */}
                             <button
                               onClick={(e) => handleLike(track, e)}
-                              className="flex flex-col items-center gap-1.5 group"
+                              className="flex flex-col items-center gap-1 group"
                             >
-                              <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 group-active:scale-75 ${
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 group-active:scale-75 ${
                                 isLiked
                                   ? 'bg-red-500/20 shadow-lg shadow-red-500/20'
                                   : 'bg-white/10 backdrop-blur-sm'
                               }`}>
                                 <Heart
-                                  className={`w-7 h-7 transition-all duration-200 ${
+                                  className={`w-6 h-6 transition-all duration-200 ${
                                     isLiked
                                       ? 'text-red-500 fill-red-500 scale-110'
                                       : 'text-white'
                                   }`}
                                 />
                               </div>
-                              <span className={`text-xs font-semibold ${isLiked ? 'text-red-400' : 'text-white/70'}`}>
+                              <span className={`text-[10px] font-semibold ${isLiked ? 'text-red-400' : 'text-white/70'}`}>
                                 {formatCount((track.likes_count || 0) + (isLiked ? 1 : 0))}
                               </span>
                             </button>
@@ -841,12 +841,12 @@ export function FeedView() {
                             {/* Comments button */}
                             <button
                               onClick={(e) => openComments(track, e)}
-                              className="flex flex-col items-center gap-1.5 group"
+                              className="flex flex-col items-center gap-1 group"
                             >
-                              <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center transition-transform group-active:scale-75">
-                                <MessageCircle className="w-7 h-7 text-white" />
+                              <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center transition-transform group-active:scale-75">
+                                <MessageCircle className="w-6 h-6 text-white" />
                               </div>
-                              <span className="text-xs font-semibold text-white/70">
+                              <span className="text-[10px] font-semibold text-white/70">
                                 {formatCount(track.comments_count || 0)}
                               </span>
                             </button>
@@ -854,12 +854,12 @@ export function FeedView() {
                             {/* Repost button */}
                             <button
                               onClick={(e) => handleRepost(track.id, e)}
-                              className="flex flex-col items-center gap-1.5 group"
+                              className="flex flex-col items-center gap-1 group"
                             >
-                              <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center transition-transform group-active:scale-75">
-                                <Repeat2 className="w-7 h-7 text-white" />
+                              <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center transition-transform group-active:scale-75">
+                                <Repeat2 className="w-6 h-6 text-white" />
                               </div>
-                              <span className="text-xs font-semibold text-white/70">
+                              <span className="text-[10px] font-semibold text-white/70">
                                 {formatCount(track.reposts_count || 0)}
                               </span>
                             </button>
@@ -867,22 +867,22 @@ export function FeedView() {
                             {/* Save button */}
                             <button
                               onClick={(e) => handleSave(track, e)}
-                              className="flex flex-col items-center gap-1.5 group"
+                              className="flex flex-col items-center gap-1 group"
                             >
-                              <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 group-active:scale-75 ${
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 group-active:scale-75 ${
                                 isSaved
                                   ? 'bg-amber-500/20 shadow-lg shadow-amber-500/20'
                                   : 'bg-white/10 backdrop-blur-sm'
                               }`}>
                                 <Bookmark
-                                  className={`w-7 h-7 transition-all duration-200 ${
+                                  className={`w-6 h-6 transition-all duration-200 ${
                                     isSaved
                                       ? 'text-amber-400 fill-amber-400'
                                       : 'text-white'
                                   }`}
                                 />
                               </div>
-                              <span className={`text-xs font-semibold ${isSaved ? 'text-amber-400' : 'text-white/70'}`}>
+                              <span className={`text-[10px] font-semibold ${isSaved ? 'text-amber-400' : 'text-white/70'}`}>
                                 Save
                               </span>
                             </button>
@@ -899,12 +899,12 @@ export function FeedView() {
                                   });
                                 }
                               }}
-                              className="flex flex-col items-center gap-1.5 group"
+                              className="flex flex-col items-center gap-1 group"
                             >
-                              <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center transition-transform group-active:scale-75">
-                                <Share2 className="w-7 h-7 text-white" />
+                              <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center transition-transform group-active:scale-75">
+                                <Share2 className="w-6 h-6 text-white" />
                               </div>
-                              <span className="text-xs font-semibold text-white/70">Share</span>
+                              <span className="text-[10px] font-semibold text-white/70">Share</span>
                             </button>
                           </div>
                         </div>
@@ -1171,9 +1171,9 @@ export function FeedView() {
                         </div>
                       )}
 
-                      {/* Scroll hint - only show on first item and desktop */}
+                      {/* Scroll hint - show on first item */}
                       {idx === 0 && currentIndex === 0 && (
-                        <div className="hidden md:flex absolute bottom-6 left-1/2 -translate-x-1/2 flex-col items-center gap-1 animate-bounce text-white/40">
+                        <div className="flex absolute bottom-8 md:bottom-6 left-1/2 -translate-x-1/2 flex-col items-center gap-1 animate-bounce text-white/40">
                           <span className="text-xs">Scroll for more</span>
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
