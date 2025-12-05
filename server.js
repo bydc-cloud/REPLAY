@@ -1222,6 +1222,87 @@ app.delete('/api/tracks/:id', auth, async (req, res) => {
   }
 });
 
+// Update track visibility (make public/private for Discovery)
+app.put('/api/tracks/:id/visibility', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const { visibility } = req.body;
+
+    if (!['public', 'private'].includes(visibility)) {
+      return res.status(400).json({ error: 'Visibility must be "public" or "private"' });
+    }
+
+    const result = await db.query(
+      'UPDATE tracks SET visibility = $1 WHERE id = $2 AND user_id = $3 RETURNING *',
+      [visibility, req.params.id, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    console.log(`Track ${req.params.id} visibility set to ${visibility}`);
+    res.json(result.rows[0]);
+  } catch (e) {
+    console.error('Update visibility error:', e.message);
+    res.status(500).json({ error: 'Failed to update visibility' });
+  }
+});
+
+// Post track to Discovery (upload + make public)
+app.post('/api/discover/post', auth, async (req, res) => {
+  try {
+    const { title, artist, description, file_data, cover_url, is_beat } = req.body;
+    const db = getPool();
+
+    if (!title || !file_data) {
+      return res.status(400).json({ error: 'Title and audio file required' });
+    }
+
+    // Create track with public visibility
+    const result = await db.query(
+      `INSERT INTO tracks (user_id, title, artist, album, duration, file_data, cover_url, lyrics_status, visibility, is_beat)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'public', $9) RETURNING *`,
+      [req.user.id, title, artist || 'Unknown Artist', description || null, 0, file_data, cover_url, 'pending', is_beat || false]
+    );
+
+    const track = result.rows[0];
+
+    // Create feed event for the upload
+    await db.query(`
+      INSERT INTO feed_events (user_id, event_type, target_type, target_id)
+      VALUES ($1, 'upload', 'track', $2)
+    `, [req.user.id, track.id]);
+
+    // Auto-transcribe if OpenAI is configured
+    if (file_data && openai) {
+      console.log(`Starting auto-transcription for discovery post: ${track.id}`);
+      db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['processing', track.id]);
+
+      transcribeAudio(file_data, track.id).then(async (transcription) => {
+        if (transcription) {
+          await db.query(
+            'UPDATE tracks SET lyrics_text = $1, lyrics_segments = $2, lyrics_status = $3 WHERE id = $4',
+            [transcription.text, JSON.stringify({ segments: transcription.segments, words: transcription.words }), 'completed', track.id]
+          );
+          console.log(`Auto-transcription completed for discovery post: ${track.id}`);
+        } else {
+          await db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', track.id]);
+        }
+      }).catch((err) => {
+        console.error(`Auto-transcription error for discovery post ${track.id}:`, err.message);
+        db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['failed', track.id]);
+      });
+    }
+
+    console.log(`Discovery post created: ${title} by user ${req.user.id}`);
+    res.json(track);
+  } catch (e) {
+    console.error('Discovery post error:', e.message);
+    res.status(500).json({ error: 'Failed to create post' });
+  }
+});
+
 // ============ CHUNKED UPLOAD ENDPOINTS ============
 const uploadSessions = new Map();
 

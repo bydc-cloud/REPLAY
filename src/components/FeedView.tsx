@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Heart, MessageCircle, Repeat2, Play, Pause, UserPlus, Music, Loader2, Share2, Bookmark, X, Send, Volume2, VolumeX } from 'lucide-react';
+import { Heart, MessageCircle, Repeat2, Play, Pause, UserPlus, Music, Loader2, Share2, Bookmark, X, Send, Volume2, VolumeX, Plus, Upload, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '../contexts/PostgresAuthContext';
 import { useAudioPlayer } from '../contexts/AudioPlayerContext';
 
@@ -241,8 +241,17 @@ export function FeedView() {
   const [doubleTapHeart, setDoubleTapHeart] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
+  const [showPostModal, setShowPostModal] = useState(false);
+  const [postTitle, setPostTitle] = useState('');
+  const [postArtist, setPostArtist] = useState('');
+  const [postFile, setPostFile] = useState<File | null>(null);
+  const [postCover, setPostCover] = useState<string | null>(null);
+  const [postIsBeat, setPostIsBeat] = useState(false);
+  const [posting, setPosting] = useState(false);
   const commentInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const lastTapRef = useRef<{ time: number; trackId: string | null }>({ time: 0, trackId: null });
   const PAGE_SIZE = 12;
@@ -557,6 +566,85 @@ export function FeedView() {
     if (hours < 24) return `${hours}h`;
     if (days < 7) return `${days}d`;
     return `${Math.floor(days / 7)}w`;
+  };
+
+  // Handle audio file selection
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('audio/')) {
+      setPostFile(file);
+      // Auto-fill title from filename if empty
+      if (!postTitle) {
+        const name = file.name.replace(/\.[^/.]+$/, ''); // Remove extension
+        setPostTitle(name);
+      }
+    }
+  };
+
+  // Handle cover image selection
+  const handleCoverSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setPostCover(ev.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Reset post form
+  const resetPostForm = () => {
+    setPostTitle('');
+    setPostArtist('');
+    setPostFile(null);
+    setPostCover(null);
+    setPostIsBeat(false);
+    setShowPostModal(false);
+  };
+
+  // Submit post to Discovery
+  const handleSubmitPost = async () => {
+    if (!token || !postFile || !postTitle.trim()) return;
+
+    setPosting(true);
+    try {
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const fileData = e.target?.result as string;
+
+        const response = await fetch(`${API_URL}/api/discover/post`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            title: postTitle.trim(),
+            artist: postArtist.trim() || user?.name || 'Unknown Artist',
+            file_data: fileData,
+            cover_url: postCover,
+            is_beat: postIsBeat
+          })
+        });
+
+        if (response.ok) {
+          resetPostForm();
+          // Refresh the feed
+          fetchDiscoverTracks(false);
+        } else {
+          const error = await response.json();
+          console.error('Post failed:', error);
+          alert('Failed to post: ' + (error.error || 'Unknown error'));
+        }
+        setPosting(false);
+      };
+      reader.readAsDataURL(postFile);
+    } catch (err) {
+      console.error('Failed to post:', err);
+      setPosting(false);
+    }
   };
 
   if (loading) {
@@ -1159,6 +1247,159 @@ export function FeedView() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Post Button - Floating */}
+      {isAuthenticated && (
+        <button
+          onClick={() => setShowPostModal(true)}
+          className="fixed bottom-24 right-4 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-500/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+        >
+          <Plus className="w-7 h-7 text-white" />
+        </button>
+      )}
+
+      {/* Post Modal */}
+      {showPostModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={resetPostForm}
+          />
+
+          {/* Modal */}
+          <div className="relative bg-zinc-900 rounded-2xl w-full max-w-md shadow-2xl border border-white/10 max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 sticky top-0 bg-zinc-900 z-10">
+              <h2 className="text-lg font-semibold text-white">Post to Discovery</h2>
+              <button
+                onClick={resetPostForm}
+                className="p-2 rounded-full hover:bg-white/5 transition-colors"
+              >
+                <X className="w-5 h-5 text-white/60" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 space-y-5">
+              {/* File Upload */}
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">Audio File *</label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="audio/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`w-full p-4 border-2 border-dashed rounded-xl transition-colors flex flex-col items-center gap-2 ${
+                    postFile ? 'border-violet-500/50 bg-violet-500/10' : 'border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  {postFile ? (
+                    <>
+                      <Music className="w-8 h-8 text-violet-400" />
+                      <span className="text-white font-medium text-sm truncate max-w-full px-2">{postFile.name}</span>
+                      <span className="text-white/40 text-xs">{(postFile.size / 1024 / 1024).toFixed(1)} MB</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-8 h-8 text-white/40" />
+                      <span className="text-white/60 text-sm">Click to upload audio</span>
+                      <span className="text-white/30 text-xs">MP3, WAV, FLAC, AAC</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Title */}
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">Title *</label>
+                <input
+                  type="text"
+                  value={postTitle}
+                  onChange={(e) => setPostTitle(e.target.value)}
+                  placeholder="Track title"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50"
+                />
+              </div>
+
+              {/* Artist */}
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">Artist</label>
+                <input
+                  type="text"
+                  value={postArtist}
+                  onChange={(e) => setPostArtist(e.target.value)}
+                  placeholder={user?.name || 'Artist name'}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50"
+                />
+              </div>
+
+              {/* Cover Image */}
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">Cover Image (optional)</label>
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCoverSelect}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => coverInputRef.current?.click()}
+                  className="w-full aspect-video rounded-xl overflow-hidden border border-white/10 hover:border-white/20 transition-colors"
+                >
+                  {postCover ? (
+                    <img src={postCover} alt="Cover" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-white/5 flex flex-col items-center justify-center gap-2">
+                      <ImageIcon className="w-8 h-8 text-white/30" />
+                      <span className="text-white/40 text-sm">Add cover art</span>
+                    </div>
+                  )}
+                </button>
+              </div>
+
+              {/* Is Beat Toggle */}
+              <label className="flex items-center gap-3 cursor-pointer">
+                <div
+                  onClick={() => setPostIsBeat(!postIsBeat)}
+                  className={`w-12 h-7 rounded-full transition-colors relative ${postIsBeat ? 'bg-violet-500' : 'bg-white/10'}`}
+                >
+                  <div
+                    className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${postIsBeat ? 'translate-x-6' : 'translate-x-1'}`}
+                  />
+                </div>
+                <span className="text-white/80 text-sm">This is a beat/instrumental</span>
+              </label>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-4 border-t border-white/5 sticky bottom-0 bg-zinc-900">
+              <button
+                onClick={handleSubmitPost}
+                disabled={posting || !postFile || !postTitle.trim()}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              >
+                {posting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Posting...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-5 h-5" />
+                    Post to Discovery
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
