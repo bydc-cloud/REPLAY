@@ -844,25 +844,69 @@ app.get('/api/tracks/:id/audio', auth, async (req, res) => {
   }
 });
 
-// Stream audio
+// Stream audio - allows own tracks OR public tracks (for Discovery)
 app.get('/api/tracks/:id/stream', async (req, res) => {
   let token = req.headers.authorization?.split(' ')[1] || req.query.token;
-  if (!token) return res.status(401).json({ error: 'No token' });
+  let userId = null;
 
-  try {
-    req.user = jwt.verify(token, JWT_SECRET);
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
+  // Token is optional for public tracks
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      userId = decoded.id;
+    } catch {
+      // Invalid token - continue without auth (public tracks only)
+    }
   }
+
   try {
     const db = getPool();
-    const result = await db.query(
-      'SELECT file_data FROM tracks WHERE id = $1 AND user_id = $2',
-      [req.params.id, req.user.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
 
-    const fileData = result.rows[0].file_data;
+    // First try user's own track (if authenticated)
+    let result;
+    if (userId) {
+      result = await db.query(
+        'SELECT file_data, file_key, visibility FROM tracks WHERE id = $1 AND user_id = $2',
+        [req.params.id, userId]
+      );
+    }
+
+    // If not found as own track, check public tracks
+    if (!result || result.rows.length === 0) {
+      result = await db.query(
+        "SELECT file_data, file_key, visibility FROM tracks WHERE id = $1 AND visibility = 'public'",
+        [req.params.id]
+      );
+    }
+
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Track not found' });
+
+    const track = result.rows[0];
+
+    // If track has file_key (stored in B2), generate signed URL and redirect
+    if (track.file_key) {
+      const client = getS3Client();
+      if (!client) {
+        return res.status(500).json({ error: 'Cloud storage not configured' });
+      }
+
+      try {
+        const command = new GetObjectCommand({
+          Bucket: B2_BUCKET,
+          Key: track.file_key,
+        });
+
+        const signedUrl = await getSignedUrl(client, command, { expiresIn: 3600 });
+        console.log(`Redirecting to signed B2 URL for track ${req.params.id}`);
+        return res.redirect(signedUrl);
+      } catch (b2Err) {
+        console.error('B2 signed URL error:', b2Err.message);
+        return res.status(500).json({ error: 'Failed to get audio from cloud' });
+      }
+    }
+
+    // Fallback: file_data (base64 in database)
+    const fileData = track.file_data;
     if (!fileData) return res.status(404).json({ error: 'No audio data' });
 
     const matches = fileData.match(/^data:([^;]+);base64,(.+)$/);
@@ -2512,9 +2556,12 @@ app.get('/api/discover/tracks', async (req, res) => {
     const offset = parseInt(req.query.offset) || 0;
     const genre = req.query.genre;
 
+    // Explicitly select fields - exclude file_data (too large for feed)
     let query = `
       SELECT
-        t.*,
+        t.id, t.user_id, t.title, t.artist, t.album, t.duration,
+        t.cover_url, t.bpm, t.musical_key, t.genre, t.visibility,
+        t.is_beat, t.file_key, t.play_count, t.created_at,
         u.username,
         pp.display_name,
         pp.avatar_url,

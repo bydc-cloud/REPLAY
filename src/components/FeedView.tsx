@@ -86,6 +86,8 @@ interface DiscoverTrack {
   user_id: string;
   is_beat?: boolean;
   play_count?: number;
+  file_key?: string;
+  file_data?: string;
 }
 
 interface Comment {
@@ -382,9 +384,11 @@ export function FeedView() {
       album: '',
       duration: track.duration,
       coverUrl: track.cover_url || '',
-      fileUrl: '',
-      fileData: null,
-      fileKey: null,
+      artworkUrl: track.cover_url || '',
+      fileUrl: track.file_data || '', // Use file_data if available (base64)
+      fileData: track.file_data || null,
+      fileKey: track.file_key || null,
+      hasAudio: true, // Tell AudioPlayer this track has audio to stream
       playCount: 0,
       isLiked: likedTracks.has(track.id),
       addedAt: new Date()
