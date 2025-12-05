@@ -475,49 +475,35 @@ export function FeedView() {
   const currentTrackData = discoverTracks[currentIndex];
 
   return (
-    <div className="h-full bg-black flex flex-col overflow-hidden relative">
-      {/* Top Tabs - Floating over content for Discover only */}
-      {activeTab === 'discover' && (
-        <div className="absolute top-0 left-0 right-0 z-20 pt-2 pb-3 bg-gradient-to-b from-black/80 to-transparent">
-          <div className="flex items-center justify-center gap-6">
-            {isAuthenticated && (
-              <button
-                onClick={() => setActiveTab('following')}
-                className="text-[15px] font-semibold transition-all px-1 py-1 text-white/50"
-              >
-                Following
-              </button>
-            )}
-
-            <button
-              onClick={() => setActiveTab('discover')}
-              className="text-[15px] font-semibold transition-all px-1 py-1 text-white border-b-2 border-white"
-            >
-              For You
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Following Tab Header */}
-      {activeTab === 'following' && (
-        <div className="flex-shrink-0 px-4 pt-3 pb-2 bg-black border-b border-white/5">
-          <div className="flex items-center justify-center gap-6">
+    <div className="h-full bg-black flex flex-col overflow-hidden">
+      {/* Top Tabs - Floating over content */}
+      <div className="absolute top-0 left-0 right-0 z-20 px-4 pt-3 pb-2">
+        <div className="flex items-center justify-center gap-8">
+          {isAuthenticated && (
             <button
               onClick={() => setActiveTab('following')}
-              className="text-[15px] font-semibold text-white border-b-2 border-white px-1 py-1"
+              className={`text-base font-bold transition-all ${
+                activeTab === 'following'
+                  ? 'text-white'
+                  : 'text-white/50'
+              }`}
             >
               Following
             </button>
-            <button
-              onClick={() => setActiveTab('discover')}
-              className="text-[15px] font-semibold text-white/50 px-1 py-1"
-            >
-              For You
-            </button>
-          </div>
+          )}
+
+          <button
+            onClick={() => setActiveTab('discover')}
+            className={`text-base font-bold transition-all ${
+              activeTab === 'discover'
+                ? 'text-white'
+                : 'text-white/50'
+            }`}
+          >
+            For You
+          </button>
         </div>
-      )}
+      </div>
 
       {/* Main Content */}
       <div className="flex-1 relative">
@@ -531,17 +517,20 @@ export function FeedView() {
             onWheel={handleWheel}
           >
             {discoverTracks.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full px-8">
+              <div className="flex flex-col items-center justify-center h-full">
                 <Music className="w-16 h-16 text-white/20 mb-4" />
                 <p className="text-white/60 text-lg font-medium mb-2 text-center">No tracks yet</p>
-                <p className="text-white/40 text-sm text-center">
+                <p className="text-white/40 text-sm text-center px-4">
                   Be the first to share your music!
                 </p>
               </div>
             ) : currentTrackData && (
-              <div className="absolute inset-0 transition-opacity duration-300 ease-out">
+              <div
+                className="absolute inset-0 flex flex-col transition-transform duration-300 ease-out"
+                style={{ transform: `translateY(0)` }}
+              >
                 {/* Full Screen Track Card */}
-                <div className="relative h-full w-full flex flex-col">
+                <div className="relative h-full w-full">
                   {/* Background - Album Art Blurred */}
                   <div className="absolute inset-0">
                     {currentTrackData.cover_url ? (
@@ -549,20 +538,20 @@ export function FeedView() {
                         <img
                           src={currentTrackData.cover_url}
                           alt=""
-                          className="w-full h-full object-cover blur-3xl scale-125 opacity-40"
+                          className="w-full h-full object-cover blur-2xl scale-110 opacity-50"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/90" />
                       </>
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-violet-900/50 via-black to-indigo-900/50" />
+                      <div className="w-full h-full bg-gradient-to-br from-violet-900 via-black to-indigo-900" />
                     )}
                   </div>
 
-                  {/* Main Content Area - Properly Centered */}
-                  <div className="relative flex-1 flex flex-col items-center justify-center px-4 pt-12 pb-24">
-                    {/* Album Art - Responsive sizing */}
+                  {/* Center Content - Album Art + Info */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center px-6 pb-32">
+                    {/* Album Art */}
                     <div
-                      className="relative w-[70vw] max-w-[280px] aspect-square rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl cursor-pointer group mb-5"
+                      className="relative w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 rounded-2xl overflow-hidden shadow-2xl cursor-pointer group mb-6"
                       onClick={() => currentTrack?.id === currentTrackData.id ? togglePlayPause() : handlePlayTrack(currentTrackData)}
                     >
                       {currentTrackData.cover_url ? (
@@ -573,68 +562,68 @@ export function FeedView() {
                         />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-violet-600 to-indigo-800 flex items-center justify-center">
-                          <Music className="w-16 h-16 text-white/30" />
+                          <Music className="w-20 h-20 text-white/30" />
                         </div>
                       )}
 
-                      {/* Play/Pause Overlay - Always show on mobile tap */}
-                      <div className={`absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity ${
-                        currentTrack?.id === currentTrackData.id && isPlaying ? 'opacity-100' : 'opacity-0 active:opacity-100'
+                      {/* Play/Pause Overlay */}
+                      <div className={`absolute inset-0 bg-black/30 flex items-center justify-center transition-opacity ${
+                        currentTrack?.id === currentTrackData.id && isPlaying ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'
                       }`}>
-                        <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                        <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
                           {currentTrack?.id === currentTrackData.id && isPlaying ? (
-                            <Pause className="w-8 h-8 text-white" fill="currentColor" />
+                            <Pause className="w-10 h-10 text-white" fill="currentColor" />
                           ) : (
-                            <Play className="w-8 h-8 text-white ml-1" fill="currentColor" />
+                            <Play className="w-10 h-10 text-white ml-1" fill="currentColor" />
                           )}
                         </div>
                       </div>
 
                       {/* Genre Badge */}
                       {currentTrackData.genre && (
-                        <div className="absolute top-2.5 left-2.5 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-full text-[11px] text-white font-medium">
+                        <div className="absolute top-3 left-3 px-2.5 py-1 bg-black/60 backdrop-blur-sm rounded-full text-xs text-white font-medium">
                           {currentTrackData.genre}
                         </div>
                       )}
                     </div>
 
-                    {/* Track Info - Centered */}
-                    <div className="text-center w-full max-w-[85vw] px-2">
-                      <h2 className="text-xl sm:text-2xl font-bold text-white mb-1.5 line-clamp-2">
+                    {/* Track Info */}
+                    <div className="text-center max-w-sm">
+                      <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 line-clamp-2">
                         {currentTrackData.title}
                       </h2>
-                      <p className="text-white/60 text-base mb-3">
+                      <p className="text-white/70 text-lg mb-3">
                         {currentTrackData.artist}
                       </p>
 
                       {/* Producer Link */}
                       <button
                         onClick={() => window.location.hash = `#/producer/${currentTrackData.user_id}`}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 active:bg-white/20 transition-colors"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
                       >
-                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center overflow-hidden">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center overflow-hidden">
                           {currentTrackData.avatar_url ? (
                             <img src={currentTrackData.avatar_url} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-white text-[9px] font-bold">
+                            <span className="text-white text-[10px] font-bold">
                               {(currentTrackData.display_name || currentTrackData.username).charAt(0).toUpperCase()}
                             </span>
                           )}
                         </div>
-                        <span className="text-white text-sm">@{currentTrackData.username}</span>
+                        <span className="text-white text-sm font-medium">@{currentTrackData.username}</span>
                       </button>
 
-                      {/* BPM/Key - Smaller on mobile */}
+                      {/* BPM/Key */}
                       {(currentTrackData.bpm || currentTrackData.musical_key) && (
-                        <div className="flex items-center justify-center gap-2 mt-3">
+                        <div className="flex items-center justify-center gap-3 mt-3">
                           {currentTrackData.bpm && (
-                            <span className="text-[11px] text-white/40 bg-white/10 px-2 py-0.5 rounded">
+                            <span className="text-xs text-white/50 bg-white/10 px-2 py-1 rounded">
                               {currentTrackData.bpm} BPM
                             </span>
                           )}
                           {currentTrackData.musical_key && (
-                            <span className="text-[11px] text-white/40 bg-white/10 px-2 py-0.5 rounded">
-                              {currentTrackData.musical_key}
+                            <span className="text-xs text-white/50 bg-white/10 px-2 py-1 rounded">
+                              Key: {currentTrackData.musical_key}
                             </span>
                           )}
                         </div>
@@ -642,21 +631,21 @@ export function FeedView() {
                     </div>
                   </div>
 
-                  {/* Right Side Actions - Better positioned for mobile */}
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col items-center gap-4">
+                  {/* Right Side Actions */}
+                  <div className="absolute right-4 bottom-40 flex flex-col items-center gap-5">
                     {/* Like */}
                     <button
                       onClick={(e) => handleLike(currentTrackData, e)}
-                      className="flex flex-col items-center gap-0.5 active:scale-90 transition-transform"
+                      className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
                     >
-                      <div className={`w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-sm ${
-                        likedTracks.has(currentTrackData.id) ? 'bg-red-500/30' : 'bg-black/30'
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                        likedTracks.has(currentTrackData.id) ? 'bg-red-500/20' : 'bg-white/10'
                       }`}>
                         <Heart
-                          className={`w-5 h-5 ${likedTracks.has(currentTrackData.id) ? 'text-red-500 fill-red-500' : 'text-white'}`}
+                          className={`w-6 h-6 ${likedTracks.has(currentTrackData.id) ? 'text-red-500 fill-red-500' : 'text-white'}`}
                         />
                       </div>
-                      <span className="text-white text-[10px] font-medium">
+                      <span className="text-white text-xs font-medium">
                         {formatCount(currentTrackData.likes_count + (likedTracks.has(currentTrackData.id) ? 1 : 0))}
                       </span>
                     </button>
@@ -664,12 +653,12 @@ export function FeedView() {
                     {/* Comment */}
                     <button
                       onClick={(e) => openComments(currentTrackData, e)}
-                      className="flex flex-col items-center gap-0.5 active:scale-90 transition-transform"
+                      className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
                     >
-                      <div className="w-11 h-11 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center">
-                        <MessageCircle className="w-5 h-5 text-white" />
+                      <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                        <MessageCircle className="w-6 h-6 text-white" />
                       </div>
-                      <span className="text-white text-[10px] font-medium">
+                      <span className="text-white text-xs font-medium">
                         {formatCount(currentTrackData.comments_count)}
                       </span>
                     </button>
@@ -677,12 +666,12 @@ export function FeedView() {
                     {/* Repost */}
                     <button
                       onClick={(e) => handleRepost(currentTrackData.id, e)}
-                      className="flex flex-col items-center gap-0.5 active:scale-90 transition-transform"
+                      className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
                     >
-                      <div className="w-11 h-11 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center">
-                        <Repeat2 className="w-5 h-5 text-white" />
+                      <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                        <Repeat2 className="w-6 h-6 text-white" />
                       </div>
-                      <span className="text-white text-[10px] font-medium">
+                      <span className="text-white text-xs font-medium">
                         {formatCount(currentTrackData.reposts_count)}
                       </span>
                     </button>
@@ -690,45 +679,40 @@ export function FeedView() {
                     {/* Save */}
                     <button
                       onClick={(e) => handleSave(currentTrackData, e)}
-                      className="flex flex-col items-center gap-0.5 active:scale-90 transition-transform"
+                      className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
                     >
-                      <div className={`w-11 h-11 rounded-full backdrop-blur-sm flex items-center justify-center ${
-                        savedTracks.has(currentTrackData.id) ? 'bg-amber-500/30' : 'bg-black/30'
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                        savedTracks.has(currentTrackData.id) ? 'bg-amber-500/20' : 'bg-white/10'
                       }`}>
                         <Bookmark
-                          className={`w-5 h-5 ${savedTracks.has(currentTrackData.id) ? 'text-amber-400 fill-amber-400' : 'text-white'}`}
+                          className={`w-6 h-6 ${savedTracks.has(currentTrackData.id) ? 'text-amber-400 fill-amber-400' : 'text-white'}`}
                         />
                       </div>
-                      <span className="text-white text-[10px] font-medium">Save</span>
+                      <span className="text-white text-xs font-medium">Save</span>
                     </button>
 
                     {/* Share */}
-                    <button className="flex flex-col items-center gap-0.5 active:scale-90 transition-transform">
-                      <div className="w-11 h-11 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center">
-                        <Share2 className="w-5 h-5 text-white" />
+                    <button className="flex flex-col items-center gap-1 active:scale-90 transition-transform">
+                      <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                        <Share2 className="w-6 h-6 text-white" />
                       </div>
-                      <span className="text-white text-[10px] font-medium">Share</span>
+                      <span className="text-white text-xs font-medium">Share</span>
                     </button>
                   </div>
 
-                  {/* Bottom Navigation - Swipe hint */}
-                  <div className="absolute bottom-4 left-0 right-0 flex flex-col items-center gap-1">
-                    <div className="flex items-center gap-3 text-white/40">
-                      {currentIndex > 0 && (
-                        <button onClick={() => goToTrack('prev')} className="p-1.5 active:bg-white/10 rounded-full">
-                          <ChevronUp className="w-5 h-5" />
-                        </button>
-                      )}
-                      <span className="text-xs font-medium bg-black/30 px-2.5 py-1 rounded-full backdrop-blur-sm">
-                        {currentIndex + 1} / {discoverTracks.length}
-                      </span>
-                      {currentIndex < discoverTracks.length - 1 && (
-                        <button onClick={() => goToTrack('next')} className="p-1.5 active:bg-white/10 rounded-full">
-                          <ChevronDown className="w-5 h-5" />
-                        </button>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-white/30">Swipe to browse</p>
+                  {/* Navigation Hints */}
+                  <div className="absolute left-1/2 -translate-x-1/2 bottom-6 flex flex-col items-center gap-1 text-white/30">
+                    {currentIndex > 0 && (
+                      <button onClick={() => goToTrack('prev')} className="p-2 hover:text-white/60 transition-colors">
+                        <ChevronUp className="w-5 h-5" />
+                      </button>
+                    )}
+                    <span className="text-xs">{currentIndex + 1} / {discoverTracks.length}</span>
+                    {currentIndex < discoverTracks.length - 1 && (
+                      <button onClick={() => goToTrack('next')} className="p-2 hover:text-white/60 transition-colors">
+                        <ChevronDown className="w-5 h-5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
