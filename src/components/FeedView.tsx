@@ -834,7 +834,7 @@ export function FeedView() {
                                 />
                               </div>
                               <span className={`text-xs font-semibold ${isLiked ? 'text-red-400' : 'text-white/70'}`}>
-                                {formatCount(track.likes_count + (isLiked ? 1 : 0))}
+                                {formatCount((track.likes_count || 0) + (isLiked ? 1 : 0))}
                               </span>
                             </button>
 
@@ -847,7 +847,7 @@ export function FeedView() {
                                 <MessageCircle className="w-7 h-7 text-white" />
                               </div>
                               <span className="text-xs font-semibold text-white/70">
-                                {formatCount(track.comments_count)}
+                                {formatCount(track.comments_count || 0)}
                               </span>
                             </button>
 
@@ -860,7 +860,7 @@ export function FeedView() {
                                 <Repeat2 className="w-7 h-7 text-white" />
                               </div>
                               <span className="text-xs font-semibold text-white/70">
-                                {formatCount(track.reposts_count)}
+                                {formatCount(track.reposts_count || 0)}
                               </span>
                             </button>
 
@@ -1059,7 +1059,7 @@ export function FeedView() {
                                 />
                               </div>
                               <span className={`text-sm font-semibold ${isLiked ? 'text-red-400' : 'text-white'}`}>
-                                {formatCount(track.likes_count + (isLiked ? 1 : 0))}
+                                {formatCount((track.likes_count || 0) + (isLiked ? 1 : 0))}
                               </span>
                             </button>
 
@@ -1072,7 +1072,7 @@ export function FeedView() {
                                 <MessageCircle className="w-8 h-8 text-white transition-transform group-hover:scale-110" />
                               </div>
                               <span className="text-sm font-semibold text-white">
-                                {formatCount(track.comments_count)}
+                                {formatCount(track.comments_count || 0)}
                               </span>
                             </button>
 
@@ -1085,7 +1085,7 @@ export function FeedView() {
                                 <Repeat2 className="w-8 h-8 text-white transition-transform group-hover:scale-110" />
                               </div>
                               <span className="text-sm font-semibold text-white">
-                                {formatCount(track.reposts_count)}
+                                {formatCount(track.reposts_count || 0)}
                               </span>
                             </button>
 
