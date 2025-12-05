@@ -1259,11 +1259,67 @@ app.post('/api/discover/post', auth, async (req, res) => {
       return res.status(400).json({ error: 'Title and audio file required' });
     }
 
+    console.log(`Discovery post starting: ${title} by user ${req.user.id}`);
+
+    // Try to upload to B2 storage first
+    const client = getS3Client();
+    let fileKey = null;
+    let audioData = file_data; // fallback to base64 if B2 not available
+
+    if (client) {
+      try {
+        // Extract base64 data and mime type
+        const matches = file_data.match(/^data:([^;]+);base64,(.+)$/);
+        if (matches) {
+          const mimeType = matches[1];
+          const base64Data = matches[2];
+          const buffer = Buffer.from(base64Data, 'base64');
+
+          // Determine file extension
+          const extMap = {
+            'audio/mpeg': 'mp3',
+            'audio/mp3': 'mp3',
+            'audio/wav': 'wav',
+            'audio/wave': 'wav',
+            'audio/x-wav': 'wav',
+            'audio/flac': 'flac',
+            'audio/x-flac': 'flac',
+            'audio/mp4': 'm4a',
+            'audio/x-m4a': 'm4a',
+            'audio/aac': 'aac',
+            'audio/ogg': 'ogg',
+          };
+          const ext = extMap[mimeType] || 'mp3';
+
+          fileKey = `discover/${req.user.id}/${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${ext}`;
+
+          console.log(`Uploading to B2: ${fileKey} (${(buffer.length / 1024 / 1024).toFixed(2)}MB)`);
+
+          const command = new PutObjectCommand({
+            Bucket: B2_BUCKET,
+            Key: fileKey,
+            Body: buffer,
+            ContentType: mimeType,
+          });
+
+          await client.send(command);
+          console.log(`B2 upload complete: ${fileKey}`);
+
+          // Store file key instead of base64 data
+          audioData = null;
+        }
+      } catch (b2Err) {
+        console.error('B2 upload failed, falling back to base64:', b2Err.message);
+        fileKey = null;
+        // Keep audioData as base64 fallback
+      }
+    }
+
     // Create track with public visibility
     const result = await db.query(
-      `INSERT INTO tracks (user_id, title, artist, album, duration, file_data, cover_url, lyrics_status, visibility, is_beat)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'public', $9) RETURNING *`,
-      [req.user.id, title, artist || 'Unknown Artist', description || null, 0, file_data, cover_url, 'pending', is_beat || false]
+      `INSERT INTO tracks (user_id, title, artist, album, duration, file_data, file_key, cover_url, lyrics_status, visibility, is_beat)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'public', $10) RETURNING *`,
+      [req.user.id, title, artist || 'Unknown Artist', description || null, 0, audioData, fileKey, cover_url, 'pending', is_beat || false]
     );
 
     const track = result.rows[0];
@@ -1275,11 +1331,12 @@ app.post('/api/discover/post', auth, async (req, res) => {
     `, [req.user.id, track.id]);
 
     // Auto-transcribe if OpenAI is configured
-    if (file_data && openai) {
+    const transcriptionData = fileKey ? file_data : audioData; // Use original base64 for transcription
+    if (transcriptionData && openai) {
       console.log(`Starting auto-transcription for discovery post: ${track.id}`);
       db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['processing', track.id]);
 
-      transcribeAudio(file_data, track.id).then(async (transcription) => {
+      transcribeAudio(transcriptionData, track.id).then(async (transcription) => {
         if (transcription) {
           await db.query(
             'UPDATE tracks SET lyrics_text = $1, lyrics_segments = $2, lyrics_status = $3 WHERE id = $4',
@@ -1295,11 +1352,11 @@ app.post('/api/discover/post', auth, async (req, res) => {
       });
     }
 
-    console.log(`Discovery post created: ${title} by user ${req.user.id}`);
+    console.log(`Discovery post created: ${title} by user ${req.user.id}, fileKey: ${fileKey || 'base64'}`);
     res.json(track);
   } catch (e) {
-    console.error('Discovery post error:', e.message);
-    res.status(500).json({ error: 'Failed to create post' });
+    console.error('Discovery post error:', e.message, e.stack);
+    res.status(500).json({ error: 'Failed to create post: ' + e.message });
   }
 });
 
