@@ -219,7 +219,7 @@ const DEMO_COMMENTS: Comment[] = [
   { id: 'c4', user_id: 'u4', content: 'Been listening to this on repeat all day', created_at: new Date(Date.now() - 172800000).toISOString(), username: 'music_lover22', display_name: 'Music Lover', likes_count: 32 },
 ];
 
-type FeedTab = 'following' | 'discover';
+type FeedTab = 'following' | 'foryou' | 'beats';
 
 export function FeedView() {
   const { user, token, isAuthenticated } = useAuth();
@@ -229,7 +229,7 @@ export function FeedView() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [activeTab, setActiveTab] = useState<FeedTab>('discover');
+  const [activeTab, setActiveTab] = useState<FeedTab>('foryou');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [likedTracks, setLikedTracks] = useState<Set<string>>(new Set());
   const [savedTracks, setSavedTracks] = useState<Set<string>>(new Set());
@@ -368,7 +368,7 @@ export function FeedView() {
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (activeTab !== 'discover' || showComments) return;
+      if ((activeTab !== 'foryou' && activeTab !== 'beats') || showComments) return;
       if (e.key === ' ') {
         e.preventDefault();
         const track = discoverTracks[currentIndex];
@@ -574,11 +574,11 @@ export function FeedView() {
     <div className="fixed inset-0 bg-black">
       {/* Top Tabs - Floating over content */}
       <div className="fixed top-0 left-0 right-0 z-30 px-4 pt-3 pb-2 pointer-events-none">
-        <div className="flex items-center justify-center gap-8 pointer-events-auto">
+        <div className="flex items-center justify-center gap-6 pointer-events-auto">
           {isAuthenticated && (
             <button
               onClick={() => setActiveTab('following')}
-              className={`text-base font-bold transition-all drop-shadow-lg ${
+              className={`text-sm font-bold transition-all drop-shadow-lg ${
                 activeTab === 'following'
                   ? 'text-white'
                   : 'text-white/50'
@@ -589,28 +589,48 @@ export function FeedView() {
           )}
 
           <button
-            onClick={() => setActiveTab('discover')}
-            className={`text-base font-bold transition-all drop-shadow-lg ${
-              activeTab === 'discover'
+            onClick={() => setActiveTab('foryou')}
+            className={`text-sm font-bold transition-all drop-shadow-lg ${
+              activeTab === 'foryou'
                 ? 'text-white'
                 : 'text-white/50'
             }`}
           >
             For You
           </button>
+
+          <button
+            onClick={() => setActiveTab('beats')}
+            className={`text-sm font-bold transition-all drop-shadow-lg ${
+              activeTab === 'beats'
+                ? 'text-white'
+                : 'text-white/50'
+            }`}
+          >
+            Beats
+          </button>
         </div>
       </div>
 
       {/* Main Content - Full viewport */}
-      {activeTab === 'discover' ? (
+      {(activeTab === 'foryou' || activeTab === 'beats') ? (
         /* TikTok-style Full Screen Vertical Scroll */
-        <>
-          {discoverTracks.length === 0 ? (
+        (() => {
+          // Filter tracks based on active tab
+          const filteredTracks = activeTab === 'beats'
+            ? discoverTracks.filter(t => t.is_beat)
+            : discoverTracks;
+
+          return (
+          <>
+          {filteredTracks.length === 0 ? (
             <div className="fixed inset-0 flex flex-col items-center justify-center">
               <Music className="w-16 h-16 text-white/20 mb-4" />
-              <p className="text-white/60 text-lg font-medium mb-2 text-center">No tracks yet</p>
+              <p className="text-white/60 text-lg font-medium mb-2 text-center">
+                {activeTab === 'beats' ? 'No beats yet' : 'No tracks yet'}
+              </p>
               <p className="text-white/40 text-sm text-center px-4">
-                Be the first to share your music!
+                {activeTab === 'beats' ? 'Be the first to upload a beat!' : 'Be the first to share your music!'}
               </p>
             </div>
           ) : (
@@ -624,7 +644,7 @@ export function FeedView() {
               }}
               onScroll={handleScroll}
             >
-                {discoverTracks.map((track, idx) => {
+                {filteredTracks.map((track, idx) => {
                   const isCurrentlyPlaying = currentTrack?.id === track.id && isPlaying;
                   const isLiked = likedTracks.has(track.id);
                   const isSaved = savedTracks.has(track.id);
@@ -633,7 +653,7 @@ export function FeedView() {
                   return (
                     <div
                       key={track.id}
-                      ref={idx >= discoverTracks.length - 2 ? nearEndRef : undefined}
+                      ref={idx >= filteredTracks.length - 2 ? nearEndRef : undefined}
                       className="h-[100dvh] min-h-[100dvh] snap-start snap-always relative flex flex-col select-none"
                       onClick={() => handleDoubleTap(track)}
                     >
@@ -960,7 +980,9 @@ export function FeedView() {
               </div>
             )}
           </>
-        ) : (
+          );
+        })()
+      ) : (
           /* Following Feed */
           <div className="fixed inset-0 pt-14 overflow-y-auto px-3 py-4 sm:px-4">
             {feed.length === 0 ? (
