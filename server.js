@@ -194,6 +194,9 @@ async function initDB() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tracks' AND column_name = 'tags') THEN
           ALTER TABLE tracks ADD COLUMN tags TEXT[];
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tracks' AND column_name = 'is_beat') THEN
+          ALTER TABLE tracks ADD COLUMN is_beat BOOLEAN DEFAULT false;
+        END IF;
         -- Feature flags for users
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'feature_flags') THEN
           ALTER TABLE users ADD COLUMN feature_flags JSONB DEFAULT '{}';
