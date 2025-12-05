@@ -1,9 +1,52 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Heart, MessageCircle, Repeat2, Play, Pause, UserPlus, Music, Loader2, Share2, Bookmark, X, Send } from 'lucide-react';
+import { Heart, MessageCircle, Repeat2, Play, Pause, UserPlus, Music, Loader2, Share2, Bookmark, X, Send, Volume2, VolumeX } from 'lucide-react';
 import { useAuth } from '../contexts/PostgresAuthContext';
 import { useAudioPlayer } from '../contexts/AudioPlayerContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://replay-production-9240.up.railway.app';
+
+// Animated heart burst component
+const HeartBurst = ({ show, onComplete }: { show: boolean; onComplete: () => void }) => {
+  useEffect(() => {
+    if (show) {
+      const timer = setTimeout(onComplete, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [show, onComplete]);
+
+  if (!show) return null;
+
+  return (
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+      <Heart
+        className="w-32 h-32 text-red-500 fill-red-500 animate-ping"
+        style={{ animationDuration: '0.6s' }}
+      />
+    </div>
+  );
+};
+
+// Vinyl spinning record component
+const SpinningVinyl = ({ coverUrl, isPlaying, size = 'normal' }: { coverUrl?: string; isPlaying: boolean; size?: 'normal' | 'small' }) => {
+  const sizeClasses = size === 'small' ? 'w-12 h-12' : 'w-16 h-16 md:w-20 md:h-20';
+
+  return (
+    <div className={`${sizeClasses} rounded-full border-4 border-zinc-800 shadow-xl overflow-hidden ${isPlaying ? 'animate-spin' : ''}`}
+      style={{ animationDuration: '3s' }}>
+      <div className="w-full h-full relative">
+        {coverUrl ? (
+          <img src={coverUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-violet-600 to-indigo-800" />
+        )}
+        {/* Vinyl center hole */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-zinc-900 border-2 border-zinc-700" />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface FeedEvent {
   id: string;
@@ -195,9 +238,13 @@ export function FeedView() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [commentsLoading, setCommentsLoading] = useState(false);
+  const [doubleTapHeart, setDoubleTapHeart] = useState<string | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
   const commentInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const lastTapRef = useRef<{ time: number; trackId: string | null }>({ time: 0, trackId: null });
   const PAGE_SIZE = 12;
 
   const fetchFeed = useCallback(async () => {
@@ -377,6 +424,52 @@ export function FeedView() {
     });
   };
 
+  const handleDoubleTap = (track: DiscoverTrack) => {
+    const now = Date.now();
+    const timeDiff = now - lastTapRef.current.time;
+    const sameTrack = lastTapRef.current.trackId === track.id;
+
+    if (timeDiff < 300 && sameTrack) {
+      // Double tap detected - like the track
+      if (!likedTracks.has(track.id)) {
+        handleLike(track);
+      }
+      setDoubleTapHeart(track.id);
+      lastTapRef.current = { time: 0, trackId: null };
+    } else {
+      lastTapRef.current = { time: now, trackId: track.id };
+    }
+  };
+
+  const handleFollow = async (userId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const wasFollowing = followedUsers.has(userId);
+    setFollowedUsers(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(userId)) {
+        newSet.delete(userId);
+      } else {
+        newSet.add(userId);
+      }
+      return newSet;
+    });
+
+    if (!token) return;
+    try {
+      await fetch(`${API_URL}/api/users/${userId}/follow`, {
+        method: wasFollowing ? 'DELETE' : 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    } catch (err) {
+      console.error('Failed to follow user:', err);
+    }
+  };
+
+  const toggleMute = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setIsMuted(prev => !prev);
+  };
+
   const handleRepost = async (trackId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!token) return;
@@ -524,192 +617,348 @@ export function FeedView() {
             ) : (
               <div
                 ref={containerRef}
-                className="h-full w-full overflow-y-scroll snap-y snap-mandatory overscroll-y-contain"
-                style={{ scrollSnapStop: 'always', WebkitOverflowScrolling: 'touch' }}
+                className="h-full w-full overflow-y-scroll snap-y snap-mandatory overscroll-y-contain scrollbar-hide"
+                style={{ WebkitOverflowScrolling: 'touch' }}
                 onScroll={handleScroll}
               >
-                {discoverTracks.map((track, idx) => (
-                  <div
-                    key={track.id}
-                    ref={idx >= discoverTracks.length - 2 ? nearEndRef : undefined}
-                    className="h-screen min-h-screen snap-start snap-always relative flex flex-col"
-                  >
-                    {/* Background */}
-                    <div className="absolute inset-0">
-                      {track.cover_url ? (
-                        <>
-                          <img
-                            src={track.cover_url}
-                            alt=""
-                            className="w-full h-full object-cover blur-2xl scale-110 opacity-50"
+                {discoverTracks.map((track, idx) => {
+                  const isCurrentlyPlaying = currentTrack?.id === track.id && isPlaying;
+                  const isLiked = likedTracks.has(track.id);
+                  const isSaved = savedTracks.has(track.id);
+                  const isFollowing = followedUsers.has(track.user_id);
+
+                  return (
+                    <div
+                      key={track.id}
+                      ref={idx >= discoverTracks.length - 2 ? nearEndRef : undefined}
+                      className="h-[100dvh] min-h-[100dvh] snap-start snap-always relative flex flex-col select-none"
+                      onClick={() => handleDoubleTap(track)}
+                    >
+                      {/* Full-screen Background with parallax-like effect */}
+                      <div className="absolute inset-0 overflow-hidden">
+                        {track.cover_url ? (
+                          <>
+                            <img
+                              src={track.cover_url}
+                              alt=""
+                              className="w-full h-full object-cover scale-110 blur-3xl opacity-60"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/95" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/30" />
+                          </>
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-violet-950 via-black to-indigo-950" />
+                        )}
+                      </div>
+
+                      {/* Double-tap heart animation */}
+                      <HeartBurst
+                        show={doubleTapHeart === track.id}
+                        onComplete={() => setDoubleTapHeart(null)}
+                      />
+
+                      {/* Mute button - top right */}
+                      <button
+                        onClick={toggleMute}
+                        className="absolute top-16 right-4 z-20 w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center border border-white/10 active:scale-90 transition-transform"
+                      >
+                        {isMuted ? (
+                          <VolumeX className="w-5 h-5 text-white/80" />
+                        ) : (
+                          <Volume2 className="w-5 h-5 text-white/80" />
+                        )}
+                      </button>
+
+                      {/* Main Content Area - Bottom aligned like TikTok */}
+                      <div className="absolute inset-x-0 bottom-0 pb-24 md:pb-28 px-4 md:px-6">
+                        <div className="flex items-end gap-3 md:gap-4">
+                          {/* Left side - Track info */}
+                          <div className="flex-1 min-w-0 mb-2">
+                            {/* Producer info with follow button */}
+                            <div className="flex items-center gap-3 mb-4">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.location.hash = `#/producer/${track.user_id}`;
+                                }}
+                                className="relative group"
+                              >
+                                <div className="w-12 h-12 md:w-14 md:h-14 rounded-full ring-2 ring-white/20 overflow-hidden bg-gradient-to-br from-violet-500 to-pink-500 p-0.5 transition-transform group-active:scale-95">
+                                  <div className="w-full h-full rounded-full overflow-hidden bg-black">
+                                    {track.avatar_url ? (
+                                      <img src={track.avatar_url} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full bg-gradient-to-br from-violet-600 to-indigo-700 flex items-center justify-center">
+                                        <span className="text-white font-bold text-lg">
+                                          {(track.display_name || track.username).charAt(0).toUpperCase()}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                {/* Follow button overlay */}
+                                {!isFollowing && (
+                                  <button
+                                    onClick={(e) => handleFollow(track.user_id, e)}
+                                    className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-rose-500 flex items-center justify-center shadow-lg border-2 border-black transition-transform hover:scale-110 active:scale-90"
+                                  >
+                                    <span className="text-white text-lg font-bold leading-none">+</span>
+                                  </button>
+                                )}
+                              </button>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-white font-semibold text-base md:text-lg truncate">
+                                  @{track.username}
+                                </p>
+                                {track.display_name && track.display_name !== track.username && (
+                                  <p className="text-white/60 text-sm truncate">{track.display_name}</p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Track title with marquee effect for long titles */}
+                            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-white mb-2 leading-tight line-clamp-2">
+                              {track.title}
+                            </h2>
+
+                            {/* Artist name */}
+                            <p className="text-white/70 text-base md:text-lg mb-3 truncate">
+                              {track.artist}
+                            </p>
+
+                            {/* Track metadata tags */}
+                            <div className="flex flex-wrap items-center gap-2 mb-4">
+                              {track.genre && (
+                                <span className="px-3 py-1 bg-white/10 backdrop-blur-sm rounded-full text-xs md:text-sm text-white/90 font-medium">
+                                  #{track.genre}
+                                </span>
+                              )}
+                              {track.bpm && (
+                                <span className="px-3 py-1 bg-white/10 backdrop-blur-sm rounded-full text-xs md:text-sm text-white/70">
+                                  {track.bpm} BPM
+                                </span>
+                              )}
+                              {track.musical_key && (
+                                <span className="px-3 py-1 bg-white/10 backdrop-blur-sm rounded-full text-xs md:text-sm text-white/70">
+                                  {track.musical_key}
+                                </span>
+                              )}
+                              {track.is_beat && (
+                                <span className="px-3 py-1 bg-violet-500/30 backdrop-blur-sm rounded-full text-xs md:text-sm text-violet-300 font-medium">
+                                  Beat for Sale
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Spinning vinyl with play count - TikTok music disc style */}
+                            <div className="flex items-center gap-3">
+                              <div
+                                className="cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (currentTrack?.id === track.id) {
+                                    togglePlayPause();
+                                  } else {
+                                    handlePlayTrack(track);
+                                  }
+                                }}
+                              >
+                                <SpinningVinyl
+                                  coverUrl={track.cover_url}
+                                  isPlaying={isCurrentlyPlaying}
+                                  size="small"
+                                />
+                              </div>
+                              <div className="flex items-center gap-1.5 text-white/60 text-sm">
+                                <Music className="w-4 h-4" />
+                                <span className="truncate max-w-[200px]">
+                                  {track.title} · {track.artist}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right side - Action buttons */}
+                          <div className="flex flex-col items-center gap-4 md:gap-5 pb-2">
+                            {/* Large centered album art - only on desktop */}
+                            <div
+                              className="hidden lg:flex w-16 h-16 rounded-xl overflow-hidden shadow-2xl cursor-pointer mb-2 ring-2 ring-white/10 hover:ring-white/30 transition-all hover:scale-105 active:scale-95"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (currentTrack?.id === track.id) {
+                                  togglePlayPause();
+                                } else {
+                                  handlePlayTrack(track);
+                                }
+                              }}
+                            >
+                              {track.cover_url ? (
+                                <img src={track.cover_url} alt={track.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-violet-600 to-indigo-800 flex items-center justify-center">
+                                  <Music className="w-6 h-6 text-white/50" />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Like button */}
+                            <button
+                              onClick={(e) => handleLike(track, e)}
+                              className="flex flex-col items-center gap-1 group"
+                            >
+                              <div className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-all duration-200 group-active:scale-75 ${
+                                isLiked
+                                  ? 'bg-red-500/20 shadow-lg shadow-red-500/20'
+                                  : 'bg-black/20 backdrop-blur-sm'
+                              }`}>
+                                <Heart
+                                  className={`w-7 h-7 md:w-8 md:h-8 transition-all duration-200 ${
+                                    isLiked
+                                      ? 'text-red-500 fill-red-500 scale-110'
+                                      : 'text-white group-hover:scale-110'
+                                  }`}
+                                />
+                              </div>
+                              <span className={`text-xs md:text-sm font-semibold ${isLiked ? 'text-red-400' : 'text-white'}`}>
+                                {formatCount(track.likes_count + (isLiked ? 1 : 0))}
+                              </span>
+                            </button>
+
+                            {/* Comments button */}
+                            <button
+                              onClick={(e) => openComments(track, e)}
+                              className="flex flex-col items-center gap-1 group"
+                            >
+                              <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-black/20 backdrop-blur-sm flex items-center justify-center transition-transform group-active:scale-75 group-hover:bg-white/10">
+                                <MessageCircle className="w-7 h-7 md:w-8 md:h-8 text-white transition-transform group-hover:scale-110" />
+                              </div>
+                              <span className="text-xs md:text-sm font-semibold text-white">
+                                {formatCount(track.comments_count)}
+                              </span>
+                            </button>
+
+                            {/* Repost button */}
+                            <button
+                              onClick={(e) => handleRepost(track.id, e)}
+                              className="flex flex-col items-center gap-1 group"
+                            >
+                              <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-black/20 backdrop-blur-sm flex items-center justify-center transition-transform group-active:scale-75 group-hover:bg-white/10">
+                                <Repeat2 className="w-7 h-7 md:w-8 md:h-8 text-white transition-transform group-hover:scale-110" />
+                              </div>
+                              <span className="text-xs md:text-sm font-semibold text-white">
+                                {formatCount(track.reposts_count)}
+                              </span>
+                            </button>
+
+                            {/* Save/Bookmark button */}
+                            <button
+                              onClick={(e) => handleSave(track, e)}
+                              className="flex flex-col items-center gap-1 group"
+                            >
+                              <div className={`w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-all duration-200 group-active:scale-75 ${
+                                isSaved
+                                  ? 'bg-amber-500/20 shadow-lg shadow-amber-500/20'
+                                  : 'bg-black/20 backdrop-blur-sm group-hover:bg-white/10'
+                              }`}>
+                                <Bookmark
+                                  className={`w-7 h-7 md:w-8 md:h-8 transition-all duration-200 ${
+                                    isSaved
+                                      ? 'text-amber-400 fill-amber-400 scale-110'
+                                      : 'text-white group-hover:scale-110'
+                                  }`}
+                                />
+                              </div>
+                              <span className={`text-xs md:text-sm font-semibold ${isSaved ? 'text-amber-400' : 'text-white'}`}>
+                                Save
+                              </span>
+                            </button>
+
+                            {/* Share button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (navigator.share) {
+                                  navigator.share({
+                                    title: track.title,
+                                    text: `Check out "${track.title}" by ${track.artist}`,
+                                    url: window.location.href
+                                  });
+                                }
+                              }}
+                              className="flex flex-col items-center gap-1 group"
+                            >
+                              <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-black/20 backdrop-blur-sm flex items-center justify-center transition-transform group-active:scale-75 group-hover:bg-white/10">
+                                <Share2 className="w-7 h-7 md:w-8 md:h-8 text-white transition-transform group-hover:scale-110" />
+                              </div>
+                              <span className="text-xs md:text-sm font-semibold text-white">Share</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Center play button - appears on tap */}
+                      <div
+                        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                        style={{ paddingBottom: '20vh' }}
+                      >
+                        <div
+                          className={`w-20 h-20 md:w-24 md:h-24 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center border border-white/20 transition-all duration-300 pointer-events-auto cursor-pointer hover:scale-110 active:scale-90 ${
+                            isCurrentlyPlaying ? 'opacity-0 hover:opacity-100' : 'opacity-100'
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (currentTrack?.id === track.id) {
+                              togglePlayPause();
+                            } else {
+                              handlePlayTrack(track);
+                            }
+                          }}
+                        >
+                          {isCurrentlyPlaying ? (
+                            <Pause className="w-10 h-10 md:w-12 md:h-12 text-white" fill="currentColor" />
+                          ) : (
+                            <Play className="w-10 h-10 md:w-12 md:h-12 text-white ml-1" fill="currentColor" />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Progress bar at bottom */}
+                      {isCurrentlyPlaying && (
+                        <div className="absolute bottom-20 md:bottom-24 left-0 right-0 h-1 bg-white/10">
+                          <div
+                            className="h-full bg-gradient-to-r from-violet-500 to-pink-500 transition-all duration-300"
+                            style={{ width: '35%' }}
                           />
-                          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/90" />
-                        </>
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-violet-900 via-black to-indigo-900" />
+                        </div>
+                      )}
+
+                      {/* Scroll hint - only show on first item */}
+                      {idx === 0 && currentIndex === 0 && (
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 animate-bounce text-white/40">
+                          <span className="text-xs">Scroll for more</span>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                          </svg>
+                        </div>
                       )}
                     </div>
+                  );
+                })}
 
-                    {/* Center Content */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center px-6 pb-32">
-                      {/* Album Art */}
-                      <div
-                        className="relative w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80 rounded-2xl overflow-hidden shadow-2xl cursor-pointer group mb-6"
-                        onClick={() => currentTrack?.id === track.id ? togglePlayPause() : handlePlayTrack(track)}
-                      >
-                        {track.cover_url ? (
-                          <img
-                            src={track.cover_url}
-                            alt={track.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-violet-600 to-indigo-800 flex items-center justify-center">
-                            <Music className="w-20 h-20 text-white/30" />
-                          </div>
-                        )}
-
-                        {/* Play/Pause Overlay */}
-                        <div className={`absolute inset-0 bg-black/30 flex items-center justify-center transition-opacity ${
-                          currentTrack?.id === track.id && isPlaying ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'
-                        }`}>
-                          <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                            {currentTrack?.id === track.id && isPlaying ? (
-                              <Pause className="w-10 h-10 text-white" fill="currentColor" />
-                            ) : (
-                              <Play className="w-10 h-10 text-white ml-1" fill="currentColor" />
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Genre Badge */}
-                        {track.genre && (
-                          <div className="absolute top-3 left-3 px-2.5 py-1 bg-black/60 backdrop-blur-sm rounded-full text-xs text-white font-medium">
-                            {track.genre}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Track Info */}
-                      <div className="text-center max-w-sm">
-                        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 line-clamp-2">
-                          {track.title}
-                        </h2>
-                        <p className="text-white/70 text-lg mb-3">
-                          {track.artist}
-                        </p>
-
-                        {/* Producer Link */}
-                        <button
-                          onClick={() => window.location.hash = `#/producer/${track.user_id}`}
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-                        >
-                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center overflow-hidden">
-                            {track.avatar_url ? (
-                              <img src={track.avatar_url} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="text-white text-[10px] font-bold">
-                                {(track.display_name || track.username).charAt(0).toUpperCase()}
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-white text-sm font-medium">@{track.username}</span>
-                        </button>
-
-                        {/* BPM/Key */}
-                        {(track.bpm || track.musical_key) && (
-                          <div className="flex items-center justify-center gap-3 mt-3">
-                            {track.bpm && (
-                              <span className="text-xs text-white/50 bg-white/10 px-2 py-1 rounded">
-                                {track.bpm} BPM
-                              </span>
-                            )}
-                            {track.musical_key && (
-                              <span className="text-xs text-white/50 bg-white/10 px-2 py-1 rounded">
-                                Key: {track.musical_key}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Right Side Actions */}
-                    <div className="absolute right-4 bottom-40 flex flex-col items-center gap-5">
-                      <button
-                        onClick={(e) => handleLike(track, e)}
-                        className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
-                      >
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                          likedTracks.has(track.id) ? 'bg-red-500/20' : 'bg-white/10'
-                        }`}>
-                          <Heart
-                            className={`w-6 h-6 ${likedTracks.has(track.id) ? 'text-red-500 fill-red-500' : 'text-white'}`}
-                          />
-                        </div>
-                        <span className="text-white text-xs font-medium">
-                          {formatCount(track.likes_count + (likedTracks.has(track.id) ? 1 : 0))}
-                        </span>
-                      </button>
-
-                      <button
-                        onClick={(e) => openComments(track, e)}
-                        className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
-                      >
-                        <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
-                          <MessageCircle className="w-6 h-6 text-white" />
-                        </div>
-                        <span className="text-white text-xs font-medium">
-                          {formatCount(track.comments_count)}
-                        </span>
-                      </button>
-
-                      <button
-                        onClick={(e) => handleRepost(track.id, e)}
-                        className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
-                      >
-                        <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
-                          <Repeat2 className="w-6 h-6 text-white" />
-                        </div>
-                        <span className="text-white text-xs font-medium">
-                          {formatCount(track.reposts_count)}
-                        </span>
-                      </button>
-
-                      <button
-                        onClick={(e) => handleSave(track, e)}
-                        className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
-                      >
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                          savedTracks.has(track.id) ? 'bg-amber-500/20' : 'bg-white/10'
-                        }`}>
-                          <Bookmark
-                            className={`w-6 h-6 ${savedTracks.has(track.id) ? 'text-amber-400 fill-amber-400' : 'text-white'}`}
-                          />
-                        </div>
-                        <span className="text-white text-xs font-medium">Save</span>
-                      </button>
-
-                      <button className="flex flex-col items-center gap-1 active:scale-90 transition-transform">
-                        <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
-                          <Share2 className="w-6 h-6 text-white" />
-                        </div>
-                        <span className="text-white text-xs font-medium">Share</span>
-                      </button>
-                    </div>
-
-                    {/* Position Indicator */}
-                    <div className="absolute left-1/2 -translate-x-1/2 bottom-6 flex flex-col items-center gap-1 text-white/60">
-                      <span className="text-xs bg-white/10 px-3 py-1 rounded-full backdrop-blur">
-                        {idx + 1} / {discoverTracks.length}
-                      </span>
+                {/* Loading more indicator */}
+                {loadingMore && (
+                  <div className="h-20 flex items-center justify-center">
+                    <div className="flex items-center gap-3 text-white/60">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span className="text-sm">Loading more tracks...</span>
                     </div>
                   </div>
-                ))}
+                )}
 
-                {loadingMore && (
-                  <div className="py-6 flex items-center justify-center text-white/50 text-sm">
-                    Loading more...
+                {/* End of feed */}
+                {!hasMore && discoverTracks.length > 0 && (
+                  <div className="h-20 flex items-center justify-center">
+                    <span className="text-white/40 text-sm">You've seen all tracks</span>
                   </div>
                 )}
               </div>
