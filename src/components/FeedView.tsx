@@ -701,216 +701,218 @@ export function FeedView() {
                         )}
                       </button>
 
-                      {/* Main Content Area - Centered on mobile, bottom on desktop */}
-                      <div className="absolute inset-0 flex flex-col justify-center items-center md:justify-end pt-28 md:pt-0 pb-28 md:pb-28 px-4 md:px-6">
-                        {/* Mobile: Centered card layout */}
-                        <div className="w-full max-w-sm md:max-w-none md:hidden flex flex-col items-center">
-                          {/* Centered album art for mobile */}
-                          <div className="flex justify-center mb-4">
-                            <div
-                              className="relative w-40 h-40 sm:w-48 sm:h-48 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/20 cursor-pointer active:scale-95 transition-transform"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (currentTrack?.id === track.id) {
-                                  togglePlayPause();
-                                } else {
-                                  handlePlayTrack(track);
-                                }
-                              }}
-                            >
-                              {track.cover_url ? (
-                                <img src={track.cover_url} alt={track.title} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full bg-gradient-to-br from-violet-600 via-indigo-700 to-purple-800 flex items-center justify-center">
-                                  <Music className="w-16 h-16 text-white/40" />
-                                </div>
-                              )}
-                              {/* Play overlay */}
-                              <div className={`absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity ${isCurrentlyPlaying ? 'opacity-0' : 'opacity-100'}`}>
-                                <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
-                                  {isCurrentlyPlaying ? (
-                                    <Pause className="w-8 h-8 text-white" fill="currentColor" />
-                                  ) : (
-                                    <Play className="w-8 h-8 text-white ml-1" fill="currentColor" />
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Track info - centered */}
-                          <div className="text-center mb-4 w-full">
-                            <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 line-clamp-2 px-2">
-                              {track.title}
-                            </h2>
-                            <p className="text-white/70 text-base mb-3">
-                              {track.artist}
-                            </p>
-
-                            {/* Track metadata tags - centered */}
-                            <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
-                              {track.genre && (
-                                <span className="px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-full text-sm text-white/90 font-medium">
-                                  #{track.genre}
-                                </span>
-                              )}
-                              {track.bpm && (
-                                <span className="px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-full text-sm text-white/70">
-                                  {track.bpm} BPM
-                                </span>
-                              )}
-                              {track.musical_key && (
-                                <span className="px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-full text-sm text-white/70">
-                                  {track.musical_key}
-                                </span>
-                              )}
-                              {track.is_beat && (
-                                <span className="px-3 py-1.5 bg-violet-500/30 backdrop-blur-sm rounded-full text-sm text-violet-300 font-medium">
-                                  Beat for Sale
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Producer info - centered */}
-                          <div className="flex items-center justify-center gap-3 mb-4">
+                      {/* Mobile: TRUE TikTok Layout - Bottom left info, right side actions */}
+                      <div className="absolute inset-0 md:hidden">
+                        {/* Right side action buttons - TikTok style vertical column */}
+                        <div className="absolute right-3 bottom-32 flex flex-col items-center gap-4 z-20">
+                          {/* Producer avatar with follow */}
+                          <div className="flex flex-col items-center mb-2">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 window.location.hash = `#/producer/${track.user_id}`;
                               }}
-                              className="relative group"
+                              className="relative"
                             >
-                              <div className="w-12 h-12 rounded-full ring-2 ring-white/20 overflow-hidden bg-gradient-to-br from-violet-500 to-pink-500 p-0.5 transition-transform group-active:scale-95">
+                              <div className="w-12 h-12 rounded-full ring-2 ring-white/30 overflow-hidden bg-gradient-to-br from-violet-500 to-pink-500 p-0.5">
                                 <div className="w-full h-full rounded-full overflow-hidden bg-black">
                                   {track.avatar_url ? (
                                     <img src={track.avatar_url} alt="" className="w-full h-full object-cover" />
                                   ) : (
                                     <div className="w-full h-full bg-gradient-to-br from-violet-600 to-indigo-700 flex items-center justify-center">
-                                      <span className="text-white font-bold text-base">
+                                      <span className="text-white font-bold text-sm">
                                         {(track.display_name || track.username).charAt(0).toUpperCase()}
                                       </span>
                                     </div>
                                   )}
                                 </div>
                               </div>
-                            </button>
-                            <div className="text-left">
-                              <p className="text-white font-semibold text-base">
-                                @{track.username}
-                              </p>
-                              {track.display_name && track.display_name !== track.username && (
-                                <p className="text-white/60 text-sm">{track.display_name}</p>
+                              {!isFollowing && (
+                                <button
+                                  onClick={(e) => handleFollow(track.user_id, e)}
+                                  className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-rose-500 flex items-center justify-center shadow-lg border-2 border-black"
+                                >
+                                  <span className="text-white text-sm font-bold leading-none">+</span>
+                                </button>
                               )}
-                            </div>
-                            {!isFollowing && (
-                              <button
-                                onClick={(e) => handleFollow(track.user_id, e)}
-                                className="ml-2 px-4 py-2 rounded-full bg-violet-500 text-white text-sm font-semibold active:scale-95 transition-transform"
-                              >
-                                Follow
-                              </button>
-                            )}
+                            </button>
                           </div>
 
-                          {/* Action buttons - horizontal row on mobile */}
-                          <div className="flex items-center justify-center gap-4">
-                            {/* Like button */}
-                            <button
-                              onClick={(e) => handleLike(track, e)}
-                              className="flex flex-col items-center gap-1 group"
-                            >
-                              <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 group-active:scale-75 ${
-                                isLiked
-                                  ? 'bg-red-500/20 shadow-lg shadow-red-500/20'
-                                  : 'bg-white/10 backdrop-blur-sm'
-                              }`}>
-                                <Heart
-                                  className={`w-6 h-6 transition-all duration-200 ${
-                                    isLiked
-                                      ? 'text-red-500 fill-red-500 scale-110'
-                                      : 'text-white'
-                                  }`}
-                                />
-                              </div>
-                              <span className={`text-[10px] font-semibold ${isLiked ? 'text-red-400' : 'text-white/70'}`}>
-                                {formatCount((track.likes_count || 0) + (isLiked ? 1 : 0))}
-                              </span>
-                            </button>
+                          {/* Like */}
+                          <button
+                            onClick={(e) => handleLike(track, e)}
+                            className="flex flex-col items-center gap-1"
+                          >
+                            <div className={`w-11 h-11 rounded-full flex items-center justify-center transition-all active:scale-75 ${
+                              isLiked ? 'bg-red-500/20' : 'bg-black/20 backdrop-blur-sm'
+                            }`}>
+                              <Heart className={`w-7 h-7 ${isLiked ? 'text-red-500 fill-red-500' : 'text-white'}`} />
+                            </div>
+                            <span className={`text-xs font-semibold ${isLiked ? 'text-red-400' : 'text-white'}`}>
+                              {formatCount((track.likes_count || 0) + (isLiked ? 1 : 0))}
+                            </span>
+                          </button>
 
-                            {/* Comments button */}
-                            <button
-                              onClick={(e) => openComments(track, e)}
-                              className="flex flex-col items-center gap-1 group"
-                            >
-                              <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center transition-transform group-active:scale-75">
-                                <MessageCircle className="w-6 h-6 text-white" />
-                              </div>
-                              <span className="text-[10px] font-semibold text-white/70">
-                                {formatCount(track.comments_count || 0)}
-                              </span>
-                            </button>
+                          {/* Comments */}
+                          <button
+                            onClick={(e) => openComments(track, e)}
+                            className="flex flex-col items-center gap-1"
+                          >
+                            <div className="w-11 h-11 rounded-full bg-black/20 backdrop-blur-sm flex items-center justify-center active:scale-75 transition-transform">
+                              <MessageCircle className="w-7 h-7 text-white" />
+                            </div>
+                            <span className="text-xs font-semibold text-white">
+                              {formatCount(track.comments_count || 0)}
+                            </span>
+                          </button>
 
-                            {/* Repost button */}
-                            <button
-                              onClick={(e) => handleRepost(track.id, e)}
-                              className="flex flex-col items-center gap-1 group"
-                            >
-                              <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center transition-transform group-active:scale-75">
-                                <Repeat2 className="w-6 h-6 text-white" />
-                              </div>
-                              <span className="text-[10px] font-semibold text-white/70">
-                                {formatCount(track.reposts_count || 0)}
-                              </span>
-                            </button>
+                          {/* Repost */}
+                          <button
+                            onClick={(e) => handleRepost(track.id, e)}
+                            className="flex flex-col items-center gap-1"
+                          >
+                            <div className="w-11 h-11 rounded-full bg-black/20 backdrop-blur-sm flex items-center justify-center active:scale-75 transition-transform">
+                              <Repeat2 className="w-7 h-7 text-white" />
+                            </div>
+                            <span className="text-xs font-semibold text-white">
+                              {formatCount(track.reposts_count || 0)}
+                            </span>
+                          </button>
 
-                            {/* Save button */}
-                            <button
-                              onClick={(e) => handleSave(track, e)}
-                              className="flex flex-col items-center gap-1 group"
-                            >
-                              <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 group-active:scale-75 ${
-                                isSaved
-                                  ? 'bg-amber-500/20 shadow-lg shadow-amber-500/20'
-                                  : 'bg-white/10 backdrop-blur-sm'
-                              }`}>
-                                <Bookmark
-                                  className={`w-6 h-6 transition-all duration-200 ${
-                                    isSaved
-                                      ? 'text-amber-400 fill-amber-400'
-                                      : 'text-white'
-                                  }`}
-                                />
-                              </div>
-                              <span className={`text-[10px] font-semibold ${isSaved ? 'text-amber-400' : 'text-white/70'}`}>
-                                Save
-                              </span>
-                            </button>
+                          {/* Save */}
+                          <button
+                            onClick={(e) => handleSave(track, e)}
+                            className="flex flex-col items-center gap-1"
+                          >
+                            <div className={`w-11 h-11 rounded-full flex items-center justify-center active:scale-75 transition-all ${
+                              isSaved ? 'bg-amber-500/20' : 'bg-black/20 backdrop-blur-sm'
+                            }`}>
+                              <Bookmark className={`w-7 h-7 ${isSaved ? 'text-amber-400 fill-amber-400' : 'text-white'}`} />
+                            </div>
+                            <span className={`text-xs font-semibold ${isSaved ? 'text-amber-400' : 'text-white'}`}>
+                              Save
+                            </span>
+                          </button>
 
-                            {/* Share button */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (navigator.share) {
-                                  navigator.share({
-                                    title: track.title,
-                                    text: `Check out "${track.title}" by ${track.artist}`,
-                                    url: window.location.href
-                                  });
-                                }
-                              }}
-                              className="flex flex-col items-center gap-1 group"
-                            >
-                              <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center transition-transform group-active:scale-75">
-                                <Share2 className="w-6 h-6 text-white" />
-                              </div>
-                              <span className="text-[10px] font-semibold text-white/70">Share</span>
-                            </button>
+                          {/* Share */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (navigator.share) {
+                                navigator.share({
+                                  title: track.title,
+                                  text: `Check out "${track.title}" by ${track.artist}`,
+                                  url: window.location.href
+                                });
+                              }
+                            }}
+                            className="flex flex-col items-center gap-1"
+                          >
+                            <div className="w-11 h-11 rounded-full bg-black/20 backdrop-blur-sm flex items-center justify-center active:scale-75 transition-transform">
+                              <Share2 className="w-7 h-7 text-white" />
+                            </div>
+                            <span className="text-xs font-semibold text-white">Share</span>
+                          </button>
+
+                          {/* Spinning album art */}
+                          <div
+                            className="w-12 h-12 mt-2 cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (currentTrack?.id === track.id) {
+                                togglePlayPause();
+                              } else {
+                                handlePlayTrack(track);
+                              }
+                            }}
+                          >
+                            <div className={`w-full h-full rounded-full overflow-hidden ring-2 ring-white/20 ${isCurrentlyPlaying ? 'animate-spin-slow' : ''}`} style={{ animationDuration: '3s' }}>
+                              {track.cover_url ? (
+                                <img src={track.cover_url} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center">
+                                  <Music className="w-5 h-5 text-white/60" />
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        {/* Desktop: Original TikTok-style bottom layout */}
-                        <div className="hidden md:flex items-end gap-4 w-full">
+                        {/* Bottom left - Track info */}
+                        <div className="absolute left-4 right-20 bottom-28 z-10">
+                          {/* Username */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.location.hash = `#/producer/${track.user_id}`;
+                            }}
+                            className="text-white font-bold text-base mb-2 block"
+                          >
+                            @{track.username}
+                          </button>
+
+                          {/* Track title */}
+                          <h2 className="text-white font-semibold text-lg leading-tight mb-2 line-clamp-2">
+                            {track.title}
+                          </h2>
+
+                          {/* Tags row */}
+                          <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                            {track.genre && (
+                              <span className="px-2.5 py-1 bg-white/10 backdrop-blur-sm rounded-full text-xs text-white/90 font-medium">
+                                #{track.genre}
+                              </span>
+                            )}
+                            {track.bpm && (
+                              <span className="px-2.5 py-1 bg-white/10 backdrop-blur-sm rounded-full text-xs text-white/70">
+                                {track.bpm} BPM
+                              </span>
+                            )}
+                            {track.musical_key && (
+                              <span className="px-2.5 py-1 bg-white/10 backdrop-blur-sm rounded-full text-xs text-white/70">
+                                {track.musical_key}
+                              </span>
+                            )}
+                            {track.is_beat && (
+                              <span className="px-2.5 py-1 bg-violet-500/30 backdrop-blur-sm rounded-full text-xs text-violet-300 font-medium">
+                                Beat for Sale
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Marquee track info */}
+                          <div className="flex items-center gap-2 text-white/80 text-sm overflow-hidden">
+                            <Music className="w-4 h-4 flex-shrink-0" />
+                            <div className="truncate">
+                              {track.title} · {track.artist}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Center play button - tap to play/pause */}
+                        <div
+                          className="absolute inset-0 flex items-center justify-center"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (currentTrack?.id === track.id) {
+                              togglePlayPause();
+                            } else {
+                              handlePlayTrack(track);
+                            }
+                          }}
+                        >
+                          <div className={`w-20 h-20 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center border border-white/20 transition-opacity duration-300 ${
+                            isCurrentlyPlaying ? 'opacity-0' : 'opacity-100'
+                          }`}>
+                            <Play className="w-10 h-10 text-white ml-1" fill="currentColor" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Desktop layout */}
+                      <div className="absolute inset-0 hidden md:flex flex-col justify-end pb-28 px-6">
+                        {/* Desktop: TikTok-style bottom layout */}
+                        <div className="flex items-end gap-4 w-full">
                           {/* Left side - Track info */}
                           <div className="flex-1 min-w-0 mb-2">
                             {/* Producer info with follow button */}
@@ -1161,23 +1163,23 @@ export function FeedView() {
                         </div>
                       </div>
 
-                      {/* Progress bar at bottom */}
-                      {isCurrentlyPlaying && (
-                        <div className="absolute bottom-20 md:bottom-24 left-0 right-0 h-1 bg-white/10">
-                          <div
-                            className="h-full bg-gradient-to-r from-violet-500 to-pink-500 transition-all duration-300"
-                            style={{ width: '35%' }}
-                          />
-                        </div>
-                      )}
+                      {/* Progress bar at bottom - shows actual playback progress */}
+                      <div className="absolute bottom-20 md:bottom-24 left-0 right-0 h-0.5 md:h-1 bg-white/10">
+                        <div
+                          className="h-full bg-gradient-to-r from-violet-500 to-pink-500 transition-all duration-100"
+                          style={{ width: isCurrentlyPlaying ? `${((currentTrack?.id === track.id) ? Math.min(100, Math.max(0, (Date.now() % 30000) / 300)) : 0)}%` : '0%' }}
+                        />
+                      </div>
 
-                      {/* Scroll hint - show on first item */}
+                      {/* Scroll hint - show on first item, properly centered */}
                       {idx === 0 && currentIndex === 0 && (
-                        <div className="flex absolute bottom-8 md:bottom-6 left-1/2 -translate-x-1/2 flex-col items-center gap-1 animate-bounce text-white/40">
-                          <span className="text-xs">Scroll for more</span>
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                          </svg>
+                        <div className="absolute bottom-6 left-0 right-0 flex justify-center pointer-events-none">
+                          <div className="flex flex-col items-center gap-1 animate-bounce text-white/50">
+                            <span className="text-xs">Scroll for more</span>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                            </svg>
+                          </div>
                         </div>
                       )}
                     </div>
