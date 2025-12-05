@@ -1038,25 +1038,73 @@ app.post('/api/transcribe/:id', auth, async (req, res) => {
   }
 });
 
-// Add track
+// Add track - uploads to B2 cloud storage for scale
 app.post('/api/tracks', auth, async (req, res) => {
   try {
     const { title, artist, album, duration, file_data, cover_url } = req.body;
     const db = getPool();
 
+    // Try to upload to B2 storage first (for scale)
+    const client = getS3Client();
+    let fileKey = null;
+    let audioData = null; // Don't store base64 in DB by default
+
+    if (file_data && client) {
+      try {
+        const matches = file_data.match(/^data:([^;]+);base64,(.+)$/);
+        if (matches) {
+          const mimeType = matches[1];
+          const base64Data = matches[2];
+          const buffer = Buffer.from(base64Data, 'base64');
+
+          const extMap = {
+            'audio/mpeg': 'mp3', 'audio/mp3': 'mp3',
+            'audio/wav': 'wav', 'audio/wave': 'wav', 'audio/x-wav': 'wav',
+            'audio/flac': 'flac', 'audio/x-flac': 'flac',
+            'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a',
+            'audio/aac': 'aac', 'audio/ogg': 'ogg',
+          };
+          const ext = extMap[mimeType] || 'mp3';
+          fileKey = `tracks/${req.user.id}/${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${ext}`;
+
+          console.log(`Uploading track to B2: ${fileKey} (${(buffer.length / 1024 / 1024).toFixed(2)}MB)`);
+
+          const command = new PutObjectCommand({
+            Bucket: B2_BUCKET,
+            Key: fileKey,
+            Body: buffer,
+            ContentType: mimeType,
+          });
+
+          await client.send(command);
+          console.log(`B2 upload complete: ${fileKey}`);
+        }
+      } catch (b2Err) {
+        console.error('B2 upload failed, falling back to base64:', b2Err.message);
+        fileKey = null;
+        audioData = file_data; // Only store in DB if B2 fails
+      }
+    } else if (file_data && !client) {
+      // B2 not configured, store in DB (not recommended for production)
+      audioData = file_data;
+      console.warn('B2 not configured - storing audio in database (not scalable)');
+    }
+
     const result = await db.query(
-      `INSERT INTO tracks (user_id, title, artist, album, duration, file_data, cover_url, lyrics_status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [req.user.id, title, artist, album, duration || 0, file_data, cover_url, 'pending']
+      `INSERT INTO tracks (user_id, title, artist, album, duration, file_data, file_key, cover_url, lyrics_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [req.user.id, title, artist, album, duration || 0, audioData, fileKey, cover_url, 'pending']
     );
 
     const track = result.rows[0];
 
-    if (file_data && openai) {
+    // Auto-transcribe if OpenAI is configured
+    const transcriptionData = file_data; // Use original base64 for transcription
+    if (transcriptionData && openai) {
       console.log(`Starting auto-transcription for track: ${track.id}`);
       db.query('UPDATE tracks SET lyrics_status = $1 WHERE id = $2', ['processing', track.id]);
 
-      transcribeAudio(file_data, track.id).then(async (transcription) => {
+      transcribeAudio(transcriptionData, track.id).then(async (transcription) => {
         if (transcription) {
           await db.query(
             'UPDATE tracks SET lyrics_text = $1, lyrics_segments = $2, lyrics_status = $3 WHERE id = $4',
