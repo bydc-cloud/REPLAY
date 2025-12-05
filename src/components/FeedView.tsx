@@ -488,42 +488,69 @@ export function FeedView() {
   const handleSubmitPost = async () => {
     if (!token || !postFile || !postTitle.trim()) return;
 
+    // Check file size (max 50MB for practical upload)
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (postFile.size > maxSize) {
+      alert(`File is too large (${(postFile.size / 1024 / 1024).toFixed(1)}MB). Maximum size is 50MB.`);
+      return;
+    }
+
     setPosting(true);
     try {
       // Convert file to base64
       const reader = new FileReader();
+
+      reader.onerror = () => {
+        console.error('FileReader error:', reader.error);
+        alert('Failed to read file. Please try again.');
+        setPosting(false);
+      };
+
       reader.onload = async (e) => {
         const fileData = e.target?.result as string;
 
-        const response = await fetch(`${API_URL}/api/discover/post`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            title: postTitle.trim(),
-            artist: postArtist.trim() || user?.name || 'Unknown Artist',
-            file_data: fileData,
-            cover_url: postCover,
-            is_beat: postIsBeat
-          })
-        });
+        if (!fileData) {
+          alert('Failed to read file data. Please try again.');
+          setPosting(false);
+          return;
+        }
 
-        if (response.ok) {
-          resetPostForm();
-          // Refresh the feed
-          fetchDiscoverTracks(false);
-        } else {
-          const error = await response.json();
-          console.error('Post failed:', error);
-          alert('Failed to post: ' + (error.error || 'Unknown error'));
+        try {
+          const response = await fetch(`${API_URL}/api/discover/post`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              title: postTitle.trim(),
+              artist: postArtist.trim() || user?.name || 'Unknown Artist',
+              file_data: fileData,
+              cover_url: postCover,
+              is_beat: postIsBeat
+            })
+          });
+
+          if (response.ok) {
+            resetPostForm();
+            // Refresh the feed
+            fetchDiscoverTracks(false);
+          } else {
+            const error = await response.json().catch(() => ({ error: 'Upload failed' }));
+            console.error('Post failed:', error);
+            alert('Failed to post: ' + (error.error || 'Unknown error'));
+          }
+        } catch (fetchErr) {
+          console.error('Network error:', fetchErr);
+          alert('Network error. Please check your connection and try again.');
         }
         setPosting(false);
       };
+
       reader.readAsDataURL(postFile);
     } catch (err) {
       console.error('Failed to post:', err);
+      alert('An unexpected error occurred. Please try again.');
       setPosting(false);
     }
   };
