@@ -2195,6 +2195,28 @@ app.get('/api/tracks/:trackId/likes', async (req, res) => {
   }
 });
 
+// Get user's liked tracks from Discovery (for library sync)
+app.get('/api/liked-tracks', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const result = await db.query(`
+      SELECT t.id, t.title, t.artist, t.duration, t.cover_url, t.bpm, t.musical_key,
+             t.genre, t.user_id, t.visibility, t.is_beat,
+             u.username, u.display_name, u.avatar_url,
+             tl.created_at as liked_at
+      FROM track_likes tl
+      JOIN tracks t ON t.id = tl.track_id
+      JOIN users u ON u.id = t.user_id
+      WHERE tl.user_id = $1
+      ORDER BY tl.created_at DESC
+    `, [req.user.id]);
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Get liked tracks error:', e.message);
+    res.status(500).json({ error: 'Failed to get liked tracks' });
+  }
+});
+
 // ---- REPOSTS ----
 
 // Repost a track

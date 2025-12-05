@@ -50,6 +50,12 @@ export interface Track {
   musicalKey?: string;    // e.g., "C Major", "A Minor"
   energy?: number;        // 0-1 energy level
   analyzedAt?: Date;      // When analysis was performed
+  // Discovery track fields (for liked tracks from Discovery feed)
+  isDiscoveryTrack?: boolean;
+  username?: string;
+  displayName?: string;
+  avatarUrl?: string;
+  userId?: string;
 }
 
 export interface Album {
@@ -286,6 +292,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
   const [importQueue, setImportQueue] = useState<ImportQueueItem[]>([]);
   const [importStats, setImportStats] = useState<{ total: number; completed: number; failed: number; currentFileName?: string }>({ total: 0, completed: 0, failed: 0 });
   const [recentlyPlayed, setRecentlyPlayed] = useState<Track[]>([]);
+  const [discoveryLikedTracks, setDiscoveryLikedTracks] = useState<Track[]>([]);
   const [isSyncingToCloud, setIsSyncingToCloud] = useState(false);
   const [cloudSyncProgress, setCloudSyncProgress] = useState(0);
   const [cloudSyncStats, setCloudSyncStats] = useState<CloudSyncStats>({ total: 0, synced: 0, failed: 0 });
@@ -391,6 +398,48 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Fetch liked tracks from Discovery feed
+  const fetchDiscoveryLikedTracks = async (authToken: string) => {
+    try {
+      const response = await fetch(`${API_URL}/api/liked-tracks`, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return data.map((track: any) => ({
+          id: track.id,
+          title: track.title,
+          artist: track.artist || track.display_name || track.username || 'Unknown Artist',
+          album: 'Discovery',
+          duration: track.duration || 0,
+          fileUrl: '',
+          fileKey: undefined,
+          hasAudio: true, // These are public tracks from Discovery
+          artworkUrl: track.cover_url,
+          isLiked: true, // User liked this in Discovery
+          addedAt: new Date(track.liked_at),
+          playCount: 0,
+          genre: track.genre,
+          bpm: track.bpm || undefined,
+          musicalKey: track.musical_key || undefined,
+          // Additional Discovery metadata
+          username: track.username,
+          displayName: track.display_name,
+          avatarUrl: track.avatar_url,
+          userId: track.user_id,
+          isDiscoveryTrack: true // Flag to identify Discovery tracks
+        }));
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching Discovery liked tracks:', error);
+      return [];
+    }
+  };
+
   // Load data from API and localStorage on mount and when user changes
   useEffect(() => {
     const loadUserData = async () => {
@@ -461,6 +510,10 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
           if (apiPlaylists && apiPlaylists.length > 0) {
             setPlaylists(apiPlaylists);
           }
+
+          // Fetch liked tracks from Discovery
+          const discoveryLiked = await fetchDiscoveryLikedTracks(token);
+          setDiscoveryLikedTracks(discoveryLiked);
         }
       } catch (error) {
         console.error("Error loading music library:", error);
@@ -476,6 +529,7 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
       setTracks([]);
       setPlaylists([]);
       setRecentlyPlayed([]);
+      setDiscoveryLikedTracks([]);
       setIsLoading(false);
     }
   }, [user, token]);
@@ -641,7 +695,14 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     }, [] as Artist[]);
   }, [tracks]);
 
-  const likedTracks = useMemo(() => tracks.filter(t => t.isLiked), [tracks]);
+  const likedTracks = useMemo(() => {
+    // Combine library liked tracks with Discovery liked tracks
+    const libraryLiked = tracks.filter(t => t.isLiked);
+    // Filter out Discovery tracks that are already in the library to avoid duplicates
+    const libraryIds = new Set(tracks.map(t => t.id));
+    const discoveryOnly = discoveryLikedTracks.filter(t => !libraryIds.has(t.id));
+    return [...libraryLiked, ...discoveryOnly];
+  }, [tracks, discoveryLikedTracks]);
 
   const addTrack = (track: Track) => {
     setTracks(prev => [...prev, track]);

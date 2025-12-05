@@ -99,125 +99,6 @@ interface Comment {
   likes_count: number;
 }
 
-// Demo/seeded tracks for testing
-const DEMO_TRACKS: DiscoverTrack[] = [
-  {
-    id: 'demo-1',
-    title: 'Midnight Dreams',
-    artist: 'CloudNine',
-    cover_url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&h=800&fit=crop',
-    duration: 195,
-    bpm: 128,
-    musical_key: 'Am',
-    genre: 'Lo-Fi',
-    username: 'cloudnine',
-    display_name: 'CloudNine',
-    likes_count: 1243,
-    reposts_count: 89,
-    comments_count: 45,
-    user_id: 'demo-user-1',
-    is_beat: false,
-    play_count: 15420
-  },
-  {
-    id: 'demo-2',
-    title: 'Tokyo Drift',
-    artist: 'BeatMaker808',
-    cover_url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=800&fit=crop',
-    duration: 180,
-    bpm: 140,
-    musical_key: 'Cm',
-    genre: 'Trap',
-    username: 'beatmaker808',
-    display_name: 'BeatMaker808',
-    likes_count: 3521,
-    reposts_count: 234,
-    comments_count: 128,
-    user_id: 'demo-user-2',
-    is_beat: true,
-    play_count: 45230
-  },
-  {
-    id: 'demo-3',
-    title: 'Summer Vibes',
-    artist: 'MelodyMaster',
-    cover_url: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=800&h=800&fit=crop',
-    duration: 210,
-    bpm: 100,
-    musical_key: 'F',
-    genre: 'R&B',
-    username: 'melodymaster',
-    display_name: 'MelodyMaster',
-    likes_count: 892,
-    reposts_count: 56,
-    comments_count: 23,
-    user_id: 'demo-user-3',
-    is_beat: false,
-    play_count: 8920
-  },
-  {
-    id: 'demo-4',
-    title: 'Dark Matter',
-    artist: 'ProdByNova',
-    cover_url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&h=800&fit=crop',
-    duration: 165,
-    bpm: 145,
-    musical_key: 'Gm',
-    genre: 'Drill',
-    username: 'prodbynova',
-    display_name: 'ProdByNova',
-    likes_count: 5678,
-    reposts_count: 412,
-    comments_count: 234,
-    user_id: 'demo-user-4',
-    is_beat: true,
-    play_count: 78900
-  },
-  {
-    id: 'demo-5',
-    title: 'Ocean Waves',
-    artist: 'ChillBeats',
-    cover_url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&h=800&fit=crop',
-    duration: 240,
-    bpm: 85,
-    musical_key: 'D',
-    genre: 'Ambient',
-    username: 'chillbeats',
-    display_name: 'ChillBeats',
-    likes_count: 2134,
-    reposts_count: 167,
-    comments_count: 89,
-    user_id: 'demo-user-5',
-    is_beat: false,
-    play_count: 23450
-  },
-  {
-    id: 'demo-6',
-    title: 'Neon Streets',
-    artist: 'SynthWave',
-    cover_url: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&h=800&fit=crop',
-    duration: 200,
-    bpm: 120,
-    musical_key: 'Em',
-    genre: 'Synthwave',
-    username: 'synthwave',
-    display_name: 'SynthWave',
-    likes_count: 4521,
-    reposts_count: 289,
-    comments_count: 156,
-    user_id: 'demo-user-6',
-    is_beat: true,
-    play_count: 56780
-  }
-];
-
-// Demo comments
-const DEMO_COMMENTS: Comment[] = [
-  { id: 'c1', user_id: 'u1', content: 'This beat is fire! Need this in my playlist', created_at: new Date(Date.now() - 3600000).toISOString(), username: 'producer_vibes', display_name: 'Producer Vibes', likes_count: 24 },
-  { id: 'c2', user_id: 'u2', content: 'The melody hits different at 0:45', created_at: new Date(Date.now() - 7200000).toISOString(), username: 'beatmaker_jay', display_name: 'Jay Beats', likes_count: 18 },
-  { id: 'c3', user_id: 'u3', content: 'Collab?', created_at: new Date(Date.now() - 86400000).toISOString(), username: 'nova_sounds', display_name: 'Nova', likes_count: 5 },
-  { id: 'c4', user_id: 'u4', content: 'Been listening to this on repeat all day', created_at: new Date(Date.now() - 172800000).toISOString(), username: 'music_lover22', display_name: 'Music Lover', likes_count: 32 },
-];
 
 type FeedTab = 'following' | 'foryou' | 'beats';
 
@@ -295,18 +176,18 @@ export function FeedView() {
           // Deduplicate by id while preserving order
           const combined = [...base, ...data];
           const seen = new Set<string>();
-          return (combined.length > 0 ? combined : DEMO_TRACKS).filter((track) => {
+          return combined.filter((track) => {
             if (seen.has(track.id)) return false;
             seen.add(track.id);
             return true;
           });
         });
       } else {
-        if (!append) setDiscoverTracks(DEMO_TRACKS);
+        if (!append) setDiscoverTracks([]);
       }
     } catch (err) {
       console.error('Failed to fetch discover tracks:', err);
-      if (!append) setDiscoverTracks(DEMO_TRACKS);
+      if (!append) setDiscoverTracks([]);
     } finally {
       if (!append) {
         setLoading(false);
@@ -322,13 +203,13 @@ export function FeedView() {
       const response = await fetch(`${API_URL}/api/tracks/${trackId}/comments`);
       if (response.ok) {
         const data = await response.json();
-        setComments(data.length > 0 ? data : DEMO_COMMENTS);
+        setComments(data);
       } else {
-        setComments(DEMO_COMMENTS);
+        setComments([]);
       }
     } catch (err) {
       console.error('Failed to fetch comments:', err);
-      setComments(DEMO_COMMENTS);
+      setComments([]);
     }
     setCommentsLoading(false);
   }, []);
@@ -1261,89 +1142,81 @@ export function FeedView() {
         </button>
       )}
 
-      {/* Post Modal */}
+      {/* Post Modal - Clean minimal design */}
       {showPostModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/90"
             onClick={resetPostForm}
           />
 
-          {/* Modal */}
-          <div className="relative bg-zinc-900 rounded-2xl w-full max-w-md shadow-2xl border border-white/10 max-h-[90vh] overflow-y-auto">
+          {/* Modal - Bottom sheet on mobile, centered on desktop */}
+          <div className="relative bg-zinc-900 w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl border-t sm:border border-white/10 max-h-[85vh] overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 sticky top-0 bg-zinc-900 z-10">
-              <h2 className="text-lg font-semibold text-white">Post to Discovery</h2>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
               <button
                 onClick={resetPostForm}
-                className="p-2 rounded-full hover:bg-white/5 transition-colors"
+                className="text-white/60 text-sm font-medium"
               >
-                <X className="w-5 h-5 text-white/60" />
+                Cancel
+              </button>
+              <h2 className="text-base font-semibold text-white">New Post</h2>
+              <button
+                onClick={handleSubmitPost}
+                disabled={posting || !postFile || !postTitle.trim()}
+                className="text-violet-400 text-sm font-semibold disabled:opacity-40"
+              >
+                {posting ? 'Posting...' : 'Post'}
               </button>
             </div>
 
             {/* Content */}
-            <div className="p-5 space-y-5">
-              {/* File Upload */}
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2">Audio File *</label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="audio/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`w-full p-4 border-2 border-dashed rounded-xl transition-colors flex flex-col items-center gap-2 ${
-                    postFile ? 'border-violet-500/50 bg-violet-500/10' : 'border-white/10 hover:border-white/20'
-                  }`}
-                >
+            <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(85vh-56px)]">
+              {/* File Upload - Compact */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className={`w-full p-3 rounded-xl flex items-center gap-3 transition-colors ${
+                  postFile ? 'bg-violet-500/10 border border-violet-500/30' : 'bg-white/5 border border-white/10'
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${postFile ? 'bg-violet-500/20' : 'bg-white/10'}`}>
+                  {postFile ? <Music className="w-5 h-5 text-violet-400" /> : <Upload className="w-5 h-5 text-white/40" />}
+                </div>
+                <div className="flex-1 text-left min-w-0">
                   {postFile ? (
                     <>
-                      <Music className="w-8 h-8 text-violet-400" />
-                      <span className="text-white font-medium text-sm truncate max-w-full px-2">{postFile.name}</span>
-                      <span className="text-white/40 text-xs">{(postFile.size / 1024 / 1024).toFixed(1)} MB</span>
+                      <p className="text-white text-sm font-medium truncate">{postFile.name}</p>
+                      <p className="text-white/40 text-xs">{(postFile.size / 1024 / 1024).toFixed(1)} MB</p>
                     </>
                   ) : (
                     <>
-                      <Upload className="w-8 h-8 text-white/40" />
-                      <span className="text-white/60 text-sm">Click to upload audio</span>
-                      <span className="text-white/30 text-xs">MP3, WAV, FLAC, AAC</span>
+                      <p className="text-white/60 text-sm">Select audio file</p>
+                      <p className="text-white/30 text-xs">MP3, WAV, FLAC</p>
                     </>
                   )}
-                </button>
-              </div>
+                </div>
+              </button>
 
-              {/* Title */}
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2">Title *</label>
-                <input
-                  type="text"
-                  value={postTitle}
-                  onChange={(e) => setPostTitle(e.target.value)}
-                  placeholder="Track title"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50"
-                />
-              </div>
+              {/* Title Input */}
+              <input
+                type="text"
+                value={postTitle}
+                onChange={(e) => setPostTitle(e.target.value)}
+                placeholder="Title"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50 text-sm"
+              />
 
-              {/* Artist */}
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2">Artist</label>
-                <input
-                  type="text"
-                  value={postArtist}
-                  onChange={(e) => setPostArtist(e.target.value)}
-                  placeholder={user?.name || 'Artist name'}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50"
-                />
-              </div>
-
-              {/* Cover Image */}
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2">Cover Image (optional)</label>
+              {/* Cover + Options Row */}
+              <div className="flex gap-3">
+                {/* Cover Image - Small square */}
                 <input
                   ref={coverInputRef}
                   type="file"
@@ -1353,52 +1226,31 @@ export function FeedView() {
                 />
                 <button
                   onClick={() => coverInputRef.current?.click()}
-                  className="w-full aspect-video rounded-xl overflow-hidden border border-white/10 hover:border-white/20 transition-colors"
+                  className="w-20 h-20 rounded-xl overflow-hidden border border-white/10 hover:border-white/20 transition-colors flex-shrink-0"
                 >
                   {postCover ? (
                     <img src={postCover} alt="Cover" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full bg-white/5 flex flex-col items-center justify-center gap-2">
-                      <ImageIcon className="w-8 h-8 text-white/30" />
-                      <span className="text-white/40 text-sm">Add cover art</span>
+                    <div className="w-full h-full bg-white/5 flex flex-col items-center justify-center">
+                      <ImageIcon className="w-5 h-5 text-white/30" />
+                      <span className="text-white/30 text-[10px] mt-1">Cover</span>
                     </div>
                   )}
                 </button>
-              </div>
 
-              {/* Is Beat Toggle */}
-              <label className="flex items-center gap-3 cursor-pointer">
-                <div
-                  onClick={() => setPostIsBeat(!postIsBeat)}
-                  className={`w-12 h-7 rounded-full transition-colors relative ${postIsBeat ? 'bg-violet-500' : 'bg-white/10'}`}
-                >
-                  <div
-                    className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${postIsBeat ? 'translate-x-6' : 'translate-x-1'}`}
-                  />
+                {/* Beat toggle */}
+                <div className="flex-1 flex flex-col justify-center">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <div
+                      onClick={() => setPostIsBeat(!postIsBeat)}
+                      className={`w-10 h-6 rounded-full transition-colors relative ${postIsBeat ? 'bg-violet-500' : 'bg-white/10'}`}
+                    >
+                      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${postIsBeat ? 'translate-x-5' : 'translate-x-1'}`} />
+                    </div>
+                    <span className="text-white/70 text-sm">Beat/Instrumental</span>
+                  </label>
                 </div>
-                <span className="text-white/80 text-sm">This is a beat/instrumental</span>
-              </label>
-            </div>
-
-            {/* Footer */}
-            <div className="px-5 py-4 border-t border-white/5 sticky bottom-0 bg-zinc-900">
-              <button
-                onClick={handleSubmitPost}
-                disabled={posting || !postFile || !postTitle.trim()}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-              >
-                {posting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Posting...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-5 h-5" />
-                    Post to Discovery
-                  </>
-                )}
-              </button>
+              </div>
             </div>
           </div>
         </div>
