@@ -701,197 +701,11 @@ export function FeedView() {
                         )}
                       </button>
 
-                      {/* Mobile: TRUE TikTok Layout - Bottom left info, right side actions */}
-                      <div className="absolute inset-0 md:hidden">
-                        {/* Right side action buttons - TikTok style vertical column */}
-                        <div className="absolute right-3 bottom-32 flex flex-col items-center gap-4 z-20">
-                          {/* Producer avatar with follow */}
-                          <div className="flex flex-col items-center mb-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                window.location.hash = `#/producer/${track.user_id}`;
-                              }}
-                              className="relative"
-                            >
-                              <div className="w-12 h-12 rounded-full ring-2 ring-white/30 overflow-hidden bg-gradient-to-br from-violet-500 to-pink-500 p-0.5">
-                                <div className="w-full h-full rounded-full overflow-hidden bg-black">
-                                  {track.avatar_url ? (
-                                    <img src={track.avatar_url} alt="" className="w-full h-full object-cover" />
-                                  ) : (
-                                    <div className="w-full h-full bg-gradient-to-br from-violet-600 to-indigo-700 flex items-center justify-center">
-                                      <span className="text-white font-bold text-sm">
-                                        {(track.display_name || track.username).charAt(0).toUpperCase()}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              {!isFollowing && (
-                                <button
-                                  onClick={(e) => handleFollow(track.user_id, e)}
-                                  className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-rose-500 flex items-center justify-center shadow-lg border-2 border-black"
-                                >
-                                  <span className="text-white text-sm font-bold leading-none">+</span>
-                                </button>
-                              )}
-                            </button>
-                          </div>
-
-                          {/* Like */}
-                          <button
-                            onClick={(e) => handleLike(track, e)}
-                            className="flex flex-col items-center gap-1"
-                          >
-                            <div className={`w-11 h-11 rounded-full flex items-center justify-center transition-all active:scale-75 ${
-                              isLiked ? 'bg-red-500/20' : 'bg-black/20 backdrop-blur-sm'
-                            }`}>
-                              <Heart className={`w-7 h-7 ${isLiked ? 'text-red-500 fill-red-500' : 'text-white'}`} />
-                            </div>
-                            <span className={`text-xs font-semibold ${isLiked ? 'text-red-400' : 'text-white'}`}>
-                              {formatCount((track.likes_count || 0) + (isLiked ? 1 : 0))}
-                            </span>
-                          </button>
-
-                          {/* Comments */}
-                          <button
-                            onClick={(e) => openComments(track, e)}
-                            className="flex flex-col items-center gap-1"
-                          >
-                            <div className="w-11 h-11 rounded-full bg-black/20 backdrop-blur-sm flex items-center justify-center active:scale-75 transition-transform">
-                              <MessageCircle className="w-7 h-7 text-white" />
-                            </div>
-                            <span className="text-xs font-semibold text-white">
-                              {formatCount(track.comments_count || 0)}
-                            </span>
-                          </button>
-
-                          {/* Repost */}
-                          <button
-                            onClick={(e) => handleRepost(track.id, e)}
-                            className="flex flex-col items-center gap-1"
-                          >
-                            <div className="w-11 h-11 rounded-full bg-black/20 backdrop-blur-sm flex items-center justify-center active:scale-75 transition-transform">
-                              <Repeat2 className="w-7 h-7 text-white" />
-                            </div>
-                            <span className="text-xs font-semibold text-white">
-                              {formatCount(track.reposts_count || 0)}
-                            </span>
-                          </button>
-
-                          {/* Save */}
-                          <button
-                            onClick={(e) => handleSave(track, e)}
-                            className="flex flex-col items-center gap-1"
-                          >
-                            <div className={`w-11 h-11 rounded-full flex items-center justify-center active:scale-75 transition-all ${
-                              isSaved ? 'bg-amber-500/20' : 'bg-black/20 backdrop-blur-sm'
-                            }`}>
-                              <Bookmark className={`w-7 h-7 ${isSaved ? 'text-amber-400 fill-amber-400' : 'text-white'}`} />
-                            </div>
-                            <span className={`text-xs font-semibold ${isSaved ? 'text-amber-400' : 'text-white'}`}>
-                              Save
-                            </span>
-                          </button>
-
-                          {/* Share */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (navigator.share) {
-                                navigator.share({
-                                  title: track.title,
-                                  text: `Check out "${track.title}" by ${track.artist}`,
-                                  url: window.location.href
-                                });
-                              }
-                            }}
-                            className="flex flex-col items-center gap-1"
-                          >
-                            <div className="w-11 h-11 rounded-full bg-black/20 backdrop-blur-sm flex items-center justify-center active:scale-75 transition-transform">
-                              <Share2 className="w-7 h-7 text-white" />
-                            </div>
-                            <span className="text-xs font-semibold text-white">Share</span>
-                          </button>
-
-                          {/* Spinning album art */}
-                          <div
-                            className="w-12 h-12 mt-2 cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (currentTrack?.id === track.id) {
-                                togglePlayPause();
-                              } else {
-                                handlePlayTrack(track);
-                              }
-                            }}
-                          >
-                            <div className={`w-full h-full rounded-full overflow-hidden ring-2 ring-white/20 ${isCurrentlyPlaying ? 'animate-spin-slow' : ''}`} style={{ animationDuration: '3s' }}>
-                              {track.cover_url ? (
-                                <img src={track.cover_url} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center">
-                                  <Music className="w-5 h-5 text-white/60" />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Bottom left - Track info */}
-                        <div className="absolute left-4 right-20 bottom-28 z-10">
-                          {/* Username */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.location.hash = `#/producer/${track.user_id}`;
-                            }}
-                            className="text-white font-bold text-base mb-2 block"
-                          >
-                            @{track.username}
-                          </button>
-
-                          {/* Track title */}
-                          <h2 className="text-white font-semibold text-lg leading-tight mb-2 line-clamp-2">
-                            {track.title}
-                          </h2>
-
-                          {/* Tags row */}
-                          <div className="flex flex-wrap items-center gap-1.5 mb-3">
-                            {track.genre && (
-                              <span className="px-2.5 py-1 bg-white/10 backdrop-blur-sm rounded-full text-xs text-white/90 font-medium">
-                                #{track.genre}
-                              </span>
-                            )}
-                            {track.bpm && (
-                              <span className="px-2.5 py-1 bg-white/10 backdrop-blur-sm rounded-full text-xs text-white/70">
-                                {track.bpm} BPM
-                              </span>
-                            )}
-                            {track.musical_key && (
-                              <span className="px-2.5 py-1 bg-white/10 backdrop-blur-sm rounded-full text-xs text-white/70">
-                                {track.musical_key}
-                              </span>
-                            )}
-                            {track.is_beat && (
-                              <span className="px-2.5 py-1 bg-violet-500/30 backdrop-blur-sm rounded-full text-xs text-violet-300 font-medium">
-                                Beat for Sale
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Marquee track info */}
-                          <div className="flex items-center gap-2 text-white/80 text-sm overflow-hidden">
-                            <Music className="w-4 h-4 flex-shrink-0" />
-                            <div className="truncate">
-                              {track.title} · {track.artist}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Center play button - tap to play/pause */}
+                      {/* Mobile: Music-focused layout - compact, bottom-aligned */}
+                      <div className="absolute inset-0 md:hidden flex flex-col justify-end">
+                        {/* Tap to play/pause overlay */}
                         <div
-                          className="absolute inset-0 flex items-center justify-center"
+                          className="absolute inset-0 z-0"
                           onClick={(e) => {
                             e.stopPropagation();
                             if (currentTrack?.id === track.id) {
@@ -901,10 +715,165 @@ export function FeedView() {
                             }
                           }}
                         >
-                          <div className={`w-20 h-20 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center border border-white/20 transition-opacity duration-300 ${
-                            isCurrentlyPlaying ? 'opacity-0' : 'opacity-100'
+                          {/* Center play button - only shows when paused */}
+                          <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${
+                            isCurrentlyPlaying ? 'opacity-0 pointer-events-none' : 'opacity-100'
                           }`}>
-                            <Play className="w-10 h-10 text-white ml-1" fill="currentColor" />
+                            <div className="w-16 h-16 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
+                              <Play className="w-8 h-8 text-white ml-0.5" fill="currentColor" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Bottom content container */}
+                        <div className="relative z-10 px-4 pb-6">
+                          {/* Main content row: Left info + Right actions */}
+                          <div className="flex items-end gap-3">
+                            {/* Left side - Track info */}
+                            <div className="flex-1 min-w-0 pb-1">
+                              {/* Producer row */}
+                              <div className="flex items-center gap-2 mb-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.location.hash = `#/producer/${track.user_id}`;
+                                  }}
+                                  className="flex items-center gap-2"
+                                >
+                                  <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-white/30 flex-shrink-0">
+                                    {track.avatar_url ? (
+                                      <img src={track.avatar_url} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full bg-gradient-to-br from-violet-600 to-indigo-700 flex items-center justify-center">
+                                        <span className="text-white font-bold text-xs">
+                                          {(track.display_name || track.username).charAt(0).toUpperCase()}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <span className="text-white font-semibold text-sm">@{track.username}</span>
+                                </button>
+                                {!isFollowing && (
+                                  <button
+                                    onClick={(e) => handleFollow(track.user_id, e)}
+                                    className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm text-white text-xs font-semibold active:scale-95"
+                                  >
+                                    Follow
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Track title */}
+                              <h2 className="text-white font-bold text-base leading-snug mb-1.5 line-clamp-2">
+                                {track.title}
+                              </h2>
+
+                              {/* Tags row - compact */}
+                              <div className="flex flex-wrap items-center gap-1 mb-2">
+                                {track.genre && (
+                                  <span className="px-2 py-0.5 bg-white/10 rounded-full text-[11px] text-white/80">
+                                    #{track.genre}
+                                  </span>
+                                )}
+                                {track.bpm && (
+                                  <span className="px-2 py-0.5 bg-white/10 rounded-full text-[11px] text-white/60">
+                                    {track.bpm} BPM
+                                  </span>
+                                )}
+                                {track.musical_key && (
+                                  <span className="px-2 py-0.5 bg-white/10 rounded-full text-[11px] text-white/60">
+                                    {track.musical_key}
+                                  </span>
+                                )}
+                                {track.is_beat && (
+                                  <span className="px-2 py-0.5 bg-violet-500/30 rounded-full text-[11px] text-violet-300">
+                                    Beat
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Now playing bar */}
+                              <div className="flex items-center gap-2 text-white/70">
+                                <div className={`w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 ${isCurrentlyPlaying ? 'animate-spin-slow' : ''}`} style={{ animationDuration: '4s' }}>
+                                  {track.cover_url ? (
+                                    <img src={track.cover_url} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center">
+                                      <Music className="w-4 h-4 text-white/60" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0 text-xs truncate">
+                                  {track.artist}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Right side - Action buttons (compact vertical) */}
+                            <div className="flex flex-col items-center gap-3 pb-1">
+                              {/* Like */}
+                              <button
+                                onClick={(e) => handleLike(track, e)}
+                                className="flex flex-col items-center"
+                              >
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center active:scale-90 transition-transform ${
+                                  isLiked ? 'bg-red-500/20' : 'bg-black/30 backdrop-blur-sm'
+                                }`}>
+                                  <Heart className={`w-5 h-5 ${isLiked ? 'text-red-500 fill-red-500' : 'text-white'}`} />
+                                </div>
+                                <span className={`text-[10px] font-medium mt-0.5 ${isLiked ? 'text-red-400' : 'text-white/80'}`}>
+                                  {formatCount((track.likes_count || 0) + (isLiked ? 1 : 0))}
+                                </span>
+                              </button>
+
+                              {/* Comments */}
+                              <button
+                                onClick={(e) => openComments(track, e)}
+                                className="flex flex-col items-center"
+                              >
+                                <div className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform">
+                                  <MessageCircle className="w-5 h-5 text-white" />
+                                </div>
+                                <span className="text-[10px] font-medium text-white/80 mt-0.5">
+                                  {formatCount(track.comments_count || 0)}
+                                </span>
+                              </button>
+
+                              {/* Save */}
+                              <button
+                                onClick={(e) => handleSave(track, e)}
+                                className="flex flex-col items-center"
+                              >
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center active:scale-90 transition-transform ${
+                                  isSaved ? 'bg-amber-500/20' : 'bg-black/30 backdrop-blur-sm'
+                                }`}>
+                                  <Bookmark className={`w-5 h-5 ${isSaved ? 'text-amber-400 fill-amber-400' : 'text-white'}`} />
+                                </div>
+                                <span className={`text-[10px] font-medium mt-0.5 ${isSaved ? 'text-amber-400' : 'text-white/80'}`}>
+                                  Save
+                                </span>
+                              </button>
+
+                              {/* Share */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (navigator.share) {
+                                    navigator.share({
+                                      title: track.title,
+                                      text: `Check out "${track.title}" by ${track.artist}`,
+                                      url: window.location.href
+                                    });
+                                  }
+                                }}
+                                className="flex flex-col items-center"
+                              >
+                                <div className="w-10 h-10 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform">
+                                  <Share2 className="w-5 h-5 text-white" />
+                                </div>
+                                <span className="text-[10px] font-medium text-white/80 mt-0.5">Share</span>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1163,22 +1132,22 @@ export function FeedView() {
                         </div>
                       </div>
 
-                      {/* Progress bar at bottom - shows actual playback progress */}
-                      <div className="absolute bottom-20 md:bottom-24 left-0 right-0 h-0.5 md:h-1 bg-white/10">
+                      {/* Progress bar - at very bottom */}
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 md:h-1 bg-white/10 z-20">
                         <div
                           className="h-full bg-gradient-to-r from-violet-500 to-pink-500 transition-all duration-100"
                           style={{ width: isCurrentlyPlaying ? `${((currentTrack?.id === track.id) ? Math.min(100, Math.max(0, (Date.now() % 30000) / 300)) : 0)}%` : '0%' }}
                         />
                       </div>
 
-                      {/* Scroll hint - show on first item, properly centered */}
+                      {/* Scroll hint - subtle, at bottom center */}
                       {idx === 0 && currentIndex === 0 && (
-                        <div className="absolute bottom-6 left-0 right-0 flex justify-center pointer-events-none">
-                          <div className="flex flex-col items-center gap-1 animate-bounce text-white/50">
-                            <span className="text-xs">Scroll for more</span>
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="absolute bottom-2 left-0 right-0 flex justify-center pointer-events-none z-10 md:hidden">
+                          <div className="flex items-center gap-1.5 text-white/40 animate-bounce">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                             </svg>
+                            <span className="text-[10px]">Swipe</span>
                           </div>
                         </div>
                       )}
