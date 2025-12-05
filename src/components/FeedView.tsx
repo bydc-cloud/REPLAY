@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Heart, MessageCircle, Repeat2, Play, Pause, UserPlus, Music, Loader2, Share2, Bookmark, X, Send, ChevronUp, ChevronDown } from 'lucide-react';
+import { Heart, MessageCircle, Repeat2, Play, Pause, UserPlus, Music, Loader2, Share2, Bookmark, X, Send } from 'lucide-react';
 import { useAuth } from '../contexts/PostgresAuthContext';
 import { useAudioPlayer } from '../contexts/AudioPlayerContext';
 
@@ -524,14 +524,15 @@ export function FeedView() {
             ) : (
               <div
                 ref={containerRef}
-                className="h-full w-full overflow-y-auto snap-y snap-mandatory scroll-smooth"
+                className="h-full w-full overflow-y-scroll snap-y snap-mandatory overscroll-y-contain"
+                style={{ scrollSnapStop: 'always', WebkitOverflowScrolling: 'touch' }}
                 onScroll={handleScroll}
               >
                 {discoverTracks.map((track, idx) => (
                   <div
                     key={track.id}
                     ref={idx >= discoverTracks.length - 2 ? nearEndRef : undefined}
-                    className="h-screen min-h-screen snap-start relative flex flex-col"
+                    className="h-screen min-h-screen snap-start snap-always relative flex flex-col"
                   >
                     {/* Background */}
                     <div className="absolute inset-0">
