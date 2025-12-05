@@ -87,11 +87,12 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
 
   const [profile, setProfile] = useState<ProducerProfile | null>(null);
   const [tracks, setTracks] = useState<ProducerTrack[]>([]);
+  const [likedTracks, setLikedTracks] = useState<ProducerTrack[]>([]);
   const [packs, setPacks] = useState<ProducerPack[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'popular' | 'tracks' | 'packs' | 'playlists' | 'about'>('popular');
+  const [activeTab, setActiveTab] = useState<'popular' | 'tracks' | 'likes' | 'packs' | 'playlists' | 'about'>('popular');
   const [showAllTracks, setShowAllTracks] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -105,6 +106,9 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
   });
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [messageLoading, setMessageLoading] = useState(false);
+  const [showFollowersModal, setShowFollowersModal] = useState<'followers' | 'following' | null>(null);
+  const [followersList, setFollowersList] = useState<Array<{ id: string; username: string; display_name?: string; avatar_url?: string; is_following?: boolean }>>([]);
+  const [followersLoading, setFollowersLoading] = useState(false);
 
   const isOwnProfile = user?.id === targetUserId;
 
@@ -161,6 +165,19 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
     }
   }, [targetUserId]);
 
+  const fetchLikedTracks = useCallback(async () => {
+    if (!targetUserId) return;
+    try {
+      const response = await fetch(`${API_URL}/api/users/${targetUserId}/liked-tracks`);
+      if (response.ok) {
+        const data = await response.json();
+        setLikedTracks(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch liked tracks:', err);
+    }
+  }, [targetUserId]);
+
   const checkFollowing = useCallback(async () => {
     if (!token || !isAuthenticated || isOwnProfile || !targetUserId) return;
 
@@ -177,14 +194,76 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
     }
   }, [token, isAuthenticated, isOwnProfile, user?.id, targetUserId]);
 
+  const fetchFollowersList = useCallback(async (type: 'followers' | 'following') => {
+    if (!targetUserId) return;
+    setFollowersLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/users/${targetUserId}/${type}`);
+      if (response.ok) {
+        const list = await response.json();
+        // If user is logged in, check which ones they're following
+        if (token && user?.id) {
+          const myFollowingRes = await fetch(`${API_URL}/api/users/${user.id}/following`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (myFollowingRes.ok) {
+            const myFollowing = await myFollowingRes.json();
+            const myFollowingIds = new Set(myFollowing.map((f: { id: string }) => f.id));
+            const enrichedList = list.map((u: { id: string }) => ({
+              ...u,
+              is_following: myFollowingIds.has(u.id)
+            }));
+            setFollowersList(enrichedList);
+          } else {
+            setFollowersList(list);
+          }
+        } else {
+          setFollowersList(list);
+        }
+      }
+    } catch (err) {
+      console.error(`Failed to fetch ${type}:`, err);
+    } finally {
+      setFollowersLoading(false);
+    }
+  }, [targetUserId, token, user?.id]);
+
+  const handleOpenFollowersModal = (type: 'followers' | 'following') => {
+    setShowFollowersModal(type);
+    fetchFollowersList(type);
+  };
+
+  const handleFollowFromList = async (userId: string, currentlyFollowing: boolean) => {
+    if (!token) return;
+    try {
+      if (currentlyFollowing) {
+        await fetch(`${API_URL}/api/users/${userId}/follow`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } else {
+        await fetch(`${API_URL}/api/users/${userId}/follow`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+      // Update the list
+      setFollowersList(prev => prev.map(u =>
+        u.id === userId ? { ...u, is_following: !currentlyFollowing } : u
+      ));
+    } catch (err) {
+      console.error('Failed to toggle follow:', err);
+    }
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchProfile(), fetchTracks(), fetchPacks(), checkFollowing()]);
+      await Promise.all([fetchProfile(), fetchTracks(), fetchPacks(), fetchLikedTracks(), checkFollowing()]);
       setLoading(false);
     };
     loadData();
-  }, [fetchProfile, fetchTracks, fetchPacks, checkFollowing]);
+  }, [fetchProfile, fetchTracks, fetchPacks, fetchLikedTracks, checkFollowing]);
 
   const handleFollow = async () => {
     if (!token || !targetUserId) return;
@@ -506,14 +585,20 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
 
       {/* Stats Row - Instagram/Twitter style */}
       <div className="px-4 md:px-8 py-4 flex items-center gap-8 border-b border-white/10">
-        <div className="text-center">
+        <button
+          onClick={() => handleOpenFollowersModal('followers')}
+          className="text-center hover:opacity-80 transition-opacity"
+        >
           <div className="text-xl md:text-2xl font-bold text-white">{formatNumber(profile.followers_count)}</div>
           <div className="text-xs md:text-sm text-white/50">Followers</div>
-        </div>
-        <div className="text-center">
+        </button>
+        <button
+          onClick={() => handleOpenFollowersModal('following')}
+          className="text-center hover:opacity-80 transition-opacity"
+        >
           <div className="text-xl md:text-2xl font-bold text-white">{formatNumber(profile.following_count)}</div>
           <div className="text-xs md:text-sm text-white/50">Following</div>
-        </div>
+        </button>
         <div className="text-center">
           <div className="text-xl md:text-2xl font-bold text-white">{formatNumber(profile.tracks_count)}</div>
           <div className="text-xs md:text-sm text-white/50">Tracks</div>
@@ -529,7 +614,7 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
       {/* Navigation Tabs */}
       <div className="px-4 md:px-8 pt-4">
         <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2">
-          {['popular', 'tracks', 'packs', 'playlists', 'about'].map((tab) => (
+          {['popular', 'tracks', 'likes', 'packs', 'playlists', 'about'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as typeof activeTab)}
@@ -680,6 +765,83 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
                 <div className="text-center py-16">
                   <Music className="w-16 h-16 mx-auto text-white/20 mb-4" />
                   <p className="text-white/50">No tracks yet</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Liked Tracks */}
+        {activeTab === 'likes' && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl md:text-2xl font-bold text-white">Liked Tracks</h2>
+              <span className="text-white/50 text-sm">{likedTracks.length} tracks</span>
+            </div>
+            <div className="space-y-1">
+              {likedTracks.map((track, index) => {
+                const isCurrentTrack = currentTrack?.id === track.id;
+                return (
+                  <div
+                    key={track.id}
+                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 transition-colors group cursor-pointer"
+                    onClick={() => {
+                      const queueTracks = likedTracks.map(t => ({
+                        id: t.id,
+                        title: t.title,
+                        artist: t.artist,
+                        album: '',
+                        duration: t.duration,
+                        coverUrl: t.cover_url || '',
+                        fileUrl: '',
+                        fileData: null,
+                        fileKey: null,
+                        playCount: 0,
+                        isLiked: true,
+                        addedAt: new Date()
+                      }));
+                      setQueue(queueTracks as any[], index);
+                    }}
+                  >
+                    <div className="w-12 h-12 rounded overflow-hidden flex-shrink-0 relative">
+                      {track.cover_url ? (
+                        <img src={track.cover_url} alt={track.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                          <Music className="w-5 h-5 text-white/40" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        {isCurrentTrack && isPlaying ? (
+                          <Pause className="w-5 h-5 text-white" fill="currentColor" />
+                        ) : (
+                          <Play className="w-5 h-5 text-white" fill="currentColor" />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <h4 className={`font-medium truncate ${isCurrentTrack ? 'text-green-500' : 'text-white'}`}>
+                        {track.title}
+                      </h4>
+                      <p className="text-sm text-white/50 truncate">{track.artist}</p>
+                    </div>
+
+                    <div className="flex items-center gap-4 text-white/50">
+                      <span className="flex items-center gap-1 text-sm">
+                        <Heart className="w-3.5 h-3.5 text-pink-500" fill="currentColor" />
+                        {track.likes_count || 0}
+                      </span>
+                      <span className="text-sm w-12 text-right">{formatDuration(track.duration)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {likedTracks.length === 0 && (
+                <div className="text-center py-16">
+                  <Heart className="w-16 h-16 mx-auto text-white/20 mb-4" />
+                  <p className="text-white/50">No liked tracks yet</p>
                 </div>
               )}
             </div>
@@ -1004,6 +1166,83 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
               >
                 Save Changes
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Followers/Following Modal */}
+      {showFollowersModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowFollowersModal(null)} />
+          <div className="relative bg-[#1a1a1a] rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col">
+            {/* Header */}
+            <div className="sticky top-0 bg-[#1a1a1a] border-b border-white/10 p-4 flex items-center justify-between rounded-t-2xl">
+              <h3 className="text-xl font-bold text-white capitalize">{showFollowersModal}</h3>
+              <button
+                onClick={() => setShowFollowersModal(null)}
+                className="p-2 rounded-full hover:bg-white/10 transition-colors"
+              >
+                <X className="w-5 h-5 text-white/70" />
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto p-2">
+              {followersLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-white/60" />
+                </div>
+              ) : followersList.length === 0 ? (
+                <div className="text-center py-12">
+                  <User className="w-12 h-12 mx-auto text-white/20 mb-4" />
+                  <p className="text-white/50">
+                    {showFollowersModal === 'followers' ? 'No followers yet' : 'Not following anyone yet'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {followersList.map((person) => (
+                    <div
+                      key={person.id}
+                      className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors"
+                    >
+                      {/* Avatar */}
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {person.avatar_url ? (
+                          <img src={person.avatar_url} alt={person.username} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-lg font-bold text-white">
+                            {(person.display_name || person.username).charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Name */}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-white truncate">
+                          {person.display_name || person.username}
+                        </h4>
+                        <p className="text-sm text-white/50 truncate">@{person.username}</p>
+                      </div>
+
+                      {/* Follow Button */}
+                      {isAuthenticated && person.id !== user?.id && (
+                        <button
+                          onClick={() => handleFollowFromList(person.id, person.is_following || false)}
+                          className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                            person.is_following
+                              ? 'border border-white/30 text-white hover:border-white/60'
+                              : 'bg-white text-black hover:bg-white/90'
+                          }`}
+                        >
+                          {person.is_following ? 'Following' : 'Follow'}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -2325,6 +2325,32 @@ app.get('/api/liked-tracks', auth, async (req, res) => {
   }
 });
 
+// Get any user's liked tracks (public, for viewing profiles)
+app.get('/api/users/:userId/liked-tracks', async (req, res) => {
+  try {
+    const db = getPool();
+    const { userId } = req.params;
+    const result = await db.query(`
+      SELECT t.id, t.title, t.artist, t.duration, t.cover_url, t.bpm, t.musical_key,
+             t.genre, t.user_id, t.visibility, t.is_beat,
+             u.username, u.display_name, u.avatar_url,
+             tl.created_at as liked_at,
+             (SELECT COUNT(*) FROM track_likes WHERE track_id = t.id) as likes_count
+      FROM track_likes tl
+      JOIN tracks t ON t.id = tl.track_id
+      JOIN users u ON u.id = t.user_id
+      WHERE tl.user_id = $1
+        AND (t.visibility = 'public' OR t.user_id = $1)
+      ORDER BY tl.created_at DESC
+      LIMIT 50
+    `, [userId]);
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Get user liked tracks error:', e.message);
+    res.status(500).json({ error: 'Failed to get liked tracks' });
+  }
+});
+
 // ---- REPOSTS ----
 
 // Repost a track
