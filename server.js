@@ -1915,13 +1915,28 @@ app.put('/api/me/producer-profile', auth, async (req, res) => {
 // ---- USER SEARCH ----
 
 // Search users by username or display name
+// If no query provided, returns all users with profiles (suggested users for messaging)
 app.get('/api/users/search', auth, async (req, res) => {
   try {
     const db = getPool();
     const { q } = req.query;
 
+    // If no query, return all users with profiles (for messaging suggestions)
     if (!q || q.length < 1) {
-      return res.json([]);
+      const result = await db.query(`
+        SELECT
+          u.id,
+          pp.username,
+          pp.display_name,
+          pp.avatar_url
+        FROM users u
+        LEFT JOIN producer_profiles pp ON pp.user_id = u.id
+        WHERE pp.username IS NOT NULL
+          AND u.id != $1
+        ORDER BY pp.display_name NULLS LAST, pp.username
+        LIMIT 50
+      `, [req.user.id]);
+      return res.json(result.rows);
     }
 
     const result = await db.query(`
@@ -1932,14 +1947,15 @@ app.get('/api/users/search', auth, async (req, res) => {
         pp.avatar_url
       FROM users u
       LEFT JOIN producer_profiles pp ON pp.user_id = u.id
-      WHERE pp.username ILIKE $1
+      WHERE (pp.username ILIKE $1
          OR pp.display_name ILIKE $1
-         OR u.email ILIKE $1
+         OR u.email ILIKE $1)
+         AND u.id != $3
       ORDER BY
         CASE WHEN pp.username ILIKE $2 THEN 0 ELSE 1 END,
         pp.username
       LIMIT 20
-    `, [`%${q}%`, `${q}%`]);
+    `, [`%${q}%`, `${q}%`, req.user.id]);
 
     res.json(result.rows);
   } catch (e) {

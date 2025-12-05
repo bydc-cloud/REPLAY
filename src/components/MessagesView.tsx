@@ -199,20 +199,24 @@ export function MessagesView() {
   };
 
   // Search for users to start a new conversation
+  // If no query, fetches all available users (suggested users)
   const searchUsers = useCallback(async (query: string) => {
-    if (!token || !query.trim()) {
+    if (!token) {
       setSearchResults([]);
       return;
     }
 
     setSearchingUsers(true);
     try {
-      const response = await fetch(`${API_URL}/api/users/search?q=${encodeURIComponent(query)}`, {
+      const url = query.trim()
+        ? `${API_URL}/api/users/search?q=${encodeURIComponent(query)}`
+        : `${API_URL}/api/users/search`;
+      const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
-        // Filter out current user
+        // Filter out current user (server already does this but double check)
         setSearchResults(data.filter((u: SearchUser) => u.id !== user?.id));
       }
     } catch (err) {
@@ -224,11 +228,7 @@ export function MessagesView() {
   // Debounced user search
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (userSearchQuery.trim()) {
-        searchUsers(userSearchQuery);
-      } else {
-        setSearchResults([]);
-      }
+      searchUsers(userSearchQuery);
     }, 300);
     return () => clearTimeout(timer);
   }, [userSearchQuery, searchUsers]);
@@ -283,12 +283,14 @@ export function MessagesView() {
     }
   };
 
-  // Focus user search when opening new message
+  // Focus user search and load suggested users when opening new message
   useEffect(() => {
     if (showNewMessage) {
       setTimeout(() => userSearchRef.current?.focus(), 100);
+      // Load all users immediately when modal opens
+      searchUsers('');
     }
-  }, [showNewMessage]);
+  }, [showNewMessage, searchUsers]);
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -788,14 +790,17 @@ export function MessagesView() {
                     </button>
                   ))}
                 </div>
-              ) : userSearchQuery.trim() && !searchingUsers ? (
-                <div className="px-4 py-8 text-center">
-                  <p className="text-white/40 text-sm">No users found</p>
-                </div>
-              ) : !userSearchQuery.trim() ? (
+              ) : !searchingUsers && searchResults.length === 0 ? (
                 <div className="px-4 py-8 text-center">
                   <UserPlus className="w-12 h-12 text-white/10 mx-auto mb-3" />
-                  <p className="text-white/40 text-sm">Search for a user to start messaging</p>
+                  <p className="text-white/40 text-sm">
+                    {userSearchQuery.trim() ? 'No users found' : 'No users available yet'}
+                  </p>
+                </div>
+              ) : searchingUsers ? (
+                <div className="px-4 py-8 text-center">
+                  <Loader2 className="w-8 h-8 text-violet-400 animate-spin mx-auto mb-3" />
+                  <p className="text-white/40 text-sm">Loading users...</p>
                 </div>
               ) : null}
             </div>
