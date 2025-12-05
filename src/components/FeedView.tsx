@@ -571,14 +571,14 @@ export function FeedView() {
   }
 
   return (
-    <div className="h-full bg-black flex flex-col overflow-hidden">
+    <div className="fixed inset-0 bg-black">
       {/* Top Tabs - Floating over content */}
-      <div className="absolute top-0 left-0 right-0 z-20 px-4 pt-3 pb-2">
-        <div className="flex items-center justify-center gap-8">
+      <div className="fixed top-0 left-0 right-0 z-30 px-4 pt-3 pb-2 pointer-events-none">
+        <div className="flex items-center justify-center gap-8 pointer-events-auto">
           {isAuthenticated && (
             <button
               onClick={() => setActiveTab('following')}
-              className={`text-base font-bold transition-all ${
+              className={`text-base font-bold transition-all drop-shadow-lg ${
                 activeTab === 'following'
                   ? 'text-white'
                   : 'text-white/50'
@@ -590,7 +590,7 @@ export function FeedView() {
 
           <button
             onClick={() => setActiveTab('discover')}
-            className={`text-base font-bold transition-all ${
+            className={`text-base font-bold transition-all drop-shadow-lg ${
               activeTab === 'discover'
                 ? 'text-white'
                 : 'text-white/50'
@@ -601,26 +601,29 @@ export function FeedView() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 relative">
-        {activeTab === 'discover' ? (
-          /* TikTok-style Full Screen Vertical Scroll */
-          <div className="h-full w-full relative">
-            {discoverTracks.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full">
-                <Music className="w-16 h-16 text-white/20 mb-4" />
-                <p className="text-white/60 text-lg font-medium mb-2 text-center">No tracks yet</p>
-                <p className="text-white/40 text-sm text-center px-4">
-                  Be the first to share your music!
-                </p>
-              </div>
-            ) : (
-              <div
-                ref={containerRef}
-                className="h-full w-full overflow-y-scroll snap-y snap-mandatory overscroll-y-contain scrollbar-hide"
-                style={{ WebkitOverflowScrolling: 'touch' }}
-                onScroll={handleScroll}
-              >
+      {/* Main Content - Full viewport */}
+      {activeTab === 'discover' ? (
+        /* TikTok-style Full Screen Vertical Scroll */
+        <>
+          {discoverTracks.length === 0 ? (
+            <div className="fixed inset-0 flex flex-col items-center justify-center">
+              <Music className="w-16 h-16 text-white/20 mb-4" />
+              <p className="text-white/60 text-lg font-medium mb-2 text-center">No tracks yet</p>
+              <p className="text-white/40 text-sm text-center px-4">
+                Be the first to share your music!
+              </p>
+            </div>
+          ) : (
+            <div
+              ref={containerRef}
+              className="fixed inset-0 overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+              style={{
+                WebkitOverflowScrolling: 'touch',
+                overscrollBehavior: 'contain',
+                touchAction: 'pan-y'
+              }}
+              onScroll={handleScroll}
+            >
                 {discoverTracks.map((track, idx) => {
                   const isCurrentlyPlaying = currentTrack?.id === track.id && isPlaying;
                   const isLiked = likedTracks.has(track.id);
@@ -947,26 +950,19 @@ export function FeedView() {
 
                 {/* Loading more indicator */}
                 {loadingMore && (
-                  <div className="h-20 flex items-center justify-center">
+                  <div className="h-[50vh] flex items-center justify-center">
                     <div className="flex items-center gap-3 text-white/60">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span className="text-sm">Loading more tracks...</span>
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                      <span className="text-sm font-medium">Loading more...</span>
                     </div>
-                  </div>
-                )}
-
-                {/* End of feed */}
-                {!hasMore && discoverTracks.length > 0 && (
-                  <div className="h-20 flex items-center justify-center">
-                    <span className="text-white/40 text-sm">You've seen all tracks</span>
                   </div>
                 )}
               </div>
             )}
-          </div>
+          </>
         ) : (
           /* Following Feed */
-          <div className="h-full overflow-y-auto pt-14 px-3 py-4 sm:px-4">
+          <div className="fixed inset-0 pt-14 overflow-y-auto px-3 py-4 sm:px-4">
             {feed.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 px-4">
                 <UserPlus className="w-14 h-14 sm:w-16 sm:h-16 text-white/20 mb-4" />
@@ -1034,7 +1030,6 @@ export function FeedView() {
             )}
           </div>
         )}
-      </div>
 
       {/* Comments Modal */}
       {showComments && selectedTrack && (
