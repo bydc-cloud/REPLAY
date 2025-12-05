@@ -452,13 +452,22 @@ export function FeedView() {
   // Handle audio file selection
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && file.type.startsWith('audio/')) {
-      setPostFile(file);
-      // Auto-fill title from filename if empty
-      if (!postTitle) {
-        const name = file.name.replace(/\.[^/.]+$/, ''); // Remove extension
-        setPostTitle(name);
-      }
+    if (!file) {
+      console.log('No file selected');
+      return;
+    }
+
+    // Log file info for debugging
+    console.log('File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
+
+    // Accept any file - the accept attribute on input already filters for audio
+    // Mobile browsers are inconsistent with MIME types, so we trust the file picker
+    setPostFile(file);
+
+    // Auto-fill title from filename if empty
+    if (!postTitle) {
+      const name = file.name.replace(/\.[^/.]+$/, ''); // Remove extension
+      setPostTitle(name);
     }
   };
 
@@ -1200,20 +1209,18 @@ export function FeedView() {
 
             {/* Content */}
             <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(85vh-56px)]">
-              {/* File Upload - Compact */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="audio/*"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className={`w-full p-3 rounded-xl flex items-center gap-3 transition-colors ${
+              {/* File Upload - Using label for better iOS compatibility */}
+              <label
+                className={`w-full p-3 rounded-xl flex items-center gap-3 transition-colors cursor-pointer ${
                   postFile ? 'bg-violet-500/10 border border-violet-500/30' : 'bg-white/5 border border-white/10'
                 }`}
               >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleFileSelect}
+                  className="sr-only"
+                />
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${postFile ? 'bg-violet-500/20' : 'bg-white/10'}`}>
                   {postFile ? <Music className="w-5 h-5 text-violet-400" /> : <Upload className="w-5 h-5 text-white/40" />}
                 </div>
@@ -1225,12 +1232,12 @@ export function FeedView() {
                     </>
                   ) : (
                     <>
-                      <p className="text-white/60 text-sm">Select audio file</p>
-                      <p className="text-white/30 text-xs">MP3, WAV, FLAC</p>
+                      <p className="text-white/60 text-sm">Tap to select audio file</p>
+                      <p className="text-white/30 text-xs">MP3, WAV, FLAC, M4A</p>
                     </>
                   )}
                 </div>
-              </button>
+              </label>
 
               {/* Title Input */}
               <input

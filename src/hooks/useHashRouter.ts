@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-// Route patterns for RHYTHM
+// Route patterns for Rhythm
 export type RoutePattern =
   | { type: 'home' }
   | { type: 'feed' }

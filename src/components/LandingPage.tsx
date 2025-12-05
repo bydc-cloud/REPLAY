@@ -465,7 +465,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                 <Disc className="w-5 h-5 md:w-6 md:h-6 text-white" />
               </div>
             </div>
-            <span className="text-lg md:text-xl font-black tracking-tight text-white">RHYTHM</span>
+            <span className="text-lg md:text-xl font-black tracking-tight text-white">Rhythm</span>
           </div>
 
           {/* Navigation Links - Hidden on mobile */}
@@ -1221,7 +1221,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                 <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
                   <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 text-sm font-bold">1</div>
                   <div>
-                    <p className="text-white/80 text-sm">Users subscribe to RHYTHM</p>
+                    <p className="text-white/80 text-sm">Users subscribe to Rhythm</p>
                     <p className="text-white/40 text-xs">$9.99/month Premium</p>
                   </div>
                 </div>
@@ -1294,7 +1294,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
           <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
               <p className="text-2xl md:text-3xl font-black text-green-400 mb-1">85%</p>
-              <p className="text-xs text-white/50">RHYTHM</p>
+              <p className="text-xs text-white/50">Rhythm</p>
             </div>
             <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
               <p className="text-2xl md:text-3xl font-black text-white/30 mb-1">70%</p>
@@ -1321,7 +1321,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
               <span className="text-xs md:text-sm font-medium text-purple-300">Coming Soon</span>
             </div>
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 md:mb-4">
-              The Future of RHYTHM
+              The Future of Rhythm
             </h2>
             <p className="text-white/50 max-w-xl mx-auto text-sm md:text-base">
               Features in active development. Building the ultimate platform for creators.
@@ -1717,7 +1717,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             </h2>
             <p className="text-white/50 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">
               We got tired of platforms that take half your earnings, bury your music in algorithms, and treat creators like content machines.
-              RHYTHM is what we wished existed when we started - a platform that respects the craft for creators and music lovers alike.
+              Rhythm is what we wished existed when we started - a platform that respects the craft for creators and music lovers alike.
             </p>
           </div>
 
@@ -1759,7 +1759,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
               <div>
                 <h3 className="text-xl md:text-2xl font-bold text-white mb-4">The Vision</h3>
                 <p className="text-white/60 text-sm md:text-base leading-relaxed mb-4">
-                  RHYTHM isn't just another music platform. We're building the infrastructure for the next generation of creators and music lovers.
+                  Rhythm isn't just another music platform. We're building the infrastructure for the next generation of creators and music lovers.
                 </p>
                 <ul className="space-y-3 text-sm">
                   <li className="flex items-start gap-3 text-white/60">
@@ -1870,7 +1870,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500/30 to-indigo-500/20 border border-violet-500/30 flex items-center justify-center">
                   <Disc className="w-6 h-6 text-white" />
                 </div>
-                <span className="text-xl font-black text-white">RHYTHM</span>
+                <span className="text-xl font-black text-white">Rhythm</span>
               </div>
               <p className="text-white/50 text-sm max-w-sm mb-4">
                 Built by creators, for creators. Professional tools, real connections, and an 85% revenue split. The platform we wished existed.
@@ -1938,7 +1938,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
 
           <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-xs text-white/30">
-              © 2025 RHYTHM. All rights reserved.
+              © 2025 Rhythm. All rights reserved.
             </p>
             <p className="text-xs text-white/30">
               Made with <span className="text-violet-400">♥</span> for producers everywhere.

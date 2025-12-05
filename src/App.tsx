@@ -107,7 +107,7 @@ function AppContent() {
               <Disc className="w-5 h-5 text-[var(--replay-off-white)]" />
             </div>
             <span className="text-xl font-black tracking-tight text-[var(--replay-off-white)]">
-              RHYTHM
+              Rhythm
             </span>
           </div>
           <p className="text-white/40 text-sm">Loading your music...</p>
@@ -228,7 +228,7 @@ function AppContent() {
                   <Disc className="w-4 h-4 text-[var(--replay-off-white)]" />
                 </div>
                 <h1 className="text-lg font-black tracking-tight text-[var(--replay-off-white)]">
-                  RHYTHM
+                  Rhythm
                 </h1>
               </div>
             </div>

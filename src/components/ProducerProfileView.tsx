@@ -293,7 +293,7 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
       try {
         await navigator.share({
           title: profile?.display_name || profile?.username,
-          text: `Check out ${profile?.display_name || profile?.username} on RHYTHM`,
+          text: `Check out ${profile?.display_name || profile?.username} on Rhythm`,
           url: shareUrl
         });
       } catch {

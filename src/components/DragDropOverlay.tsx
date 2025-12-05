@@ -133,7 +133,7 @@ export const DragDropOverlay = ({ children }: DragDropOverlayProps) => {
               Drop your music here
             </h2>
             <p className="text-lg text-[var(--replay-mid-grey)] max-w-md mx-auto mb-6">
-              Release to import your audio files into RHYTHM
+              Release to import your audio files into Rhythm
             </p>
 
             {/* Supported formats */}

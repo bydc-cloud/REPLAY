@@ -136,7 +136,7 @@ export function SocialTrackCard({
       try {
         await navigator.share({
           title: track.title,
-          text: `Check out "${track.title}" by ${track.artist} on RHYTHM`,
+          text: `Check out "${track.title}" by ${track.artist} on Rhythm`,
           url: shareUrl
         });
       } catch (err) {

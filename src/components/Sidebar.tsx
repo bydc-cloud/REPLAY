@@ -146,7 +146,7 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
               <Disc className="w-5 h-5 text-[var(--replay-off-white)]" />
             </div>
             <h1 className="text-2xl font-black tracking-tight text-[var(--replay-off-white)]">
-              RHYTHM
+              Rhythm
             </h1>
           </div>
           <button
@@ -264,7 +264,7 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
             />
             <NavItem
               icon={<Info size={20} />}
-              label="About RHYTHM"
+              label="About Rhythm"
               active={activeTab === "about"}
               onClick={() => {
                 onAboutClick?.();
