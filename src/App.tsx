@@ -270,14 +270,12 @@ function AppContent() {
         </div>
       )}
 
-      {/* Mobile Bottom Navigation - only on Discovery page, hidden when mini player is open */}
-      {activeTab === 'feed' && (
-        <MobileBottomNav
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          isHidden={miniPlayerOpen}
-        />
-      )}
+      {/* Mobile Bottom Navigation - shown on all pages, hidden when mini player is open */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        isHidden={miniPlayerOpen}
+      />
 
       {/* Queue Drawer */}
       <QueueDrawer isOpen={queueDrawerOpen} onClose={() => setQueueDrawerOpen(false)} />

@@ -384,7 +384,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
   ];
 
   return (
-    <div className="min-h-screen bg-[#050505] overflow-x-hidden isolate">
+    <div className="landing-page min-h-screen bg-[#050505] overflow-x-hidden isolate">
       {/* Hero Section */}
       <div className="relative min-h-screen flex flex-col isolate">
         {/* Static background gradient - no parallax to prevent glitching */}

@@ -1166,15 +1166,15 @@ html, body {
    cinematic typography, and smooth transitions
    ======================================== */
 
-/* Force GPU acceleration and prevent color blending issues */
-section {
+/* Force GPU acceleration and prevent color blending issues - ONLY on landing page */
+.landing-section {
   isolation: isolate;
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
 }
 
-/* Fix backdrop-blur causing color shifts during scroll */
-[class*="backdrop-blur"] {
+/* Fix backdrop-blur causing color shifts during scroll - landing page only */
+.landing-page [class*="backdrop-blur"] {
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   transform: translateZ(0);
