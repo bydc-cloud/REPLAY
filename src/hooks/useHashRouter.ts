@@ -13,6 +13,7 @@ export type RoutePattern =
   | { type: 'marketplace' }
   | { type: 'messages' }
   | { type: 'producer-dashboard' }
+  | { type: 'profile' }
   | { type: 'track'; id: string }
   | { type: 'playlist'; id: string }
   | { type: 'producer'; id: string }
@@ -38,7 +39,7 @@ function parseRoute(hash: string): RoutePattern {
   // Simple routes
   const simpleRoutes = [
     'feed', 'search', 'library', 'liked', 'albums',
-    'queue', 'settings', 'marketplace', 'messages', 'producer-dashboard'
+    'queue', 'settings', 'marketplace', 'messages', 'producer-dashboard', 'profile'
   ] as const;
 
   for (const route of simpleRoutes) {
@@ -96,9 +97,12 @@ function routeToTab(route: RoutePattern): string {
       return 'messages';
     case 'producer-dashboard':
       return 'producer-dashboard';
+    case 'profile':
+      return 'profile';
+    case 'producer':
+      return `producer/${route.id}`;
     case 'track':
     case 'playlist':
-    case 'producer':
     case 'pack':
       // These could open modals or specific views
       return 'home';

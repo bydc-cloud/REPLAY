@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Play,
   Music,
@@ -47,54 +47,8 @@ import {
   Home,
   Library,
   User,
-  Compass,
-  ChevronDown
+  Compass
 } from "lucide-react";
-import { PerformantVisualizer } from "./PerformantVisualizer";
-
-// Custom hook for scroll-triggered animations
-const useScrollReveal = (threshold = 0.15) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-        }
-      },
-      { threshold, rootMargin: '-30px' }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [threshold]);
-
-  return { ref, isVisible };
-};
-
-// Custom hook for animated counter
-const useCountUp = (end: number, duration: number = 2000, trigger: boolean = false) => {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    if (!trigger) return;
-    let start = 0;
-    const increment = end / (duration / 16);
-    const timer = setInterval(() => {
-      start += increment;
-      if (start >= end) {
-        setCount(end);
-        clearInterval(timer);
-      } else {
-        setCount(Math.floor(start));
-      }
-    }, 16);
-    return () => clearInterval(timer);
-  }, [trigger, end, duration]);
-
-  return count;
-};
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -103,40 +57,11 @@ interface LandingPageProps {
   showBackButton?: boolean;
 }
 
-// Visualizer variant types for the real PerformantVisualizer
-const VISUALIZER_VARIANTS: Array<"bars" | "wave" | "pulse" | "circle" | "dots" | "lines"> = [
-  "bars", "wave", "pulse", "circle", "dots", "lines"
-];
-
-const VISUALIZER_DESCRIPTIONS: Record<string, string> = {
-  bars: "Classic frequency spectrum with rainbow gradient coloring",
-  wave: "Flowing waveform that dances to your music",
-  pulse: "Bass-reactive concentric rings that breathe with the beat",
-  circle: "360° orbital spectrum with rotating particles",
-  dots: "Minimalist grid of audio-reactive dots",
-  lines: "Horizontal frequency lines with streaming motion",
-  lyrics: "AI-transcribed lyrics synced in real-time"
-};
-
 export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButton }: LandingPageProps) => {
   const [hoveredFeature, setHoveredFeature] = useState<number | null>(null);
   const [activeVisualizer, setActiveVisualizer] = useState(0);
   const [scrollY, setScrollY] = useState(0);
   const [activeSection, setActiveSection] = useState<string>('');
-  const [heroVisualizerIndex, setHeroVisualizerIndex] = useState(0);
-
-  // Scroll reveal refs for Apple-style animations
-  const visualizerSectionReveal = useScrollReveal(0.1);
-  const featuresSectionReveal = useScrollReveal(0.1);
-  const mobileDiscoveryReveal = useScrollReveal(0.15);
-  const creatorProfilesReveal = useScrollReveal(0.15);
-  const payoutsSectionReveal = useScrollReveal(0.1);
-  const comingSoonReveal = useScrollReveal(0.1);
-  const roadmapReveal = useScrollReveal(0.1);
-  const transparencyReveal = useScrollReveal(0.1);
-  const pricingReveal = useScrollReveal(0.1);
-  const aboutReveal = useScrollReveal(0.1);
-  const ctaReveal = useScrollReveal(0.2);
 
   // Smooth scroll tracking for parallax effects
   useEffect(() => {
@@ -145,19 +70,11 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Auto-rotate visualizer preview (slower for Apple-style drama)
+  // Auto-rotate visualizer preview
   useEffect(() => {
     const interval = setInterval(() => {
       setActiveVisualizer(prev => (prev + 1) % 7);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Separate auto-rotate for hero visualizer
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setHeroVisualizerIndex(prev => (prev + 1) % 6);
-    }, 5000);
+    }, 3000);
     return () => clearInterval(interval);
   }, []);
 
@@ -623,77 +540,55 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
               <span className="text-xs md:text-sm font-medium text-white/80">The Future of Music Discovery</span>
             </div>
 
-            {/* HERO VISUALIZER - Real PerformantVisualizer */}
-            <div className="w-full max-w-4xl mx-auto mb-8 md:mb-12 animate-scale-in">
-              <div className="aspect-[21/9] md:aspect-[21/8] rounded-2xl md:rounded-3xl overflow-hidden relative border border-white/10 bg-black/50 backdrop-blur-sm">
-                {/* Glow background */}
-                <div className="absolute inset-0">
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 via-transparent to-indigo-500/20" />
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-purple-500/30 rounded-full blur-[80px]" />
-                </div>
-                {/* Real Visualizer */}
-                <div className="absolute inset-0">
-                  <PerformantVisualizer
-                    isPlaying={true}
-                    variant={VISUALIZER_VARIANTS[heroVisualizerIndex]}
-                    size="full"
-                    audioElement={null}
-                  />
-                </div>
-                {/* Subtle vignette */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* MASSIVE TYPOGRAPHY - Apple style */}
-            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-black text-white mb-6 md:mb-8 leading-[0.95] tracking-tight animate-hero-enter">
-              For Artists.
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-white mb-4 md:mb-6 leading-[1.1]">
+              Discover. Create.
               <br />
-              <span className="text-gradient-animated">By Artists.</span>
+              <span className="bg-gradient-to-r from-purple-400 via-violet-300 to-indigo-400 bg-clip-text text-transparent">Get Heard.</span>
             </h1>
 
-            <p className="text-lg md:text-xl lg:text-2xl text-white/50 mb-10 md:mb-14 max-w-2xl mx-auto leading-relaxed px-4 animate-hero-enter-delay-1">
-              The premium music platform that puts creators first. <span className="text-white/80 font-medium">85% of every sale</span>.
+            <p className="text-base md:text-lg lg:text-xl text-white/50 mb-8 md:mb-10 max-w-2xl mx-auto leading-relaxed px-4">
+              A new era for music creators. <span className="text-white/70 font-medium">Full-screen Discovery feed</span>, studio-grade tools, and a community where <span className="text-white/70 font-medium">artists keep 85%</span>.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 md:gap-5 justify-center px-4 animate-hero-enter-delay-2">
+            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center px-4">
               <button
                 onClick={onGetStarted}
-                className="group relative flex items-center justify-center gap-2 px-8 md:px-10 py-4 md:py-5 bg-white text-black font-semibold rounded-full transition-all transform hover:scale-[1.02] active:scale-[0.98] overflow-hidden shine-effect"
+                className="group flex items-center justify-center gap-2 px-6 md:px-8 py-3.5 md:py-4 bg-white text-black font-semibold rounded-full hover:bg-white/90 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
               >
-                <span className="relative z-10">Get Started Free</span>
-                <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
+                Get Started Free
+                <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform" />
               </button>
 
               <button
                 onClick={() => scrollToSection('features')}
-                className="flex items-center justify-center gap-2 px-8 md:px-10 py-4 md:py-5 border border-white/20 text-white font-semibold rounded-full hover:bg-white/5 hover:border-white/30 transition-all backdrop-blur-sm"
+                className="flex items-center justify-center gap-2 px-6 md:px-8 py-3.5 md:py-4 border border-white/20 text-white font-semibold rounded-full hover:bg-white/5 hover:border-white/30 transition-all"
               >
                 Explore Features
               </button>
             </div>
 
-            {/* Trust indicators - more minimal */}
-            <div className="mt-12 md:mt-16 flex flex-wrap items-center justify-center gap-6 md:gap-10 text-white/40 text-sm animate-hero-enter-delay-3">
-              <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4 text-green-400/70" />
-                <span>No Ads</span>
+            {/* Trust indicators */}
+            <div className="mt-10 md:mt-12 flex flex-wrap items-center justify-center gap-4 md:gap-8 text-white/50 text-sm px-4">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+                <Shield className="w-4 h-4 text-green-400" />
+                <span>No Ads Ever</span>
               </div>
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-purple-400/70" />
-                <span>Discovery Feed</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+                <TrendingUp className="w-4 h-4 text-purple-400" />
+                <span>Discovery Feed Live</span>
               </div>
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-emerald-400/70" />
-                <span>85% Payouts</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+                <DollarSign className="w-4 h-4 text-emerald-400" />
+                <span>85% to Creators</span>
               </div>
             </div>
           </div>
 
-          {/* Scroll indicator - Apple style */}
-          <div className="absolute bottom-8 md:bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-scroll-bounce">
-            <span className="text-xs text-white/30 uppercase tracking-widest">Scroll</span>
-            <ChevronDown className="w-5 h-5 text-white/30" />
+          {/* Scroll indicator */}
+          <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2">
+            <div className="w-5 h-8 md:w-6 md:h-10 border-2 border-white/20 rounded-full flex justify-center pt-1.5 md:pt-2">
+              <div className="w-1 h-1.5 md:h-2 bg-white/40 rounded-full animate-bounce" />
+            </div>
           </div>
         </div>
       </div>
@@ -736,11 +631,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       </section>
 
       {/* Discovery Feed Showcase - Hero Feature */}
-      <section
-        ref={mobileDiscoveryReveal.ref}
-        className={`relative py-20 md:py-32 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-purple-500/[0.03] to-transparent overflow-hidden transition-all duration-1000 ${
-          mobileDiscoveryReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
-        }`}>
+      <section className="relative py-20 md:py-32 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-purple-500/[0.03] to-transparent overflow-hidden">
         {/* Background glow */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/[0.08] rounded-full blur-[100px]" />
@@ -989,12 +880,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       </section>
 
       {/* Features Section */}
-      <section
-        ref={featuresSectionReveal.ref}
-        id="features"
-        className={`relative py-16 md:py-24 px-4 md:px-8 lg:px-12 transition-all duration-1000 ${
-          featuresSectionReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
-        }`}>
+      <section id="features" className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 md:mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mb-4 md:mb-6">
@@ -1043,165 +929,296 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         </div>
       </section>
 
-      {/* Visualizer Preview Section - REAL PerformantVisualizer Components */}
-      <section
-        ref={visualizerSectionReveal.ref}
-        className={`relative section-apple px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-purple-500/[0.02] to-transparent overflow-hidden transition-all duration-1000 ${
-          visualizerSectionReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
-        }`}>
+      {/* Visualizer Preview Section - Professional Real Visualizers */}
+      <section className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent overflow-hidden">
         <div className="max-w-6xl mx-auto">
-          {/* Apple-style header */}
-          <div className="text-center mb-16 md:mb-24">
-            <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white mb-6 md:mb-8 leading-[0.95] tracking-tight">
-              7 Stunning
-              <br />
-              <span className="text-gradient-animated">Visualizers.</span>
+          <div className="text-center mb-10 md:mb-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mb-4 md:mb-6">
+              <Waves className="w-4 h-4 text-purple-400" />
+              <span className="text-xs md:text-sm font-medium text-white/60">Studio-Grade Visuals</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 md:mb-4">
+              Visualizers That Feel Like Art
             </h2>
-            <p className="text-lg md:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed">
-              Audio-reactive. GPU-accelerated. Each one responds to bass, mids, and highs in real-time.
+            <p className="text-white/50 max-w-xl mx-auto text-sm md:text-base">
+              Seven real-time audio-reactive visualizations. Each one responds to your music's bass, mids, and highs. The Lyrics mode syncs with AI transcription.
             </p>
           </div>
 
-          {/* Hero Visualizer Preview - Large Featured with REAL component */}
-          <div className="mb-10 md:mb-12 relative">
-            <div className="aspect-[16/9] md:aspect-[21/9] rounded-3xl md:rounded-[2rem] bg-black border border-white/10 overflow-hidden relative group shadow-2xl shadow-purple-500/10">
-              {/* Animated glow background */}
+          {/* Hero Visualizer Preview - Large Featured */}
+          <div className="mb-8 relative">
+            <div className="aspect-[16/9] md:aspect-[21/9] rounded-2xl md:rounded-3xl bg-black border border-white/10 overflow-hidden relative group">
+              {/* Real reactive blur background like our app */}
               <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-purple-500/30 rounded-full blur-[100px] animate-pulse" />
-                <div className="absolute top-1/4 right-1/4 w-[40%] h-[40%] bg-indigo-500/20 rounded-full blur-[80px] animate-pulse" style={{ animationDelay: '0.5s' }} />
-                <div className="absolute bottom-1/4 left-1/4 w-[35%] h-[35%] bg-pink-500/20 rounded-full blur-[60px] animate-pulse" style={{ animationDelay: '1s' }} />
+                <div
+                  className="absolute rounded-full"
+                  style={{
+                    width: '60%',
+                    height: '60%',
+                    left: '20%',
+                    top: '20%',
+                    background: `radial-gradient(circle,
+                      rgba(147, 51, 234, 0.5) 0%,
+                      rgba(147, 51, 234, 0) 70%)`,
+                    filter: 'blur(60px)',
+                    animation: 'visualizerPulse 2s ease-in-out infinite',
+                  }}
+                />
+                <div
+                  className="absolute rounded-full"
+                  style={{
+                    width: '50%',
+                    height: '50%',
+                    right: '10%',
+                    bottom: '20%',
+                    background: `radial-gradient(circle,
+                      rgba(79, 70, 229, 0.4) 0%,
+                      rgba(79, 70, 229, 0) 70%)`,
+                    filter: 'blur(50px)',
+                    animation: 'visualizerPulse 2.5s ease-in-out infinite 0.5s',
+                  }}
+                />
+                <div
+                  className="absolute rounded-full"
+                  style={{
+                    width: '40%',
+                    height: '40%',
+                    left: '5%',
+                    bottom: '30%',
+                    background: `radial-gradient(circle,
+                      rgba(236, 72, 153, 0.3) 0%,
+                      rgba(236, 72, 153, 0) 70%)`,
+                    filter: 'blur(40px)',
+                    animation: 'visualizerPulse 3s ease-in-out infinite 1s',
+                  }}
+                />
               </div>
 
-              {/* REAL Visualizer or Lyrics */}
-              <div className="absolute inset-0">
+              {/* Content based on active visualizer */}
+              <div className="absolute inset-0 flex items-center justify-center">
                 {activeVisualizer === 6 ? (
-                  // Lyrics Preview
-                  <div className="flex items-center justify-center h-full text-center px-6 md:px-16">
-                    <div>
-                      <p className="text-white/20 text-sm md:text-xl mb-4 blur-[1px] scale-90">I've been searching for a feeling</p>
-                      <p className="text-white font-bold text-3xl md:text-6xl lg:text-7xl" style={{ textShadow: '0 0 60px rgba(147, 51, 234, 0.6), 0 0 120px rgba(79, 70, 229, 0.4)' }}>
-                        That I can't seem to find
-                      </p>
-                      <p className="text-white/20 text-sm md:text-xl mt-4 blur-[1px] scale-90">Running through my mind like water</p>
-                    </div>
+                  // Lyrics Preview - Synced lyrics with glow effects
+                  <div className="text-center px-4 md:px-12 py-8 w-full">
+                    <p className="text-white/20 text-sm md:text-xl mb-3 md:mb-4 blur-[1px] transform scale-75">I've been searching for a feeling</p>
+                    <p
+                      className="text-white font-bold text-2xl md:text-5xl lg:text-6xl mb-3 md:mb-4"
+                      style={{
+                        textShadow: '0 0 40px rgba(147, 51, 234, 0.5), 0 0 80px rgba(79, 70, 229, 0.3)',
+                        animation: 'lyricsGlow 2s ease-in-out infinite'
+                      }}
+                    >
+                      That I can't seem to find
+                    </p>
+                    <p className="text-white/20 text-sm md:text-xl mt-3 md:mt-4 blur-[1px] transform scale-75">Running through my mind like water</p>
                   </div>
                 ) : (
-                  // REAL PerformantVisualizer
-                  <PerformantVisualizer
-                    isPlaying={true}
-                    variant={VISUALIZER_VARIANTS[activeVisualizer]}
-                    size="full"
-                    audioElement={null}
-                  />
+                  // Audio Bars Preview - Real EQ style - Full width
+                  <div className="absolute bottom-0 left-0 right-0 flex items-end justify-between gap-[2px] md:gap-1 px-0 pb-6 md:pb-12 h-full pt-20">
+                    {Array(48).fill(0).map((_, i) => (
+                      <div
+                        key={i}
+                        className="flex-1 rounded-t"
+                        style={{
+                          height: `${20 + Math.sin(i * 0.3 + Date.now() / 500) * 30 + Math.random() * 30}%`,
+                          background: `linear-gradient(to top,
+                            hsl(${260 + (i % 20) * 5}, 80%, 50%),
+                            hsl(${300 + (i % 15) * 3}, 85%, 60%))`,
+                          boxShadow: `0 0 15px hsla(${270 + (i % 20) * 4}, 80%, 55%, 0.4)`,
+                          animation: `audioBarRealistic ${0.4 + (i % 5) * 0.1}s ease-in-out infinite`,
+                          animationDelay: `${i * 30}ms`
+                        }}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
 
-              {/* Vignette overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 pointer-events-none" />
-
-              {/* Visualizer label - glass pill */}
-              <div className="absolute top-5 left-5 px-4 py-2 bg-black/40 backdrop-blur-xl rounded-full border border-white/10">
-                <span className="text-white/80 text-sm font-medium">{visualizers[activeVisualizer]}</span>
+              {/* Visualizer label */}
+              <div className="absolute top-4 left-4 px-3 py-1.5 bg-black/50 backdrop-blur-md rounded-full border border-white/10">
+                <span className="text-white/70 text-xs font-medium">{visualizers[activeVisualizer]} Visualizer</span>
               </div>
 
-              {/* Live indicator */}
-              <div className="absolute top-5 right-5 flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-xl rounded-full border border-white/10">
+              {/* Playing indicator */}
+              <div className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 bg-black/50 backdrop-blur-md rounded-full border border-white/10">
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-white/80 text-sm font-medium">Live</span>
-              </div>
-
-              {/* Description overlay at bottom */}
-              <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-                <p className="text-white/70 text-sm md:text-base max-w-xl">
-                  {VISUALIZER_DESCRIPTIONS[visualizers[activeVisualizer].toLowerCase()] || VISUALIZER_DESCRIPTIONS.bars}
-                </p>
+                <span className="text-white/70 text-xs font-medium">Live Preview</span>
               </div>
             </div>
           </div>
 
-          {/* Visualizer Selector with REAL mini visualizers */}
-          <div className="grid grid-cols-4 md:grid-cols-7 gap-3 md:gap-4">
+          {/* Visualizer Selector Grid */}
+          <div className="grid grid-cols-4 md:grid-cols-7 gap-2 md:gap-3">
             {visualizers.map((name, index) => (
               <button
                 key={name}
-                className={`relative aspect-square rounded-2xl border transition-all duration-500 flex flex-col items-end justify-end p-2 overflow-hidden group ${
+                className={`aspect-square rounded-xl bg-gradient-to-br from-[#0a0a12] to-[#15151f] border transition-all duration-300 flex flex-col items-center justify-center relative overflow-hidden group ${
                   activeVisualizer === index
-                    ? "border-purple-500/60 ring-2 ring-purple-500/30 scale-[1.02] shadow-lg shadow-purple-500/20"
-                    : "border-white/10 hover:border-white/20 bg-black/30 hover:bg-black/50"
+                    ? "border-purple-500/50 ring-2 ring-purple-500/30 scale-105"
+                    : "border-white/10 hover:border-white/20 hover:scale-102"
                 }`}
                 onClick={() => setActiveVisualizer(index)}
               >
-                {/* Real mini visualizer or icon */}
-                <div className={`absolute inset-0 transition-all duration-300 ${activeVisualizer === index ? 'opacity-80 scale-100' : 'opacity-50 scale-95 group-hover:opacity-60 group-hover:scale-100'}`}>
-                  {index < 6 ? (
-                    <PerformantVisualizer
-                      isPlaying={activeVisualizer === index}
-                      variant={VISUALIZER_VARIANTS[index]}
-                      size="sm"
-                      audioElement={null}
-                    />
-                  ) : (
-                    // Lyrics icon
-                    <div className="flex items-center justify-center h-full">
-                      <span className="text-2xl md:text-3xl font-black text-gradient-animated">Aa</span>
+                {/* Mini visualizer preview - unique for each type */}
+                <div className={`absolute inset-0 transition-opacity duration-300 ${activeVisualizer === index ? 'opacity-70' : 'opacity-40 group-hover:opacity-50'}`}>
+                  {/* Bars - index 0 */}
+                  {index === 0 && (
+                    <div className="absolute bottom-0 left-0 right-0 flex items-end justify-between gap-[1px] px-1 pb-2 h-2/3">
+                      {Array(5).fill(0).map((_, i) => (
+                        <div
+                          key={i}
+                          className="flex-1 rounded-t-sm"
+                          style={{
+                            height: `${40 + Math.sin(i * 1.2) * 40}%`,
+                            background: `linear-gradient(to top, hsl(${260 + i * 20}, 80%, 50%), hsl(${280 + i * 20}, 90%, 65%))`,
+                            animation: `miniBarPulse 0.8s ease-in-out ${i * 0.1}s infinite alternate`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {/* Wave - index 1 */}
+                  {index === 1 && (
+                    <div className="absolute inset-0 flex items-center justify-center p-2">
+                      <svg viewBox="0 0 40 20" className="w-full h-1/2">
+                        <path
+                          d="M0,10 Q5,5 10,10 T20,10 T30,10 T40,10"
+                          fill="none"
+                          stroke="url(#waveGrad)"
+                          strokeWidth="2"
+                          className="animate-pulse"
+                        />
+                        <defs>
+                          <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#8B5CF6" />
+                            <stop offset="100%" stopColor="#EC4899" />
+                          </linearGradient>
+                        </defs>
+                      </svg>
+                    </div>
+                  )}
+                  {/* Pulse - index 2 */}
+                  {index === 2 && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      {[1, 2, 3].map((ring) => (
+                        <div
+                          key={ring}
+                          className="absolute rounded-full border border-purple-500/60"
+                          style={{
+                            width: `${ring * 25}%`,
+                            height: `${ring * 25}%`,
+                            animation: `miniPulseRing 1.5s ease-out ${ring * 0.2}s infinite`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {/* Circle - index 3 */}
+                  {index === 3 && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="relative w-3/4 h-3/4">
+                        {Array(8).fill(0).map((_, i) => (
+                          <div
+                            key={i}
+                            className="absolute w-1.5 h-1.5 rounded-full bg-gradient-to-r from-violet-500 to-indigo-500"
+                            style={{
+                              left: `${50 + 35 * Math.cos((i * 45 * Math.PI) / 180)}%`,
+                              top: `${50 + 35 * Math.sin((i * 45 * Math.PI) / 180)}%`,
+                              transform: 'translate(-50%, -50%)',
+                              animation: `miniDotPulse 1s ease-in-out ${i * 0.1}s infinite alternate`,
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Dots - index 4 */}
+                  {index === 4 && (
+                    <div className="absolute inset-0 grid grid-cols-4 grid-rows-3 gap-1 p-3">
+                      {Array(12).fill(0).map((_, i) => (
+                        <div
+                          key={i}
+                          className="rounded-full"
+                          style={{
+                            background: `linear-gradient(135deg, hsl(${260 + i * 8}, 70%, 55%), hsl(${280 + i * 8}, 80%, 60%))`,
+                            animation: `miniDotPulse 0.6s ease-in-out ${i * 0.05}s infinite alternate`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {/* Lines - index 5 */}
+                  {index === 5 && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-3">
+                      {Array(4).fill(0).map((_, i) => (
+                        <div
+                          key={i}
+                          className="h-[2px] rounded-full"
+                          style={{
+                            width: `${50 + Math.random() * 40}%`,
+                            background: `linear-gradient(90deg, hsl(${260 + i * 25}, 80%, 55%), hsl(${290 + i * 25}, 85%, 60%))`,
+                            animation: `miniLineStretch 1s ease-in-out ${i * 0.15}s infinite alternate`,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {/* Lyrics - index 6 */}
+                  {index === 6 && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div
+                        className="text-[10px] font-bold bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent"
+                        style={{ animation: 'miniLyricsGlow 2s ease-in-out infinite' }}
+                      >
+                        Aa
+                      </div>
                     </div>
                   )}
                 </div>
-
-                {/* Label */}
-                <span className={`relative z-10 text-[10px] md:text-xs font-semibold px-2 py-1 rounded-full backdrop-blur-md ${
-                  activeVisualizer === index
-                    ? 'bg-purple-500/30 text-white'
-                    : 'bg-black/50 text-white/70'
-                }`}>
+                <span className="relative z-10 text-white font-medium text-[10px] md:text-xs flex items-center gap-1">
                   {name}
                   {name === "Lyrics" && (
-                    <span className="ml-1 text-[8px] text-purple-300">AI</span>
+                    <span className="px-1 py-0.5 bg-gradient-to-r from-violet-500 to-indigo-500 rounded text-[6px] font-bold uppercase">AI</span>
                   )}
                 </span>
               </button>
             ))}
           </div>
-
-          {/* Progress dots */}
-          <div className="flex items-center justify-center gap-2 mt-8">
-            {visualizers.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => setActiveVisualizer(index)}
-                className={`visualizer-dot ${activeVisualizer === index ? 'active' : ''}`}
-              />
-            ))}
-          </div>
-
-          {/* Keyframe animations for mini visualizer previews */}
-          <style>{`
-            @keyframes audioBarRealistic {
-              0%, 100% { transform: scaleY(1); }
-              50% { transform: scaleY(0.6); }
-            }
-            @keyframes miniBarPulse {
-              0% { transform: scaleY(0.6); }
-              100% { transform: scaleY(1); }
-            }
-            @keyframes miniPulseRing {
-              0% { transform: scale(0.8); opacity: 0.8; }
-              100% { transform: scale(1.2); opacity: 0; }
-            }
-            @keyframes miniDotPulse {
-              0% { transform: scale(0.7); opacity: 0.5; }
-              100% { transform: scale(1); opacity: 1; }
-            }
-            @keyframes miniLineStretch {
-              0% { width: 40%; }
-              100% { width: 90%; }
-            }
-            @keyframes miniLyricsGlow {
-              0%, 100% { opacity: 0.6; }
-              50% { opacity: 1; }
-            }
-          `}</style>
         </div>
+
+        <style>{`
+          @keyframes visualizerPulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+          }
+          @keyframes lyricsGlow {
+            0%, 100% { text-shadow: 0 0 40px rgba(147, 51, 234, 0.5), 0 0 80px rgba(79, 70, 229, 0.3); }
+            50% { text-shadow: 0 0 60px rgba(147, 51, 234, 0.7), 0 0 100px rgba(79, 70, 229, 0.5); }
+          }
+          @keyframes audioBarRealistic {
+            0%, 100% { transform: scaleY(1); }
+            50% { transform: scaleY(0.6); }
+          }
+          @keyframes miniBarPulse {
+            0% { transform: scaleY(0.6); }
+            100% { transform: scaleY(1); }
+          }
+          @keyframes miniPulseRing {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(1.2); opacity: 0; }
+          }
+          @keyframes miniDotPulse {
+            0% { transform: scale(0.7); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+          }
+          @keyframes miniLineStretch {
+            0% { width: 40%; }
+            100% { width: 90%; }
+          }
+          @keyframes miniLyricsGlow {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+          }
+        `}</style>
       </section>
 
       {/* Speed Section */}
@@ -1223,11 +1240,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       </section>
 
       {/* Creator Profiles & Community Section */}
-      <section
-        ref={creatorProfilesReveal.ref}
-        className={`relative py-16 md:py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-violet-500/[0.02] to-transparent transition-all duration-1000 ${
-          creatorProfilesReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
-        }`}>
+      <section className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-violet-500/[0.02] to-transparent">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 md:mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 mb-4 md:mb-6">
@@ -1391,274 +1404,204 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         </div>
       </section>
 
-      {/* How Creators Get Paid Section - Premium Glass Morphism */}
-      <section
-        ref={payoutsSectionReveal.ref}
-        className={`relative section-apple px-4 md:px-8 lg:px-12 overflow-hidden transition-all duration-1000 ${
-          payoutsSectionReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
-        }`}>
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-green-500/[0.03] to-transparent pointer-events-none" />
-
-        <div className="max-w-6xl mx-auto relative z-10">
-          {/* Apple-style header */}
-          <div className="text-center mb-16 md:mb-24">
-            <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white mb-6 md:mb-8 leading-[0.95] tracking-tight">
-              Keep
-              <br />
-              <span className="text-green-400">85%.</span>
+      {/* How Creators Get Paid Section - Visual Blockchain/Payout */}
+      <section className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-green-500/[0.02] to-transparent overflow-hidden">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-10 md:mb-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 mb-4 md:mb-6">
+              <DollarSign className="w-4 h-4 text-green-400" />
+              <span className="text-xs md:text-sm font-medium text-green-300">Transparent Payouts</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 md:mb-4">
+              How Creators Get Paid
             </h2>
-            <p className="text-lg md:text-xl text-white/50 max-w-xl mx-auto leading-relaxed">
-              Industry-leading creator payouts. Transparent. Blockchain-verified.
+            <p className="text-white/50 max-w-xl mx-auto text-sm md:text-base">
+              Two ways to earn: sell directly or get paid from streams. Every transaction is transparent and verifiable.
             </p>
           </div>
 
-          {/* Revenue Split Visualization - Premium Glass Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-16">
-            {/* Direct Sales - Glass Card */}
-            <div className="group relative">
-              {/* Animated gradient border */}
-              <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-green-500/50 via-emerald-400/30 to-green-500/50 opacity-60 blur-sm group-hover:opacity-80 transition-opacity animate-gradient-x" />
-
-              {/* Glass card */}
-              <div className="relative rounded-3xl bg-black/80 backdrop-blur-xl border border-green-500/20 p-8 md:p-10 overflow-hidden">
-                {/* Floating particles */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                  {[...Array(6)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="absolute w-1.5 h-1.5 rounded-full bg-green-400/30 animate-float-particle"
-                      style={{
-                        left: `${15 + i * 14}%`,
-                        top: `${25 + (i % 3) * 20}%`,
-                        animationDelay: `${i * 0.5}s`,
-                      }}
-                    />
-                  ))}
+          {/* Revenue Split Visualization */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+            {/* Direct Sales */}
+            <div className="p-6 md:p-8 rounded-2xl bg-gradient-to-br from-[#0a0a12] to-[#15151f] border border-green-500/20 relative overflow-hidden">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
+                  <Store className="w-6 h-6 text-green-400" />
                 </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Direct Sales</h3>
+                  <p className="text-sm text-white/50">Beats, samples, licenses</p>
+                </div>
+              </div>
 
-                {/* Content */}
-                <div className="relative z-10">
-                  {/* Icon with glow */}
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-green-500/30 to-emerald-500/20 flex items-center justify-center mb-8 border border-green-500/30 shadow-lg shadow-green-500/20 group-hover:scale-110 group-hover:rotate-3 transition-transform">
-                    <Store className="w-8 h-8 md:w-10 md:h-10 text-green-400" />
+              {/* Visual Split Bar */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="text-white/60">$100 Sale</span>
+                  <span className="text-green-400 font-bold">You Keep $85</span>
+                </div>
+                <div className="h-8 rounded-full overflow-hidden flex bg-white/5">
+                  <div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 flex items-center justify-center text-sm font-bold text-black" style={{ width: '85%' }}>
+                    85% Creator
                   </div>
-
-                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">Direct Sales</h3>
-                  <p className="text-white/50 mb-8">Beats, samples, licenses</p>
-
-                  {/* Premium Split Bar */}
-                  <div className="mb-8">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-white/60 text-lg">$100 Sale</span>
-                      <span className="text-green-400 font-bold text-xl">You Keep $85</span>
-                    </div>
-                    <div className="h-14 rounded-2xl overflow-hidden flex bg-white/5 border border-white/10 relative">
-                      <div className="h-full bg-gradient-to-r from-green-600 via-emerald-500 to-green-400 flex items-center justify-center font-bold text-black text-lg relative overflow-hidden" style={{ width: '85%' }}>
-                        {/* Animated shine */}
-                        <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-                        <span className="relative z-10">85% Creator</span>
-                      </div>
-                      <div className="h-full bg-white/10 flex items-center justify-center text-sm text-white/50 flex-1">
-                        15%
-                      </div>
-                    </div>
+                  <div className="h-full bg-white/10 flex items-center justify-center text-xs text-white/60" style={{ width: '15%' }}>
+                    15%
                   </div>
+                </div>
+              </div>
 
-                  {/* Breakdown */}
-                  <div className="space-y-3">
-                    {[
-                      { label: 'Creator Payout', value: '$85.00', color: 'green', active: true },
-                      { label: 'Platform Fee', value: '$10.00', color: 'white/30', active: false },
-                      { label: 'Processing', value: '$5.00', color: 'white/20', active: false },
-                    ].map((item, i) => (
-                      <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-green-500/30 transition-all">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-3 h-3 rounded-full ${item.active ? 'bg-green-500 shadow-lg shadow-green-500/50' : 'bg-white/30'}`} />
-                          <span className={item.active ? 'text-white' : 'text-white/50'}>{item.label}</span>
-                        </div>
-                        <span className={`font-bold ${item.active ? 'text-green-400 text-lg' : 'text-white/50'}`}>
-                          {item.value}
-                        </span>
-                      </div>
-                    ))}
+              {/* Breakdown */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-full bg-green-500" />
+                    <span className="text-white/80">Creator Payout</span>
                   </div>
+                  <span className="text-green-400 font-bold">$85.00</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-full bg-white/30" />
+                    <span className="text-white/50">Platform Fee</span>
+                  </div>
+                  <span className="text-white/50">$10.00</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-full bg-white/20" />
+                    <span className="text-white/50">Payment Processing</span>
+                  </div>
+                  <span className="text-white/50">$5.00</span>
                 </div>
               </div>
             </div>
 
-            {/* Stream Revenue - Glass Card */}
-            <div className="group relative">
-              {/* Animated gradient border */}
-              <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-violet-500/50 via-indigo-400/30 to-violet-500/50 opacity-60 blur-sm group-hover:opacity-80 transition-opacity animate-gradient-x" />
-
-              {/* Glass card */}
-              <div className="relative rounded-3xl bg-black/80 backdrop-blur-xl border border-purple-500/20 p-8 md:p-10 overflow-hidden">
-                {/* Floating particles */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                  {[...Array(6)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="absolute w-1.5 h-1.5 rounded-full bg-purple-400/30 animate-float-particle"
-                      style={{
-                        left: `${15 + i * 14}%`,
-                        top: `${25 + (i % 3) * 20}%`,
-                        animationDelay: `${i * 0.6}s`,
-                      }}
-                    />
-                  ))}
+            {/* Stream Revenue */}
+            <div className="p-6 md:p-8 rounded-2xl bg-gradient-to-br from-[#0a0a12] to-[#15151f] border border-purple-500/20 relative overflow-hidden">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                  <Headphones className="w-6 h-6 text-purple-400" />
                 </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Stream Revenue</h3>
+                  <p className="text-sm text-white/50">From subscriber pool</p>
+                </div>
+              </div>
 
-                {/* Content */}
-                <div className="relative z-10">
-                  {/* Icon with glow */}
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-violet-500/30 to-indigo-500/20 flex items-center justify-center mb-8 border border-purple-500/30 shadow-lg shadow-purple-500/20 group-hover:scale-110 group-hover:rotate-3 transition-transform">
-                    <Headphones className="w-8 h-8 md:w-10 md:h-10 text-purple-400" />
+              {/* Visual Split Bar */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="text-white/60">Subscriber Pool</span>
+                  <span className="text-purple-400 font-bold">70% to Creators</span>
+                </div>
+                <div className="h-8 rounded-full overflow-hidden flex bg-white/5">
+                  <div className="h-full bg-gradient-to-r from-violet-500 to-indigo-400 flex items-center justify-center text-sm font-bold text-white" style={{ width: '70%' }}>
+                    70% Creators
                   </div>
-
-                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">Stream Revenue</h3>
-                  <p className="text-white/50 mb-8">From subscriber pool</p>
-
-                  {/* Premium Split Bar */}
-                  <div className="mb-8">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-white/60 text-lg">Subscriber Pool</span>
-                      <span className="text-purple-400 font-bold text-xl">70% to Creators</span>
-                    </div>
-                    <div className="h-14 rounded-2xl overflow-hidden flex bg-white/5 border border-white/10">
-                      <div className="h-full bg-gradient-to-r from-violet-600 via-indigo-500 to-violet-400 flex items-center justify-center font-bold text-white text-lg" style={{ width: '70%' }}>
-                        70% Creators
-                      </div>
-                      <div className="h-full bg-white/10 flex items-center justify-center text-sm text-white/50 flex-1">
-                        30%
-                      </div>
-                    </div>
+                  <div className="h-full bg-white/10 flex items-center justify-center text-xs text-white/60" style={{ width: '30%' }}>
+                    30%
                   </div>
+                </div>
+              </div>
 
-                  {/* How it works - Premium steps */}
-                  <div className="space-y-3">
-                    {[
-                      { num: '1', title: 'Users subscribe to Rhythm', sub: '$9.99/month Premium' },
-                      { num: '2', title: '70% goes to creator pool', sub: 'Distributed by play count' },
-                      { num: '3', title: 'Monthly payouts via PayPal/bank', sub: '$50 minimum threshold' },
-                    ].map((step, i) => (
-                      <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-purple-500/30 transition-all">
-                        <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 font-bold border border-purple-500/30">
-                          {step.num}
-                        </div>
-                        <div>
-                          <p className="text-white font-medium">{step.title}</p>
-                          <p className="text-white/40 text-sm">{step.sub}</p>
-                        </div>
-                      </div>
-                    ))}
+              {/* How it works */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+                  <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 text-sm font-bold">1</div>
+                  <div>
+                    <p className="text-white/80 text-sm">Users subscribe to Rhythm</p>
+                    <p className="text-white/40 text-xs">$9.99/month Premium</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+                  <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 text-sm font-bold">2</div>
+                  <div>
+                    <p className="text-white/80 text-sm">70% goes to creator pool</p>
+                    <p className="text-white/40 text-xs">Distributed by play count</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
+                  <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 text-sm font-bold">3</div>
+                  <div>
+                    <p className="text-white/80 text-sm">Monthly payouts via PayPal/bank</p>
+                    <p className="text-white/40 text-xs">$50 minimum threshold</p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Premium Blockchain Verification Card */}
-          <div className="group relative mb-12">
-            {/* Animated gradient border */}
-            <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-violet-500/40 via-indigo-400/30 to-purple-500/40 opacity-50 blur-sm group-hover:opacity-70 transition-opacity animate-gradient-x" />
-
-            <div className="relative rounded-3xl bg-black/80 backdrop-blur-xl border border-purple-500/20 p-8 md:p-12 overflow-hidden">
-              {/* Grid background */}
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:32px_32px]" />
+          {/* Blockchain Verification Visual */}
+          <div className="p-6 md:p-8 rounded-2xl bg-gradient-to-r from-violet-500/10 via-indigo-500/10 to-violet-500/10 border border-violet-500/20">
+            <div className="flex flex-col md:flex-row items-center gap-6 md:gap-8">
+              {/* Blockchain Icon */}
+              <div className="flex-shrink-0">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 border border-violet-500/30 flex items-center justify-center">
+                  <Blocks className="w-10 h-10 text-purple-400" />
+                </div>
               </div>
 
-              <div className="relative z-10 flex flex-col lg:flex-row items-center gap-10">
-                {/* 3D Blockchain Icon */}
-                <div className="flex-shrink-0 relative">
-                  <div className="w-28 h-28 rounded-3xl bg-gradient-to-br from-violet-500/30 to-indigo-500/20 flex items-center justify-center border border-violet-500/40 shadow-2xl shadow-purple-500/30 transform group-hover:rotate-6 transition-transform duration-500">
-                    <Blocks className="w-14 h-14 text-purple-400" />
-                  </div>
-                  {/* Floating rings */}
-                  <div className="absolute -inset-4 rounded-[2rem] border border-purple-500/20 animate-pulse" />
-                  <div className="absolute -inset-8 rounded-[2.5rem] border border-purple-500/10 animate-pulse" style={{ animationDelay: '0.5s' }} />
-                </div>
+              {/* Blockchain Chain Visualization */}
+              <div className="flex-1 w-full">
+                <h4 className="text-lg font-bold text-white mb-2">Blockchain-Verified Transactions</h4>
+                <p className="text-white/50 text-sm mb-4">Every sale and payout is recorded on-chain for complete transparency.</p>
 
-                <div className="flex-1 text-center lg:text-left">
-                  <h4 className="text-2xl md:text-3xl font-bold text-white mb-3">Blockchain-Verified Transactions</h4>
-                  <p className="text-white/50 text-lg mb-8">Every sale and payout is recorded on-chain for complete transparency.</p>
-
-                  {/* Animated Visual Chain */}
-                  <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 md:gap-3">
-                    {[
-                      { label: 'Sale', value: '$29.99', color: 'green' },
-                      { label: 'Verify', value: '✓', color: 'purple' },
-                      { label: 'Split', value: '85/15', color: 'violet' },
-                      { label: 'Record', value: 'Block #', color: 'indigo' },
-                      { label: 'Payout', value: '$25.49', color: 'green' },
-                    ].map((block, i) => (
-                      <div key={i} className="flex items-center">
-                        <div
-                          className="px-4 py-3 rounded-xl min-w-[80px] text-center transform hover:scale-105 transition-all duration-300 cursor-default border"
-                          style={{
-                            background: block.color === 'green' ? 'rgba(34, 197, 94, 0.15)' :
-                                        block.color === 'purple' ? 'rgba(147, 51, 234, 0.15)' :
-                                        block.color === 'violet' ? 'rgba(139, 92, 246, 0.15)' :
-                                        'rgba(99, 102, 241, 0.15)',
-                            borderColor: block.color === 'green' ? 'rgba(34, 197, 94, 0.3)' :
-                                        'rgba(147, 51, 234, 0.3)',
-                            boxShadow: block.color === 'green' ? '0 4px 20px rgba(34, 197, 94, 0.15)' :
-                                      '0 4px 20px rgba(147, 51, 234, 0.15)'
-                          }}
-                        >
-                          <p className="text-[10px] text-white/50 uppercase tracking-wider mb-1">{block.label}</p>
-                          <p className="text-sm font-bold text-white">{block.value}</p>
-                        </div>
-                        {i < 4 && (
-                          <div className="w-6 h-0.5 bg-gradient-to-r from-violet-500/60 to-indigo-500/60 relative hidden md:block">
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-chain-pulse" style={{ animationDelay: `${i * 0.3}s` }} />
-                          </div>
-                        )}
+                {/* Visual Chain */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                  {[
+                    { label: 'Sale', value: '$29.99', color: 'green' },
+                    { label: 'Verify', value: '✓', color: 'purple' },
+                    { label: 'Split', value: '85/15', color: 'violet' },
+                    { label: 'Record', value: 'Block #', color: 'purple' },
+                    { label: 'Payout', value: '$25.49', color: 'green' },
+                  ].map((block, i) => (
+                    <div key={i} className="flex items-center">
+                      <div className={`px-3 py-2 rounded-lg bg-${block.color}-500/20 border border-${block.color}-500/30 text-center min-w-[70px]`}
+                           style={{
+                             background: block.color === 'green' ? 'rgba(34, 197, 94, 0.2)' :
+                                        block.color === 'purple' ? 'rgba(147, 51, 234, 0.2)' :
+                                        'rgba(236, 72, 153, 0.2)',
+                             borderColor: block.color === 'green' ? 'rgba(34, 197, 94, 0.3)' :
+                                         block.color === 'purple' ? 'rgba(147, 51, 234, 0.3)' :
+                                         'rgba(236, 72, 153, 0.3)'
+                           }}>
+                        <p className="text-[10px] text-white/50 uppercase">{block.label}</p>
+                        <p className="text-sm font-bold text-white">{block.value}</p>
                       </div>
-                    ))}
-                  </div>
+                      {i < 4 && (
+                        <div className="w-4 h-0.5 bg-gradient-to-r from-violet-500/50 to-indigo-500/50" />
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Compare with other platforms - Premium version */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {[
-              { platform: 'Rhythm', pct: 85, highlight: true },
-              { platform: 'BeatStars', pct: 70, highlight: false },
-              { platform: 'Airbit', pct: 80, highlight: false },
-              { platform: 'Spotify', pct: 12, prefix: '~', highlight: false },
-            ].map((item, i) => (
-              <div
-                key={i}
-                className={`p-6 md:p-8 rounded-2xl text-center transition-all duration-300 hover:scale-105 ${
-                  item.highlight
-                    ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/10 border-2 border-green-500/40 shadow-lg shadow-green-500/20 animate-glow-pulse-green'
-                    : 'bg-white/[0.03] border border-white/10'
-                }`}
-              >
-                <p className={`text-4xl md:text-5xl font-black mb-2 ${
-                  item.highlight ? 'text-green-400' : 'text-white/30'
-                }`}>
-                  {item.prefix || ''}{item.pct}%
-                </p>
-                <p className={`text-sm ${item.highlight ? 'text-green-300/80 font-medium' : 'text-white/40'}`}>
-                  {item.platform}
-                </p>
-              </div>
-            ))}
+          {/* Compare with other platforms */}
+          <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
+              <p className="text-2xl md:text-3xl font-black text-green-400 mb-1">85%</p>
+              <p className="text-xs text-white/50">Rhythm</p>
+            </div>
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
+              <p className="text-2xl md:text-3xl font-black text-white/30 mb-1">70%</p>
+              <p className="text-xs text-white/40">BeatStars</p>
+            </div>
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
+              <p className="text-2xl md:text-3xl font-black text-white/30 mb-1">80%</p>
+              <p className="text-xs text-white/40">Airbit</p>
+            </div>
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
+              <p className="text-2xl md:text-3xl font-black text-white/30 mb-1">~12%</p>
+              <p className="text-xs text-white/40">Spotify</p>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Coming Soon Section */}
-      <section
-        ref={comingSoonReveal.ref}
-        className={`relative py-16 md:py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-purple-500/[0.03] to-transparent transition-all duration-1000 ${
-          comingSoonReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
-        }`}>
+      <section className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-purple-500/[0.03] to-transparent">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 md:mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 mb-4 md:mb-6">
@@ -1717,12 +1660,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       </section>
 
       {/* Public Roadmap Section */}
-      <section
-        ref={roadmapReveal.ref}
-        id="roadmap"
-        className={`relative py-16 md:py-24 px-4 md:px-8 lg:px-12 transition-all duration-1000 ${
-          roadmapReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
-        }`}>
+      <section id="roadmap" className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10 md:mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mb-4 md:mb-6">
@@ -1814,12 +1752,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       </section>
 
       {/* Blockchain Transparency Section */}
-      <section
-        ref={transparencyReveal.ref}
-        id="transparency"
-        className={`relative py-16 md:py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-cyan-500/[0.03] to-transparent overflow-hidden transition-all duration-1000 ${
-          transparencyReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
-        }`}>
+      <section id="transparency" className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-cyan-500/[0.03] to-transparent overflow-hidden">
         {/* Animated blockchain background */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
           <div className="absolute top-1/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-500 to-transparent animate-pulse" />
@@ -1961,12 +1894,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       </section>
 
       {/* Pricing Section */}
-      <section
-        ref={pricingReveal.ref}
-        id="pricing"
-        className={`relative py-16 md:py-24 px-4 md:px-8 lg:px-12 transition-all duration-1000 ${
-          pricingReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
-        }`}>
+      <section id="pricing" className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10 md:mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mb-4 md:mb-6">
@@ -2065,12 +1993,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       </section>
 
       {/* About Section - Artist Focused */}
-      <section
-        ref={aboutReveal.ref}
-        id="about"
-        className={`relative py-16 md:py-24 px-4 md:px-8 lg:px-12 transition-all duration-1000 ${
-          aboutReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
-        }`}>
+      <section id="about" className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 md:mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mb-4 md:mb-6">
@@ -2183,11 +2106,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       </section>
 
       {/* CTA Section */}
-      <section
-        ref={ctaReveal.ref}
-        className={`relative py-16 md:py-24 px-4 md:px-8 lg:px-12 transition-all duration-1000 ${
-          ctaReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
-        }`}>
+      <section className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12">
         <div className="max-w-4xl mx-auto text-center">
           <div className="p-8 md:p-12 rounded-2xl md:rounded-3xl bg-gradient-to-br from-violet-500/15 to-indigo-500/10 border border-violet-500/20 relative overflow-hidden">
             {/* Background glow */}

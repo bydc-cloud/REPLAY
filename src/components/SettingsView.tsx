@@ -211,7 +211,7 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
     {
       variant: "lyrics" as const,
       name: "Lyrics",
-      description: "Apple Music-style lyrics display with transcription",
+      description: "Synced lyrics display with real-time transcription",
       features: ["Karaoke mode", "Auto-scroll", "Transcription"],
       gradient: "from-violet-500/20 to-fuchsia-500/20",
       borderGradient: "from-violet-500/50 to-fuchsia-500/50"

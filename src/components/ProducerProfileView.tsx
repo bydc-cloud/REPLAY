@@ -1,10 +1,20 @@
 import { useState, useEffect, useCallback, useContext } from 'react';
 import {
-  User, Music, Package, Heart, Play, Pause, Share2, MoreHorizontal,
+  Music, Package, Heart, Play, Pause, Share2, MoreHorizontal,
   Instagram, Twitter, Youtube, Globe, Loader2, UserPlus, UserMinus,
   MessageCircle, Shuffle, Edit2, Camera, Check, X, ListMusic, Clock,
-  TrendingUp, Calendar, MapPin, Verified, PlayCircle, Repeat2
+  TrendingUp, Calendar, MapPin, Verified, PlayCircle, Repeat2, User
 } from 'lucide-react';
+
+// Instagram-style silhouette avatar (head + shoulders)
+const SilhouetteAvatar = ({ className = "w-6 h-6" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    {/* Head circle */}
+    <circle cx="12" cy="8" r="4" />
+    {/* Shoulders curve */}
+    <path d="M4 22c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+  </svg>
+);
 import { useAuth } from '../contexts/PostgresAuthContext';
 import { useAudioPlayer } from '../contexts/AudioPlayerContext';
 import MessagingContext from '../contexts/MessagingContext';
@@ -109,6 +119,9 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
   const [showFollowersModal, setShowFollowersModal] = useState<'followers' | 'following' | null>(null);
   const [followersList, setFollowersList] = useState<Array<{ id: string; username: string; display_name?: string; avatar_url?: string; is_following?: boolean }>>([]);
   const [followersLoading, setFollowersLoading] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [bannerUploading, setBannerUploading] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const isOwnProfile = user?.id === targetUserId;
 
@@ -264,6 +277,146 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
     };
     loadData();
   }, [fetchProfile, fetchTracks, fetchPacks, fetchLikedTracks, checkFollowing]);
+
+  const handleImageUpload = async (file: File, type: 'avatar' | 'banner') => {
+    if (!token) {
+      console.error('No auth token available');
+      alert('Please log in to update your profile picture');
+      return;
+    }
+
+    console.log(`Starting ${type} upload:`, file.name, file.type, file.size);
+
+    if (type === 'avatar') setAvatarUploading(true);
+    else setBannerUploading(true);
+
+    try {
+      // Convert file to base64 for more reliable upload
+      const reader = new FileReader();
+
+      reader.onerror = () => {
+        console.error('FileReader error:', reader.error);
+        alert('Failed to read the image file. Please try again.');
+        if (type === 'avatar') setAvatarUploading(false);
+        else setBannerUploading(false);
+      };
+
+      reader.onload = async () => {
+        const base64Data = reader.result as string;
+        console.log(`File read complete, uploading to ${API_URL}/api/me/profile-image`);
+
+        try {
+          const response = await fetch(`${API_URL}/api/me/profile-image?type=${type}`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              image: base64Data,
+              filename: file.name,
+              mimetype: file.type,
+            }),
+          });
+
+          console.log('Upload response status:', response.status);
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('Upload successful:', data);
+            // Update local profile state
+            if (profile) {
+              setProfile({
+                ...profile,
+                [type === 'avatar' ? 'avatar_url' : 'banner_url']: data.url
+              });
+            }
+          } else {
+            const errorText = await response.text();
+            console.error('Upload failed:', response.status, errorText);
+            alert(`Failed to upload ${type}: ${errorText || 'Unknown error'}`);
+          }
+        } catch (fetchErr) {
+          console.error('Network error during upload:', fetchErr);
+          alert('Network error. Please check your connection and try again.');
+        }
+
+        if (type === 'avatar') setAvatarUploading(false);
+        else setBannerUploading(false);
+      };
+
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Image upload error:', err);
+      alert('An unexpected error occurred. Please try again.');
+      if (type === 'avatar') setAvatarUploading(false);
+      else setBannerUploading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!token) return;
+
+    setSavingProfile(true);
+    const payload = {
+      display_name: editForm.display_name || null,
+      bio: editForm.bio || null,
+      location: editForm.location || null,
+      website: editForm.website || null,
+      social_links: {
+        instagram: editForm.instagram || null,
+        twitter: editForm.twitter || null,
+        youtube: editForm.youtube || null,
+      }
+    };
+    console.log('Saving profile with payload:', payload);
+
+    try {
+      const response = await fetch(`${API_URL}/api/me/producer-profile`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      console.log('Profile update response status:', response.status);
+
+      if (response.ok) {
+        const updated = await response.json();
+        console.log('Profile update response:', updated);
+
+        if (profile) {
+          // Update profile with the new values, prioritizing form values for immediate feedback
+          setProfile({
+            ...profile,
+            display_name: editForm.display_name || updated.display_name || profile.display_name,
+            bio: editForm.bio || updated.bio,
+            location: editForm.location || updated.location,
+            website: editForm.website || updated.website,
+            social_links: updated.social_links || {
+              instagram: editForm.instagram,
+              twitter: editForm.twitter,
+              youtube: editForm.youtube,
+            },
+          });
+        }
+        setIsEditing(false);
+        // Refetch profile to ensure sync with server
+        fetchProfile();
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to update profile:', response.status, errorText);
+        alert('Failed to save profile. Please try again.');
+      }
+    } catch (err) {
+      console.error('Profile update error:', err);
+      alert('Network error. Please check your connection and try again.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const handleFollow = async () => {
     if (!token || !targetUserId) return;
@@ -421,11 +574,185 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
   }
 
   return (
-    <div className="pb-8">
-      {/* Hero Banner - Spotify/Apple Music style with gradient overlay */}
-      <div className="relative">
+    <div className="pb-8 md:pb-8">
+      {/* Mobile Hero - Instagram/TikTok inspired compact design */}
+      <div className="md:hidden">
+        {/* Gradient Background with subtle animation */}
+        <div className="relative h-36 overflow-hidden">
+          {profile.banner_url ? (
+            <img
+              src={profile.banner_url}
+              alt="Banner"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-violet-900/80 via-indigo-800/60 to-zinc-900" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/40 to-transparent" />
+        </div>
+
+        {/* Mobile Profile Section - Centered like Instagram */}
+        <div className="px-4 -mt-16 relative z-10">
+          {/* Avatar - Centered with gradient ring */}
+          <div className="flex justify-center mb-3">
+            <div className="relative">
+              <div className="w-24 h-24 rounded-full p-[3px] bg-gradient-to-br from-violet-500 via-pink-500 to-indigo-500">
+                <div className="w-full h-full rounded-full border-[3px] border-[#0a0a0a] overflow-hidden bg-gradient-to-br from-violet-600 to-indigo-700">
+                  {profile.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt={profile.display_name || profile.username}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-700 to-zinc-900">
+                      <SilhouetteAvatar className="w-12 h-12 text-zinc-500" />
+                    </div>
+                  )}
+                </div>
+              </div>
+              {avatarUploading && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-full">
+                  <Loader2 className="w-6 h-6 animate-spin text-white" />
+                </div>
+              )}
+              {isOwnProfile && (
+                <label
+                  className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-violet-500 flex items-center justify-center cursor-pointer hover:bg-violet-400 active:scale-90 transition-all shadow-lg border-2 border-[#0a0a0a]"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Camera className="w-4 h-4 text-white" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        console.log('Avatar file selected:', file.name, file.type, file.size);
+                        handleImageUpload(file, 'avatar');
+                      }
+                      // Reset input to allow re-selecting the same file
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+
+          {/* Name & Verification - Centered */}
+          <div className="text-center mb-4">
+            <div className="flex items-center justify-center gap-1.5 mb-1">
+              <h1 className="text-xl font-black text-white">
+                {profile.display_name || profile.username}
+              </h1>
+              {profile.is_verified && (
+                <Verified className="w-5 h-5 text-blue-400" />
+              )}
+            </div>
+            <p className="text-white/50 text-sm">@{profile.username}</p>
+          </div>
+
+          {/* Stats Row - Instagram style */}
+          <div className="flex items-center justify-center gap-8 mb-4">
+            <button
+              onClick={() => handleOpenFollowersModal('followers')}
+              className="text-center active:scale-95 transition-transform"
+            >
+              <div className="text-lg font-bold text-white">{formatNumber(profile.followers_count)}</div>
+              <div className="text-xs text-white/50">Followers</div>
+            </button>
+            <button
+              onClick={() => handleOpenFollowersModal('following')}
+              className="text-center active:scale-95 transition-transform"
+            >
+              <div className="text-lg font-bold text-white">{formatNumber(profile.following_count)}</div>
+              <div className="text-xs text-white/50">Following</div>
+            </button>
+            <div className="text-center">
+              <div className="text-lg font-bold text-white">{formatNumber(profile.tracks_count)}</div>
+              <div className="text-xs text-white/50">Tracks</div>
+            </div>
+          </div>
+
+          {/* Bio - Compact */}
+          {profile.bio && (
+            <p className="text-white/70 text-sm text-center mb-4 line-clamp-2 px-4">
+              {profile.bio}
+            </p>
+          )}
+
+          {/* Action Buttons - Centered on mobile */}
+          <div className="flex gap-2 mb-2 justify-center">
+            {isOwnProfile ? (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="flex-1 max-w-[200px] py-2.5 rounded-xl bg-white/10 text-white text-sm font-semibold active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+              >
+                <Edit2 className="w-4 h-4" />
+                Edit Profile
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={handleFollow}
+                  className={`flex-1 max-w-[140px] py-2.5 rounded-xl text-sm font-semibold active:scale-[0.98] transition-all ${
+                    isFollowing
+                      ? 'bg-white/10 text-white'
+                      : 'bg-gradient-to-r from-violet-500 to-pink-500 text-white'
+                  }`}
+                >
+                  {isFollowing ? 'Following' : 'Follow'}
+                </button>
+                <button
+                  onClick={handleMessage}
+                  disabled={messageLoading}
+                  className="flex-1 max-w-[140px] py-2.5 rounded-xl bg-white/10 text-white text-sm font-semibold active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+                >
+                  {messageLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <MessageCircle className="w-4 h-4" />
+                  )}
+                  Message
+                </button>
+              </>
+            )}
+            <button
+              onClick={handleShare}
+              className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center active:scale-95 transition-transform"
+            >
+              <Share2 className="w-4 h-4 text-white" />
+            </button>
+          </div>
+
+          {/* Play Controls Row - Centered on mobile */}
+          <div className="flex gap-2 pt-2 justify-center">
+            <button
+              onClick={handlePlayAll}
+              disabled={tracks.length === 0}
+              className="flex-1 max-w-[200px] py-3 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 text-white text-sm font-bold active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-violet-500/20"
+            >
+              <Play className="w-5 h-5" fill="currentColor" />
+              Play All
+            </button>
+            <button
+              onClick={handleShuffle}
+              disabled={tracks.length === 0}
+              className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center active:scale-95 transition-transform disabled:opacity-50"
+            >
+              <Shuffle className="w-4 h-4 text-white" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop Hero Banner - Spotify/Apple Music style with gradient overlay */}
+      <div className="relative hidden md:block">
         {/* Banner Image */}
-        <div className="h-64 md:h-80 lg:h-96 relative overflow-hidden">
+        <div className="h-80 lg:h-96 relative overflow-hidden">
           {profile.banner_url ? (
             <img
               src={profile.banner_url}
@@ -441,11 +768,11 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
         </div>
 
         {/* Profile Content Overlay */}
-        <div className="absolute bottom-0 left-0 right-0 px-4 md:px-8 pb-6">
-          <div className="flex flex-col md:flex-row md:items-end gap-4 md:gap-6">
+        <div className="absolute bottom-0 left-0 right-0 px-8 pb-6">
+          <div className="flex items-end gap-6">
             {/* Avatar */}
             <div className="relative group">
-              <div className="w-36 h-36 md:w-48 md:h-48 rounded-full border-4 border-[#0a0a0a] overflow-hidden bg-gradient-to-br from-violet-500 to-indigo-600 shadow-2xl">
+              <div className="w-48 h-48 rounded-full border-4 border-[#0a0a0a] overflow-hidden bg-gradient-to-br from-zinc-700 to-zinc-900 shadow-2xl">
                 {profile.avatar_url ? (
                   <img
                     src={profile.avatar_url}
@@ -454,16 +781,29 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-5xl md:text-6xl font-bold text-white">
-                      {(profile.display_name || profile.username).charAt(0).toUpperCase()}
-                    </span>
+                    <SilhouetteAvatar className="w-24 h-24 text-zinc-500" />
+                  </div>
+                )}
+                {/* Upload overlay */}
+                {avatarUploading && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-white" />
                   </div>
                 )}
               </div>
               {isOwnProfile && (
-                <button className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity border border-white/20">
+                <label className="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity border border-white/20 cursor-pointer hover:bg-black/80">
                   <Camera className="w-5 h-5 text-white" />
-                </button>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImageUpload(file, 'avatar');
+                    }}
+                  />
+                </label>
               )}
             </div>
 
@@ -475,13 +815,13 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
                   Verified Artist
                 </div>
               )}
-              <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-white mb-2">
+              <h1 className="text-5xl lg:text-6xl font-black text-white mb-2">
                 {profile.display_name || profile.username}
               </h1>
 
               {/* Monthly Listeners - Spotify style */}
               <div className="flex items-center gap-4 text-white/70">
-                <span className="text-sm md:text-base">
+                <span className="text-base">
                   {formatNumber(profile.monthly_listeners || profile.followers_count * 10)} monthly listeners
                 </span>
               </div>
@@ -490,15 +830,15 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
         </div>
       </div>
 
-      {/* Actions Bar */}
-      <div className="px-4 md:px-8 py-6 flex flex-wrap items-center gap-3">
-        {/* Play Button - Large green circle like Spotify */}
+      {/* Actions Bar - Desktop only (mobile has buttons above) */}
+      <div className="hidden md:flex px-8 py-6 flex-wrap items-center gap-3">
+        {/* Play Button - Large gradient circle with Rhythm branding */}
         <button
           onClick={handlePlayAll}
           disabled={tracks.length === 0}
-          className="w-14 h-14 rounded-full bg-green-500 hover:bg-green-400 hover:scale-105 transition-all flex items-center justify-center shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-14 h-14 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 hover:from-violet-400 hover:to-indigo-500 hover:scale-105 transition-all flex items-center justify-center shadow-lg shadow-violet-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Play className="w-7 h-7 text-black ml-1" fill="currentColor" />
+          <Play className="w-7 h-7 text-white ml-1" fill="currentColor" />
         </button>
 
         {/* Shuffle */}
@@ -583,45 +923,45 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
         </div>
       </div>
 
-      {/* Stats Row - Instagram/Twitter style */}
-      <div className="px-4 md:px-8 py-4 flex items-center gap-8 border-b border-white/10">
+      {/* Stats Row - Desktop only (mobile has stats above) */}
+      <div className="hidden md:flex px-8 py-4 items-center gap-8 border-b border-white/10">
         <button
           onClick={() => handleOpenFollowersModal('followers')}
           className="text-center hover:opacity-80 transition-opacity"
         >
-          <div className="text-xl md:text-2xl font-bold text-white">{formatNumber(profile.followers_count)}</div>
-          <div className="text-xs md:text-sm text-white/50">Followers</div>
+          <div className="text-2xl font-bold text-white">{formatNumber(profile.followers_count)}</div>
+          <div className="text-sm text-white/50">Followers</div>
         </button>
         <button
           onClick={() => handleOpenFollowersModal('following')}
           className="text-center hover:opacity-80 transition-opacity"
         >
-          <div className="text-xl md:text-2xl font-bold text-white">{formatNumber(profile.following_count)}</div>
-          <div className="text-xs md:text-sm text-white/50">Following</div>
+          <div className="text-2xl font-bold text-white">{formatNumber(profile.following_count)}</div>
+          <div className="text-sm text-white/50">Following</div>
         </button>
         <div className="text-center">
-          <div className="text-xl md:text-2xl font-bold text-white">{formatNumber(profile.tracks_count)}</div>
-          <div className="text-xs md:text-sm text-white/50">Tracks</div>
+          <div className="text-2xl font-bold text-white">{formatNumber(profile.tracks_count)}</div>
+          <div className="text-sm text-white/50">Tracks</div>
         </div>
         {profile.total_plays && (
           <div className="text-center">
-            <div className="text-xl md:text-2xl font-bold text-white">{formatNumber(profile.total_plays)}</div>
-            <div className="text-xs md:text-sm text-white/50">Plays</div>
+            <div className="text-2xl font-bold text-white">{formatNumber(profile.total_plays)}</div>
+            <div className="text-sm text-white/50">Plays</div>
           </div>
         )}
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="px-4 md:px-8 pt-4">
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2">
+      {/* Navigation Tabs - Sticky on mobile */}
+      <div className="sticky top-[68px] md:static z-20 bg-[#0a0a0a]/95 backdrop-blur-xl md:backdrop-blur-none px-4 md:px-8 pt-4 pb-2 md:pb-0 border-b border-white/5 md:border-0">
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide">
           {['popular', 'tracks', 'likes', 'packs', 'playlists', 'about'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab as typeof activeTab)}
-              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+              className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all active:scale-95 ${
                 activeTab === tab
-                  ? 'bg-white text-black'
-                  : 'bg-white/10 text-white hover:bg-white/20'
+                  ? 'bg-white text-black shadow-lg'
+                  : 'bg-white/10 text-white/70 active:bg-white/20'
               }`}
             >
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -664,7 +1004,7 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
 
                     {/* Title & Artist */}
                     <div className="flex-1 min-w-0">
-                      <h4 className={`font-medium truncate ${isCurrentTrack ? 'text-green-500' : 'text-white'}`}>
+                      <h4 className={`font-medium truncate ${isCurrentTrack ? 'text-violet-400' : 'text-white'}`}>
                         {track.title}
                       </h4>
                       <p className="text-sm text-white/50 truncate">{track.artist}</p>
@@ -734,7 +1074,7 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h4 className={`font-medium truncate ${isCurrentTrack ? 'text-green-500' : 'text-white'}`}>
+                      <h4 className={`font-medium truncate ${isCurrentTrack ? 'text-violet-400' : 'text-white'}`}>
                         {track.title}
                       </h4>
                       <div className="flex items-center gap-2 text-xs text-white/50">
@@ -821,7 +1161,7 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h4 className={`font-medium truncate ${isCurrentTrack ? 'text-green-500' : 'text-white'}`}>
+                      <h4 className={`font-medium truncate ${isCurrentTrack ? 'text-violet-400' : 'text-white'}`}>
                         {track.title}
                       </h4>
                       <p className="text-sm text-white/50 truncate">{track.artist}</p>
@@ -920,8 +1260,8 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
                           <ListMusic className="w-12 h-12 text-white/40" />
                         </div>
                       )}
-                      <button className="absolute bottom-2 right-2 w-12 h-12 rounded-full bg-green-500 flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all shadow-lg">
-                        <Play className="w-5 h-5 text-black ml-0.5" fill="currentColor" />
+                      <button className="absolute bottom-2 right-2 w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all shadow-lg shadow-violet-500/30">
+                        <Play className="w-5 h-5 text-white ml-0.5" fill="currentColor" />
                       </button>
                     </div>
                     <h4 className="font-medium text-white truncate">{playlist.title}</h4>
@@ -1055,24 +1395,99 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
         )}
       </div>
 
-      {/* Edit Profile Modal */}
+      {/* Edit Profile Modal - Full screen on mobile for easy scrolling */}
       {isEditing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsEditing(false)} />
-          <div className="relative bg-[#1a1a1a] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-[#1a1a1a] border-b border-white/10 p-4 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-white">Edit Profile</h3>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsEditing(false)}
-                  className="p-2 rounded-full hover:bg-white/10 transition-colors"
-                >
-                  <X className="w-5 h-5 text-white/70" />
-                </button>
-              </div>
+        <div className="fixed inset-0 z-50 bg-black md:bg-black/80 md:backdrop-blur-sm md:flex md:items-center md:justify-center">
+          {/* Desktop backdrop click to close */}
+          <div className="hidden md:block absolute inset-0" onClick={() => setIsEditing(false)} />
+
+          {/* Modal Content - Full screen on mobile, centered card on desktop */}
+          <div className="relative bg-[#0a0a0a] md:bg-[#1a1a1a] w-full h-full md:h-auto md:max-h-[85vh] md:max-w-lg md:mx-4 md:rounded-2xl flex flex-col overflow-hidden">
+            {/* Fixed Header with gradient */}
+            <div className="flex-shrink-0 bg-gradient-to-b from-violet-900/30 to-transparent border-b border-white/10 px-4 py-4 flex items-center justify-between z-10">
+              <button
+                onClick={() => setIsEditing(false)}
+                className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors"
+              >
+                <X className="w-5 h-5 text-white/70" />
+              </button>
+              <h3 className="text-lg font-bold text-white">Edit Profile</h3>
+              <button
+                onClick={handleSaveProfile}
+                disabled={savingProfile}
+                className="px-4 py-1.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition-all disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {savingProfile && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Save
+              </button>
             </div>
 
-            <div className="p-4 space-y-4">
+            {/* Scrollable Content - Full height scroll */}
+            <div className="flex-1 overflow-y-auto pb-safe" style={{ WebkitOverflowScrolling: 'touch' }}>
+              {/* Profile Picture Section - Centered hero style */}
+              <div className="flex flex-col items-center py-8 px-4 bg-gradient-to-b from-violet-900/20 to-transparent">
+                <div className="relative mb-4">
+                  <div className="w-28 h-28 rounded-full overflow-hidden bg-gradient-to-br from-violet-500 to-pink-500 p-[3px]">
+                    <div className="w-full h-full rounded-full overflow-hidden bg-[#0a0a0a]">
+                      {profile?.avatar_url ? (
+                        <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-zinc-700 to-zinc-900 flex items-center justify-center">
+                          <SilhouetteAvatar className="w-14 h-14 text-zinc-500" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {avatarUploading && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-full">
+                      <Loader2 className="w-8 h-8 animate-spin text-white" />
+                    </div>
+                  )}
+                  {/* Camera button overlay */}
+                  <label
+                    className="absolute bottom-0 right-0 w-10 h-10 rounded-full bg-violet-500 flex items-center justify-center cursor-pointer hover:bg-violet-400 active:scale-90 transition-all shadow-lg border-2 border-[#0a0a0a]"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Camera className="w-5 h-5 text-white" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          console.log('Edit modal avatar selected:', file.name, file.type, file.size);
+                          handleImageUpload(file, 'avatar');
+                        }
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                </div>
+                <button
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        console.log('Profile photo button clicked, file:', file.name);
+                        handleImageUpload(file, 'avatar');
+                      }
+                    };
+                    input.click();
+                  }}
+                  className="text-violet-400 text-sm font-medium hover:text-violet-300 transition-colors active:scale-95"
+                >
+                  Change Photo
+                </button>
+              </div>
+
+              {/* Form Fields */}
+              <div className="px-4 space-y-5 pb-8">
+
               <div>
                 <label className="block text-sm font-medium text-white/70 mb-2">Display Name</label>
                 <input
@@ -1152,20 +1567,7 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="sticky bottom-0 bg-[#1a1a1a] border-t border-white/10 p-4 flex justify-end gap-3">
-              <button
-                onClick={() => setIsEditing(false)}
-                className="px-5 py-2.5 rounded-full text-white/70 hover:text-white transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                className="px-6 py-2.5 rounded-full bg-green-500 text-black font-semibold hover:bg-green-400 transition-colors"
-              >
-                Save Changes
-              </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1208,13 +1610,11 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
                       className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors"
                     >
                       {/* Avatar */}
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {person.avatar_url ? (
                           <img src={person.avatar_url} alt={person.username} className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-lg font-bold text-white">
-                            {(person.display_name || person.username).charAt(0).toUpperCase()}
-                          </span>
+                          <SilhouetteAvatar className="w-7 h-7 text-zinc-500" />
                         )}
                       </div>
 

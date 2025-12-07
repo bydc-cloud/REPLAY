@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useMusicLibrary, TrackLyrics, LyricsSegment } from "../contexts/MusicLibraryContext";
 
@@ -31,8 +31,6 @@ export const LyricsVisualizer = ({
   const [lyrics, setLyrics] = useState<TrackLyrics | null>(null);
   const [currentLineIndex, setCurrentLineIndex] = useState(0);
   const [autoTranscribeAttempted, setAutoTranscribeAttempted] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const activeLineRef = useRef<HTMLDivElement>(null);
 
   // Get track from context
   const track = trackId ? tracks.find(t => t.id === trackId) : null;
@@ -168,76 +166,9 @@ export const LyricsVisualizer = ({
     }
   }, [currentTime, lines, currentLineIndex]);
 
-  // Auto-scroll to active line with debounce to prevent jank
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const hasInitialScrolled = useRef(false);
-
-  // Immediate scroll when component mounts or lyrics become available
-  // This ensures lyrics sync when player is reopened
-  useEffect(() => {
-    if (hasLyrics && lines.length > 0 && !hasInitialScrolled.current) {
-      // Find the correct line based on current time
-      const adjustedTime = currentTime + SYNC_OFFSET;
-      let initialLineIndex = lines.findIndex(
-        (line) => adjustedTime >= line.startTime && adjustedTime < line.endTime
-      );
-
-      // If no exact match, find the appropriate line
-      if (initialLineIndex === -1) {
-        if (adjustedTime >= lines[lines.length - 1].endTime) {
-          initialLineIndex = lines.length - 1;
-        } else {
-          const upcomingIndex = lines.findIndex(line => line.startTime > adjustedTime);
-          if (upcomingIndex > 0) {
-            initialLineIndex = upcomingIndex - 1;
-          } else if (upcomingIndex === 0) {
-            initialLineIndex = 0;
-          }
-        }
-      }
-
-      if (initialLineIndex !== -1) {
-        setCurrentLineIndex(initialLineIndex);
-        hasInitialScrolled.current = true;
-
-        // Immediate scroll (not smooth) for initial position
-        setTimeout(() => {
-          activeLineRef.current?.scrollIntoView({
-            behavior: "instant",
-            block: "center",
-          });
-        }, 100);
-      }
-    }
-  }, [hasLyrics, lines, currentTime]);
-
-  // Reset initial scroll flag when track changes
-  useEffect(() => {
-    hasInitialScrolled.current = false;
-  }, [trackId]);
-
-  useEffect(() => {
-    if (activeLineRef.current && containerRef.current) {
-      // Clear any pending scroll to prevent jitter
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-
-      // Small delay to let CSS transitions start first
-      scrollTimeoutRef.current = setTimeout(() => {
-        activeLineRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-      }, 50);
-    }
-
-    return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-    };
-  }, [currentLineIndex]);
+  // Note: We no longer auto-scroll since we're showing a centered 3-line view
+  // The previous/current/next lines are always visible in the center
+  // This prevents the scrollIntoView from scrolling the parent Discovery feed
 
   const handleLineClick = (line: { startTime: number }) => {
     if (onSeek) {
@@ -267,10 +198,10 @@ export const LyricsVisualizer = ({
   }, [audioLevels, averageEnergy]);
 
   return (
-    <div className="relative w-full h-full flex flex-col overflow-hidden bg-black">
-      {/* Apple-style Reactive Gaussian Blur Background */}
+    <div className="relative w-full h-full flex flex-col overflow-hidden">
+      {/* Subtle reactive glow - no solid background for overlay mode */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {/* Primary blob - purple, reacts to bass */}
+        {/* Primary blob - purple, reacts to bass - more subtle */}
         <div
           className="absolute rounded-full"
           style={{
@@ -279,14 +210,14 @@ export const LyricsVisualizer = ({
             left: '20%',
             top: '15%',
             background: `radial-gradient(circle,
-              rgba(147, 51, 234, ${0.4 + bassEnergy * 0.3}) 0%,
+              rgba(147, 51, 234, ${0.2 + bassEnergy * 0.2}) 0%,
               rgba(147, 51, 234, 0) 70%)`,
             filter: 'blur(80px)',
             transform: `scale(${1 + bassEnergy * 0.15})`,
             transition: 'transform 0.15s ease-out, background 0.15s ease-out',
           }}
         />
-        {/* Secondary blob - indigo, reacts to treble */}
+        {/* Secondary blob - indigo, reacts to treble - more subtle */}
         <div
           className="absolute rounded-full"
           style={{
@@ -295,42 +226,17 @@ export const LyricsVisualizer = ({
             right: '10%',
             bottom: '20%',
             background: `radial-gradient(circle,
-              rgba(79, 70, 229, ${0.35 + trebleEnergy * 0.25}) 0%,
+              rgba(79, 70, 229, ${0.15 + trebleEnergy * 0.15}) 0%,
               rgba(79, 70, 229, 0) 70%)`,
             filter: 'blur(70px)',
             transform: `scale(${1 + trebleEnergy * 0.12}) translateY(${-trebleEnergy * 10}px)`,
             transition: 'transform 0.12s ease-out, background 0.12s ease-out',
           }}
         />
-        {/* Tertiary blob - pink accent, subtle movement */}
-        <div
-          className="absolute rounded-full"
-          style={{
-            width: '40%',
-            height: '40%',
-            left: '5%',
-            bottom: '30%',
-            background: `radial-gradient(circle,
-              rgba(236, 72, 153, ${0.2 + averageEnergy * 0.15}) 0%,
-              rgba(236, 72, 153, 0) 70%)`,
-            filter: 'blur(60px)',
-            transform: `scale(${1 + averageEnergy * 0.1})`,
-            transition: 'transform 0.2s ease-out, background 0.2s ease-out',
-          }}
-        />
-        {/* Dark overlay to keep text readable */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'rgba(0, 0, 0, 0.3)',
-            backdropFilter: 'blur(1px)',
-          }}
-        />
       </div>
 
       {/* Lyrics Display - Apple Music style centered layout */}
       <div
-        ref={containerRef}
         className="flex-1 overflow-y-auto scrollbar-hide px-3 sm:px-6 md:px-12 min-h-0"
         style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
       >
@@ -387,63 +293,47 @@ export const LyricsVisualizer = ({
             )}
           </div>
         ) : (
-          // Apple Music Style Lyrics Display - Bar by bar with clear separation
-          <div className="flex flex-col items-center justify-start min-h-full py-[20vh] sm:py-[30vh] md:py-[45vh]">
-            <div className="w-full max-w-4xl mx-auto space-y-6 sm:space-y-8 md:space-y-12">
-              {lines.map((line, index) => {
-                const isActive = index === currentLineIndex;
-                const isPast = index < currentLineIndex;
-                const distanceFromActive = Math.abs(index - currentLineIndex);
+          // Centered lyrics display - only show current line and neighbors
+          <div className="flex flex-col items-center justify-center min-h-full">
+            <div className="w-full max-w-4xl mx-auto text-center space-y-4">
+              {/* Previous line - subtle */}
+              {currentLineIndex > 0 && (
+                <p
+                  className="text-lg sm:text-xl md:text-2xl font-medium text-white/30 transition-all duration-300"
+                  onClick={() => handleLineClick(lines[currentLineIndex - 1])}
+                >
+                  {lines[currentLineIndex - 1].text}
+                </p>
+              )}
 
-                // Apple Music style: clear distinction between active and inactive
-                // Active line pops, others fade significantly
-                const opacity = isActive ? 1 : isPast
-                  ? Math.max(0.15, 0.35 - distanceFromActive * 0.08)
-                  : Math.max(0.2, 0.4 - distanceFromActive * 0.08);
+              {/* Current line - prominent and centered */}
+              <div>
+                <p
+                  className="font-bold text-2xl sm:text-3xl md:text-4xl lg:text-5xl leading-tight"
+                  style={{
+                    color: 'white',
+                    textShadow: isPlaying
+                      ? `0 0 40px rgba(147, 51, 234, ${0.4 + bassEnergy * 0.3}),
+                         0 0 80px rgba(79, 70, 229, ${0.2 + bassEnergy * 0.15}),
+                         0 4px 8px rgba(0, 0, 0, 0.5)`
+                      : "0 0 30px rgba(147, 51, 234, 0.3), 0 2px 4px rgba(0, 0, 0, 0.3)",
+                    transition: 'text-shadow 0.15s ease-out',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {lines[currentLineIndex]?.text || '...'}
+                </p>
+              </div>
 
-                // Scale creates clear visual hierarchy - active line stands out
-                const scale = isActive ? 1 : 0.65;
-
-                return (
-                  <div
-                    key={index}
-                    ref={isActive ? activeLineRef : null}
-                    onClick={() => handleLineClick(line)}
-                    className="cursor-pointer text-center"
-                    style={{
-                      opacity: opacity,
-                      transform: `scale(${scale})`,
-                      transition: 'all 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)',
-                      willChange: 'transform, opacity',
-                      transformOrigin: 'center center',
-                      marginTop: isActive ? '16px' : '0',
-                      marginBottom: isActive ? '16px' : '0',
-                    }}
-                  >
-                    <p
-                      className="font-bold leading-snug text-2xl sm:text-3xl md:text-4xl lg:text-5xl"
-                      style={{
-                        color: isActive
-                          ? 'white'
-                          : isPast
-                          ? 'rgba(255, 255, 255, 0.4)'
-                          : 'rgba(255, 255, 255, 0.5)',
-                        textShadow: isActive && isPlaying
-                          ? `0 0 30px rgba(147, 51, 234, ${0.3 + bassEnergy * 0.2}),
-                             0 0 60px rgba(79, 70, 229, ${0.15 + bassEnergy * 0.1}),
-                             0 2px 4px rgba(0, 0, 0, 0.3)`
-                          : isActive
-                          ? "0 0 20px rgba(147, 51, 234, 0.2), 0 2px 4px rgba(0, 0, 0, 0.2)"
-                          : "none",
-                        transition: 'all 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)',
-                        letterSpacing: isActive ? '0.02em' : '0',
-                      }}
-                    >
-                      {line.text}
-                    </p>
-                  </div>
-                );
-              })}
+              {/* Next line - subtle hint */}
+              {currentLineIndex < lines.length - 1 && (
+                <p
+                  className="text-lg sm:text-xl md:text-2xl font-medium text-white/25 transition-all duration-300"
+                  onClick={() => handleLineClick(lines[currentLineIndex + 1])}
+                >
+                  {lines[currentLineIndex + 1].text}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -457,26 +347,6 @@ export const LyricsVisualizer = ({
         </div>
       </div>
 
-      {/* Subtle Audio Visualizer at Bottom - Full width on all devices */}
-      {isPlaying && hasLyrics && (
-        <div className="absolute bottom-0 left-0 right-0 h-12 sm:h-16 md:h-24 pointer-events-none flex items-end justify-between gap-[1px] sm:gap-[2px] px-0 pb-2 sm:pb-3 md:pb-4">
-          {/* Show fewer bars on mobile, more on desktop - bars stretch to fill width */}
-          {audioLevels.slice(0, 48).map((level, i) => (
-            <div
-              key={i}
-              className={`flex-1 rounded-full ${i >= 32 ? 'hidden md:block' : i >= 24 ? 'hidden sm:block' : ''}`}
-              style={{
-                height: `${Math.max(3, level * 50)}px`,
-                background: `linear-gradient(to top,
-                  rgba(147, 51, 234, ${0.35 + level * 0.35}),
-                  rgba(79, 70, 229, ${0.25 + level * 0.25}))`,
-                transition: 'height 0.05s ease-out',
-                opacity: 0.5,
-              }}
-            />
-          ))}
-        </div>
-      )}
 
       <style>{`
         .scrollbar-hide {

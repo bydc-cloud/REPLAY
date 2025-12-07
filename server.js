@@ -2145,6 +2145,59 @@ app.put('/api/me/producer-profile', auth, async (req, res) => {
   }
 });
 
+// Upload profile image (avatar or banner)
+app.post('/api/me/profile-image', auth, express.raw({ type: '*/*', limit: '10mb' }), async (req, res) => {
+  try {
+    const client = getS3Client();
+    if (!client) {
+      return res.status(500).json({ error: 'Storage not configured' });
+    }
+
+    const imageType = req.query.type || 'avatar'; // 'avatar' or 'banner'
+    const contentType = req.headers['content-type'] || 'image/jpeg';
+
+    // Validate content type
+    if (!contentType.startsWith('image/')) {
+      return res.status(400).json({ error: 'Only images are allowed' });
+    }
+
+    const ext = contentType.split('/')[1] || 'jpg';
+    const fileKey = `profiles/${req.user.id}/${imageType}-${Date.now()}.${ext}`;
+
+    console.log(`Uploading profile ${imageType}: ${fileKey}`);
+
+    const command = new PutObjectCommand({
+      Bucket: B2_BUCKET,
+      Key: fileKey,
+      Body: req.body,
+      ContentType: contentType,
+    });
+
+    await client.send(command);
+
+    // Generate public URL
+    const imageUrl = `${B2_ENDPOINT}/${B2_BUCKET}/${fileKey}`;
+
+    // Update producer profile with the new image URL
+    const db = getPool();
+    const updateField = imageType === 'banner' ? 'banner_url' : 'avatar_url';
+    await db.query(`
+      INSERT INTO producer_profiles (user_id, ${updateField})
+      VALUES ($1, $2)
+      ON CONFLICT (user_id) DO UPDATE SET
+        ${updateField} = $2,
+        updated_at = CURRENT_TIMESTAMP
+    `, [req.user.id, imageUrl]);
+
+    console.log(`Profile ${imageType} uploaded: ${imageUrl}`);
+
+    res.json({ url: imageUrl, type: imageType });
+  } catch (e) {
+    console.error('Profile image upload error:', e.message);
+    res.status(500).json({ error: 'Failed to upload image' });
+  }
+});
+
 // ---- USER SEARCH ----
 
 // Search users by username or display name
@@ -2543,6 +2596,41 @@ app.get('/api/feed', auth, async (req, res) => {
   } catch (e) {
     console.error('Get feed error:', e.message);
     res.status(500).json({ error: 'Failed to get feed' });
+  }
+});
+
+// Get tracks from users you follow (Following feed)
+app.get('/api/following/tracks', auth, async (req, res) => {
+  try {
+    const db = getPool();
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
+
+    // Get public tracks from users the current user follows
+    const result = await db.query(`
+      SELECT
+        t.id, t.user_id, t.title, t.artist, t.album, t.duration,
+        t.cover_url, t.bpm, t.musical_key, t.genre, t.visibility,
+        t.is_beat, t.file_key, t.play_count, t.created_at,
+        u.username,
+        pp.display_name,
+        pp.avatar_url,
+        (SELECT COUNT(*) FROM track_likes WHERE track_id = t.id) as likes_count,
+        (SELECT COUNT(*) FROM reposts WHERE track_id = t.id) as reposts_count,
+        (SELECT COUNT(*) FROM comments WHERE track_id = t.id) as comments_count
+      FROM tracks t
+      JOIN users u ON u.id = t.user_id
+      LEFT JOIN producer_profiles pp ON pp.user_id = u.id
+      WHERE t.visibility = 'public'
+        AND t.user_id IN (SELECT following_id FROM follows WHERE follower_id = $1)
+      ORDER BY t.created_at DESC
+      LIMIT $2 OFFSET $3
+    `, [req.user.id, limit, offset]);
+
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Get following tracks error:', e.message);
+    res.status(500).json({ error: 'Failed to get following tracks' });
   }
 });
 

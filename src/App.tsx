@@ -14,6 +14,7 @@ import { MarketplaceView } from "./components/MarketplaceView";
 import { FeedView } from "./components/FeedView";
 import { MessagesView } from "./components/MessagesView";
 import { ProducerProfileView } from "./components/ProducerProfileView";
+import { MobileBottomNav } from "./components/MobileBottomNav";
 import { SettingsProvider, useSettings } from "./contexts/SettingsContext";
 import { PostgresAuthProvider, useAuth } from "./contexts/PostgresAuthContext";
 import { MusicLibraryProvider } from "./contexts/MusicLibraryContext";
@@ -80,6 +81,17 @@ function AppContent() {
       setCurrentView("app");
     }
   }, [isAuthenticated, currentView]);
+
+  // Redirect logged-in users to Discovery (feed) as default landing page
+  useEffect(() => {
+    if (isAuthenticated && currentView === "app") {
+      // If on home or empty route, redirect to feed (Discovery)
+      const hash = window.location.hash;
+      if (!hash || hash === '#/' || hash === '#/home' || hash === '') {
+        navigate('feed');
+      }
+    }
+  }, [isAuthenticated, currentView, navigate]);
 
   // Show loading state with modern music-themed animation
   if (isLoading) {
@@ -210,8 +222,8 @@ function AppContent() {
         messageCount={messageCount}
       />
 
-      {/* Main Content Area */}
-      <main className={`flex-1 overflow-y-auto overflow-x-hidden ${activeTab === 'feed' ? 'pb-0' : 'pb-36 md:pb-28'} pt-[68px] md:pt-0 relative scroll-smooth`} style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+      {/* Main Content Area - adjusted for mobile bottom nav */}
+      <main className={`flex-1 overflow-y-auto overflow-x-hidden ${activeTab === 'feed' ? 'pb-[72px] md:pb-0' : 'pb-[140px] md:pb-28'} pt-[68px] md:pt-0 relative scroll-smooth`} style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
 
         {/* Mobile Header - Glass Effect */}
         <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-[#0a0a0a]/90 via-[#111111]/85 to-[#1a1a1a]/80 backdrop-blur-2xl border-b border-white/[0.08] shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
@@ -239,14 +251,33 @@ function AppContent() {
         {renderView()}
       </main>
 
-      {/* Player Bar - hidden on Discovery feed */}
+      {/* Player Bar - hidden on Discovery feed, positioned above bottom nav on mobile */}
       {activeTab !== 'feed' && (
-        <PlayerBar
-          onQueueClick={() => setQueueDrawerOpen(true)}
-          onMiniPlayerToggle={() => setMiniPlayerOpen(true)}
-        />
+        <div className="md:block hidden">
+          <PlayerBar
+            onQueueClick={() => setQueueDrawerOpen(true)}
+            onMiniPlayerToggle={() => setMiniPlayerOpen(true)}
+          />
+        </div>
+      )}
+      {/* Mobile: Player bar above bottom nav */}
+      {activeTab !== 'feed' && (
+        <div className="md:hidden fixed bottom-[72px] left-0 right-0 z-40">
+          <PlayerBar
+            onQueueClick={() => setQueueDrawerOpen(true)}
+            onMiniPlayerToggle={() => setMiniPlayerOpen(true)}
+          />
+        </div>
       )}
 
+      {/* Mobile Bottom Navigation - only on Discovery page, hidden when mini player is open */}
+      {activeTab === 'feed' && (
+        <MobileBottomNav
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          isHidden={miniPlayerOpen}
+        />
+      )}
 
       {/* Queue Drawer */}
       <QueueDrawer isOpen={queueDrawerOpen} onClose={() => setQueueDrawerOpen(false)} />
