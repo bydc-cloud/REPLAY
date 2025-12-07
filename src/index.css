@@ -1500,6 +1500,20 @@ html, body {
   }
 }
 
+/* Shimmer animation for progress bars */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   .scroll-reveal,
@@ -1512,6 +1526,7 @@ html, body {
   .animate-scroll-bounce,
   .animate-hero-enter,
   .animate-scale-in,
+  .animate-shimmer,
   .shine-effect::after {
     animation: none !important;
     transition: none !important;

@@ -48,7 +48,8 @@ import {
   Library,
   User,
   Compass,
-  ChevronDown
+  ChevronDown,
+  Map
 } from "lucide-react";
 import { PerformantVisualizer } from "./PerformantVisualizer";
 
@@ -285,45 +286,93 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
     }
   ];
 
-  // Public Roadmap Items - Updated Dec 2024
-  const roadmapItems = {
-    launched: [
-      "Premium music library with cloud sync",
-      "10-band parametric EQ with 12 presets",
-      "AI-powered lyrics transcription (Whisper)",
-      "BPM & key detection via Essentia",
-      "7 audio visualizer variants with reactive effects",
-      "Producer mode with A/B looping",
-      "Crossfade & playback speed control",
-      "Custom albums with cover art",
-      "Analytics dashboard with earnings tracking",
-      "Social features (follows, likes, comments)",
-      "Producer profiles with track uploads",
-      "Mobile-responsive UI",
-      "Real-time synced lyrics display",
-      "Full-screen Discovery feed",
-      "Direct messaging between users"
-    ],
-    inProgress: [
-      "Beat marketplace with licensing",
-      "Like-to-play instant playback",
-      "Landing page & SEO optimization",
-      "Public producer discovery"
-    ],
-    planned: [
-      "Beat packs & bundles",
-      "Custom licensing templates",
-      "Blockchain-transparent payouts",
-      "Payout request system"
-    ],
-    future: [
-      "Native mobile app (iOS & Android)",
-      "Collaboration tools & split sheets",
-      "AI beat recommendations",
-      "Stem separation",
-      "Sample clearance integration"
-    ]
-  };
+  // Interactive Roadmap Journey - Updated December 2025
+  const roadmapJourney = [
+    {
+      id: 'foundation',
+      title: 'Foundation',
+      date: 'Jan - Mar 2025',
+      status: 'completed',
+      milestone: 'Core Platform Launch',
+      items: [
+        'Premium music library with cloud sync',
+        '10-band parametric EQ with 12 presets',
+        'AI-powered lyrics transcription',
+        'BPM & key detection',
+        '7 audio visualizer variants'
+      ]
+    },
+    {
+      id: 'social',
+      title: 'Community',
+      date: 'Apr - Jun 2025',
+      status: 'completed',
+      milestone: 'Social Features',
+      items: [
+        'Producer profiles with uploads',
+        'Follows, likes, comments',
+        'Full-screen Discovery feed',
+        'Direct messaging',
+        'Mobile-responsive UI'
+      ]
+    },
+    {
+      id: 'creator',
+      title: 'Creator Tools',
+      date: 'Jul - Sep 2025',
+      status: 'completed',
+      milestone: 'Pro Features',
+      items: [
+        'Producer mode with A/B looping',
+        'Crossfade & speed control',
+        'Custom albums with covers',
+        'Analytics dashboard',
+        'Earnings tracking'
+      ]
+    },
+    {
+      id: 'marketplace',
+      title: 'Marketplace',
+      date: 'Oct - Dec 2025',
+      status: 'current',
+      milestone: 'Beat Economy',
+      items: [
+        'Beat marketplace with licensing',
+        'Like-to-play instant playback',
+        'Landing page optimization',
+        'Public producer discovery'
+      ]
+    },
+    {
+      id: 'monetization',
+      title: 'Monetization',
+      date: 'Q1 2026',
+      status: 'upcoming',
+      milestone: 'Revenue Tools',
+      items: [
+        'Beat packs & bundles',
+        'Custom licensing templates',
+        'Blockchain-transparent payouts',
+        'Payout request system'
+      ]
+    },
+    {
+      id: 'expansion',
+      title: 'Expansion',
+      date: 'Q2-Q3 2026',
+      status: 'future',
+      milestone: 'Platform Growth',
+      items: [
+        'Native mobile apps',
+        'Collaboration & split sheets',
+        'AI recommendations',
+        'Stem separation'
+      ]
+    }
+  ];
+
+  // Track active roadmap milestone for interactivity
+  const [activeRoadmapMilestone, setActiveRoadmapMilestone] = useState('marketplace');
 
   // Sample blockchain transactions for transparency showcase
   const sampleTransactions = [
@@ -1077,6 +1126,68 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         </div>
       </section>
 
+      {/* Keep 85% Value Proposition - Premium Banner */}
+      <section className="relative py-20 md:py-32 px-4 md:px-8 lg:px-12 overflow-hidden">
+        {/* Animated background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/[0.03] to-transparent" />
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/2 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute top-1/2 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        </div>
+
+        <div className="max-w-5xl mx-auto relative text-center">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-8">
+            <Blocks className="w-4 h-4 text-emerald-400" />
+            <span className="text-sm font-medium text-emerald-300">Blockchain-Verified Payouts</span>
+          </div>
+
+          {/* Giant headline */}
+          <h2 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black text-white mb-6 leading-[0.9] tracking-tight">
+            Keep{' '}
+            <span className="relative inline-block">
+              <span className="text-gradient-animated">85%</span>
+              <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full" />
+            </span>
+          </h2>
+
+          <p className="text-xl md:text-2xl text-white/60 mb-12 max-w-2xl mx-auto leading-relaxed">
+            Industry-leading creator payouts.{' '}
+            <span className="text-white/80 font-medium">Every transaction on-chain.</span>{' '}
+            No hidden fees.
+          </p>
+
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-4 md:gap-8 max-w-2xl mx-auto mb-12">
+            <div className="p-4 md:p-6 rounded-2xl bg-white/[0.03] border border-white/10">
+              <p className="text-3xl md:text-4xl font-black text-emerald-400">85%</p>
+              <p className="text-xs md:text-sm text-white/40 mt-1">To Creators</p>
+            </div>
+            <div className="p-4 md:p-6 rounded-2xl bg-white/[0.03] border border-white/10">
+              <p className="text-3xl md:text-4xl font-black text-cyan-400">$0</p>
+              <p className="text-xs md:text-sm text-white/40 mt-1">Hidden Fees</p>
+            </div>
+            <div className="p-4 md:p-6 rounded-2xl bg-white/[0.03] border border-white/10">
+              <p className="text-3xl md:text-4xl font-black text-violet-400">∞</p>
+              <p className="text-xs md:text-sm text-white/40 mt-1">Transparency</p>
+            </div>
+          </div>
+
+          {/* Comparison */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-white/50">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500/50" />
+              <span>Other platforms: 50-70%</span>
+            </div>
+            <div className="hidden sm:block w-px h-4 bg-white/20" />
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-emerald-500" />
+              <span className="text-emerald-400 font-medium">Rhythm: 85%</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Visualizer Preview Section - REAL PerformantVisualizer Components */}
       <section
         ref={visualizerSectionReveal.ref}
@@ -1744,98 +1855,247 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         </div>
       </section>
 
-      {/* Public Roadmap Section */}
+      {/* Interactive Roadmap Journey */}
       <section
         ref={roadmapReveal.ref}
         id="roadmap"
-        className={`relative py-16 md:py-24 px-4 md:px-8 lg:px-12 transition-all duration-1000 ${
+        className={`relative py-16 md:py-24 px-4 md:px-8 lg:px-12 overflow-hidden transition-all duration-1000 ${
           roadmapReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
         }`}>
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-10 md:mb-16">
+        {/* Animated journey path background */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <svg className="absolute top-1/2 left-0 w-full h-32 -translate-y-1/2 opacity-20" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="journeyGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#22c55e" />
+                <stop offset="50%" stopColor="#eab308" />
+                <stop offset="100%" stopColor="#8b5cf6" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M0,64 Q200,20 400,64 T800,64 T1200,64 T1600,64"
+              fill="none"
+              stroke="url(#journeyGradient)"
+              strokeWidth="2"
+              className="animate-pulse"
+            />
+          </svg>
+        </div>
+
+        <div className="max-w-6xl mx-auto relative">
+          <div className="text-center mb-12 md:mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mb-4 md:mb-6">
-              <Calendar className="w-4 h-4 text-white/60" />
-              <span className="text-xs md:text-sm font-medium text-white/60">Public Roadmap</span>
+              <Map className="w-4 h-4 text-violet-400" />
+              <span className="text-xs md:text-sm font-medium text-white/60">Journey to the Future</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 md:mb-4">
-              Built in Public, Built for You
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-3 md:mb-4">
+              Our <span className="text-gradient-animated">Roadmap</span>
             </h2>
             <p className="text-white/50 max-w-xl mx-auto text-sm md:text-base">
-              Full transparency on what we're building and when. No hidden agendas.
+              Follow our journey. Click any milestone to explore what we've built.
             </p>
           </div>
 
-          <div className="space-y-6 md:space-y-8">
-            {/* Launched */}
-            <div className="p-5 md:p-6 rounded-2xl bg-green-500/5 border border-green-500/20">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
-                  <Check className="w-4 h-4 text-green-400" />
-                </div>
-                <h3 className="text-lg font-bold text-green-400">Launched</h3>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {roadmapItems.launched.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-white/60">
-                    <Check className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {/* Interactive Journey Timeline - Desktop */}
+          <div className="hidden lg:block relative mb-12">
+            {/* The connecting line */}
+            <div className="absolute top-8 left-0 right-0 h-1 bg-gradient-to-r from-green-500/30 via-yellow-500/30 to-purple-500/30 rounded-full" />
+            <div className="absolute top-8 left-0 h-1 bg-gradient-to-r from-green-500 via-green-400 to-yellow-500 rounded-full transition-all duration-700"
+              style={{ width: `${(roadmapJourney.findIndex(m => m.status === 'current') / (roadmapJourney.length - 1)) * 100 + 8}%` }} />
 
-            {/* In Progress */}
-            <div className="p-5 md:p-6 rounded-2xl bg-yellow-500/5 border border-yellow-500/20">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center">
-                  <Clock className="w-4 h-4 text-yellow-400" />
-                </div>
-                <h3 className="text-lg font-bold text-yellow-400">In Progress (Q1 2025)</h3>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {roadmapItems.inProgress.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-white/60">
-                    <div className="w-3.5 h-3.5 rounded-full border-2 border-yellow-500 flex-shrink-0 animate-pulse" />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Milestone nodes */}
+            <div className="relative flex justify-between">
+              {roadmapJourney.map((milestone, index) => {
+                const isActive = activeRoadmapMilestone === milestone.id;
+                const isCompleted = milestone.status === 'completed';
+                const isCurrent = milestone.status === 'current';
+                const isUpcoming = milestone.status === 'upcoming' || milestone.status === 'future';
 
-            {/* Planned */}
-            <div className="p-5 md:p-6 rounded-2xl bg-purple-500/5 border border-purple-500/20">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
-                  <Calendar className="w-4 h-4 text-purple-400" />
-                </div>
-                <h3 className="text-lg font-bold text-purple-400">Planned (Q2 2025)</h3>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {roadmapItems.planned.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-white/60">
-                    <div className="w-3.5 h-3.5 rounded-full border border-purple-500/50 flex-shrink-0" />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+                return (
+                  <button
+                    key={milestone.id}
+                    onClick={() => setActiveRoadmapMilestone(milestone.id)}
+                    className={`relative flex flex-col items-center group transition-all duration-300 ${
+                      isActive ? 'scale-110' : 'hover:scale-105'
+                    }`}
+                    style={{ width: `${100 / roadmapJourney.length}%` }}
+                  >
+                    {/* Node */}
+                    <div className={`relative z-10 w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                      isCompleted
+                        ? 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30'
+                        : isCurrent
+                        ? 'bg-gradient-to-br from-yellow-500 to-orange-500 shadow-lg shadow-yellow-500/40 animate-pulse'
+                        : 'bg-white/10 border border-white/20'
+                    } ${isActive ? 'ring-4 ring-white/30' : ''}`}>
+                      {isCompleted ? (
+                        <Check className="w-7 h-7 text-white" />
+                      ) : isCurrent ? (
+                        <Zap className="w-7 h-7 text-white" />
+                      ) : (
+                        <Calendar className="w-6 h-6 text-white/50" />
+                      )}
+                    </div>
 
-            {/* Future */}
-            <div className="p-5 md:p-6 rounded-2xl bg-white/[0.02] border border-white/10">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-white/60" />
-                </div>
-                <h3 className="text-lg font-bold text-white/60">Future (Q3-Q4 2025)</h3>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {roadmapItems.future.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-white/40">
-                    <div className="w-3.5 h-3.5 rounded-full border border-white/20 flex-shrink-0" />
-                    <span>{item}</span>
+                    {/* Label */}
+                    <div className="mt-4 text-center">
+                      <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${
+                        isCompleted ? 'text-green-400' : isCurrent ? 'text-yellow-400' : 'text-white/40'
+                      }`}>
+                        {milestone.date}
+                      </p>
+                      <p className={`text-sm font-bold ${
+                        isActive ? 'text-white' : 'text-white/70'
+                      }`}>
+                        {milestone.title}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Mobile Journey - Vertical Timeline */}
+          <div className="lg:hidden relative mb-8">
+            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gradient-to-b from-green-500/50 via-yellow-500/50 to-purple-500/30" />
+            <div className="space-y-4">
+              {roadmapJourney.map((milestone) => {
+                const isActive = activeRoadmapMilestone === milestone.id;
+                const isCompleted = milestone.status === 'completed';
+                const isCurrent = milestone.status === 'current';
+
+                return (
+                  <button
+                    key={milestone.id}
+                    onClick={() => setActiveRoadmapMilestone(milestone.id)}
+                    className={`relative flex items-center gap-4 w-full text-left transition-all duration-300 ${
+                      isActive ? 'pl-2' : ''
+                    }`}
+                  >
+                    <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                      isCompleted
+                        ? 'bg-green-500 shadow-lg shadow-green-500/30'
+                        : isCurrent
+                        ? 'bg-yellow-500 shadow-lg shadow-yellow-500/40 animate-pulse'
+                        : 'bg-white/10 border border-white/20'
+                    } ${isActive ? 'ring-2 ring-white/30 scale-110' : ''}`}>
+                      {isCompleted ? (
+                        <Check className="w-4 h-4 text-white" />
+                      ) : isCurrent ? (
+                        <Zap className="w-4 h-4 text-white" />
+                      ) : (
+                        <div className="w-2 h-2 rounded-full bg-white/30" />
+                      )}
+                    </div>
+                    <div className={`flex-1 p-3 rounded-xl transition-all ${
+                      isActive ? 'bg-white/10' : 'bg-transparent'
+                    }`}>
+                      <p className={`text-xs font-bold uppercase tracking-wider ${
+                        isCompleted ? 'text-green-400' : isCurrent ? 'text-yellow-400' : 'text-white/40'
+                      }`}>
+                        {milestone.date}
+                      </p>
+                      <p className="text-sm font-bold text-white">{milestone.title}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Active Milestone Details */}
+          {roadmapJourney.map((milestone) => (
+            <div
+              key={milestone.id}
+              className={`transition-all duration-500 ${
+                activeRoadmapMilestone === milestone.id
+                  ? 'opacity-100 translate-y-0'
+                  : 'opacity-0 translate-y-4 absolute pointer-events-none'
+              }`}
+            >
+              {activeRoadmapMilestone === milestone.id && (
+                <div className={`p-6 md:p-8 rounded-2xl border ${
+                  milestone.status === 'completed'
+                    ? 'bg-gradient-to-br from-green-500/10 to-emerald-500/5 border-green-500/30'
+                    : milestone.status === 'current'
+                    ? 'bg-gradient-to-br from-yellow-500/10 to-orange-500/5 border-yellow-500/30'
+                    : 'bg-white/[0.03] border-white/10'
+                }`}>
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                      milestone.status === 'completed'
+                        ? 'bg-green-500/20'
+                        : milestone.status === 'current'
+                        ? 'bg-yellow-500/20'
+                        : 'bg-white/10'
+                    }`}>
+                      {milestone.status === 'completed' ? (
+                        <Check className={`w-6 h-6 text-green-400`} />
+                      ) : milestone.status === 'current' ? (
+                        <Clock className={`w-6 h-6 text-yellow-400`} />
+                      ) : (
+                        <Sparkles className="w-6 h-6 text-white/50" />
+                      )}
+                    </div>
+                    <div>
+                      <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${
+                        milestone.status === 'completed' ? 'text-green-400' : milestone.status === 'current' ? 'text-yellow-400' : 'text-white/40'
+                      }`}>
+                        {milestone.status === 'completed' ? 'Completed' : milestone.status === 'current' ? 'In Progress' : 'Coming Soon'}
+                      </p>
+                      <h3 className="text-xl md:text-2xl font-bold text-white">{milestone.milestone}</h3>
+                    </div>
                   </div>
-                ))}
-              </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {milestone.items.map((item, i) => (
+                      <div key={i} className={`flex items-center gap-3 p-3 rounded-xl ${
+                        milestone.status === 'completed'
+                          ? 'bg-green-500/10'
+                          : milestone.status === 'current'
+                          ? 'bg-yellow-500/10'
+                          : 'bg-white/5'
+                      }`}>
+                        {milestone.status === 'completed' ? (
+                          <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
+                        ) : milestone.status === 'current' ? (
+                          <div className="w-4 h-4 rounded-full border-2 border-yellow-500 flex-shrink-0 animate-pulse" />
+                        ) : (
+                          <div className="w-4 h-4 rounded-full border border-white/30 flex-shrink-0" />
+                        )}
+                        <span className="text-sm text-white/80">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Progress indicator for current milestone */}
+                  {milestone.status === 'current' && (
+                    <div className="mt-6 pt-6 border-t border-white/10">
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="text-white/50">Progress</span>
+                        <span className="text-yellow-400 font-bold">75%</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full w-3/4 relative">
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Current focus callout */}
+          <div className="mt-8 p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 via-orange-500/5 to-yellow-500/10 border border-yellow-500/20 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+              <Zap className="w-5 h-5 text-yellow-400" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-yellow-400">Currently Building</p>
+              <p className="text-white/60 text-sm">Beat marketplace with licensing • Public producer discovery</p>
             </div>
           </div>
         </div>
