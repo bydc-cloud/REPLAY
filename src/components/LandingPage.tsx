@@ -1126,68 +1126,6 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         </div>
       </section>
 
-      {/* Keep 85% Value Proposition - Premium Banner */}
-      <section className="relative py-20 md:py-32 px-4 md:px-8 lg:px-12 overflow-hidden">
-        {/* Animated background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/[0.03] to-transparent" />
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/2 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute top-1/2 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        </div>
-
-        <div className="max-w-5xl mx-auto relative text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-8">
-            <Blocks className="w-4 h-4 text-emerald-400" />
-            <span className="text-sm font-medium text-emerald-300">Blockchain-Verified Payouts</span>
-          </div>
-
-          {/* Giant headline */}
-          <h2 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black text-white mb-6 leading-[0.9] tracking-tight">
-            Keep{' '}
-            <span className="relative inline-block">
-              <span className="text-gradient-animated">85%</span>
-              <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full" />
-            </span>
-          </h2>
-
-          <p className="text-xl md:text-2xl text-white/60 mb-12 max-w-2xl mx-auto leading-relaxed">
-            Industry-leading creator payouts.{' '}
-            <span className="text-white/80 font-medium">Every transaction on-chain.</span>{' '}
-            No hidden fees.
-          </p>
-
-          {/* Stats row */}
-          <div className="grid grid-cols-3 gap-4 md:gap-8 max-w-2xl mx-auto mb-12">
-            <div className="p-4 md:p-6 rounded-2xl bg-white/[0.03] border border-white/10">
-              <p className="text-3xl md:text-4xl font-black text-emerald-400">85%</p>
-              <p className="text-xs md:text-sm text-white/40 mt-1">To Creators</p>
-            </div>
-            <div className="p-4 md:p-6 rounded-2xl bg-white/[0.03] border border-white/10">
-              <p className="text-3xl md:text-4xl font-black text-cyan-400">$0</p>
-              <p className="text-xs md:text-sm text-white/40 mt-1">Hidden Fees</p>
-            </div>
-            <div className="p-4 md:p-6 rounded-2xl bg-white/[0.03] border border-white/10">
-              <p className="text-3xl md:text-4xl font-black text-violet-400">∞</p>
-              <p className="text-xs md:text-sm text-white/40 mt-1">Transparency</p>
-            </div>
-          </div>
-
-          {/* Comparison */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-white/50">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-500/50" />
-              <span>Other platforms: 50-70%</span>
-            </div>
-            <div className="hidden sm:block w-px h-4 bg-white/20" />
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-emerald-500" />
-              <span className="text-emerald-400 font-medium">Rhythm: 85%</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Visualizer Preview Section - REAL PerformantVisualizer Components */}
       <section
         ref={visualizerSectionReveal.ref}
@@ -1792,311 +1730,284 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         </div>
       </section>
 
-      {/* Coming Soon Section */}
-      <section
-        ref={comingSoonReveal.ref}
-        className={`relative py-16 md:py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-purple-500/[0.03] to-transparent transition-all duration-1000 ${
-          comingSoonReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
-        }`}>
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-10 md:mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 mb-4 md:mb-6">
-              <Clock className="w-4 h-4 text-purple-400" />
-              <span className="text-xs md:text-sm font-medium text-purple-300">Coming Soon</span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 md:mb-4">
-              The Future of Rhythm
-            </h2>
-            <p className="text-white/50 max-w-xl mx-auto text-sm md:text-base">
-              Features in active development. Building the ultimate platform for creators.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            {comingSoonFeatures.map((feature, index) => {
-              const Icon = feature.icon;
-              const isInProgress = (feature as any).isInProgress;
-              return (
-                <div
-                  key={index}
-                  className={`group p-5 md:p-6 lg:p-8 rounded-2xl border transition-all duration-300 cursor-default relative overflow-hidden ${
-                    feature.isLive
-                      ? "bg-gradient-to-br from-green-500/10 to-emerald-500/5 border-green-500/30 hover:border-green-400/50"
-                      : isInProgress
-                      ? "bg-gradient-to-br from-yellow-500/10 to-orange-500/5 border-yellow-500/30 hover:border-yellow-400/50"
-                      : "bg-white/[0.03] border-white/10 hover:border-purple-500/30 hover:bg-purple-500/[0.05]"
-                  }`}
-                >
-                  {/* Quarter badge */}
-                  <div className={`absolute top-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    feature.isLive
-                      ? "bg-green-500/20 text-green-400"
-                      : isInProgress
-                      ? "bg-yellow-500/20 text-yellow-400"
-                      : "bg-purple-500/20 text-purple-300"
-                  }`}>
-                    {feature.quarter}
-                  </div>
-                  <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-all duration-300 ${
-                    feature.isLive
-                      ? "bg-green-500/20 border border-green-500/30"
-                      : isInProgress
-                      ? "bg-yellow-500/20 border border-yellow-500/30"
-                      : "bg-purple-500/20 border border-purple-500/30"
-                  }`}>
-                    <Icon className={`w-5 h-5 md:w-6 md:h-6 ${feature.isLive ? "text-green-400" : isInProgress ? "text-yellow-400" : "text-purple-300"}`} />
-                  </div>
-                  <h3 className="text-lg md:text-xl font-bold text-white mb-2">{feature.title}</h3>
-                  <p className="text-white/50 text-sm md:text-base leading-relaxed">{feature.description}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Interactive Roadmap Journey */}
+      {/* Premium Curvy Roadmap */}
       <section
         ref={roadmapReveal.ref}
         id="roadmap"
-        className={`relative py-16 md:py-24 px-4 md:px-8 lg:px-12 overflow-hidden transition-all duration-1000 ${
+        className={`relative py-20 md:py-32 px-4 md:px-8 lg:px-12 overflow-hidden transition-all duration-1000 ${
           roadmapReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
         }`}>
-        {/* Animated journey path background */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <svg className="absolute top-1/2 left-0 w-full h-32 -translate-y-1/2 opacity-20" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="journeyGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#22c55e" />
-                <stop offset="50%" stopColor="#eab308" />
-                <stop offset="100%" stopColor="#8b5cf6" />
-              </linearGradient>
-            </defs>
-            <path
-              d="M0,64 Q200,20 400,64 T800,64 T1200,64 T1600,64"
-              fill="none"
-              stroke="url(#journeyGradient)"
-              strokeWidth="2"
-              className="animate-pulse"
-            />
-          </svg>
-        </div>
+        {/* Premium gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-violet-500/[0.02] to-transparent" />
 
-        <div className="max-w-6xl mx-auto relative">
-          <div className="text-center mb-12 md:mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mb-4 md:mb-6">
-              <Map className="w-4 h-4 text-violet-400" />
-              <span className="text-xs md:text-sm font-medium text-white/60">Journey to the Future</span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-3 md:mb-4">
-              Our <span className="text-gradient-animated">Roadmap</span>
+        <div className="max-w-5xl mx-auto relative">
+          {/* Header */}
+          <div className="text-center mb-16 md:mb-24">
+            <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white mb-4 md:mb-6 leading-[0.95] tracking-tight">
+              The <span className="text-gradient-animated">Journey</span>
             </h2>
-            <p className="text-white/50 max-w-xl mx-auto text-sm md:text-base">
-              Follow our journey. Click any milestone to explore what we've built.
+            <p className="text-white/50 max-w-xl mx-auto text-base md:text-lg">
+              Building the future of music, one milestone at a time.
             </p>
           </div>
 
-          {/* Interactive Journey Timeline - Desktop */}
-          <div className="hidden lg:block relative mb-12">
-            {/* The connecting line */}
-            <div className="absolute top-8 left-0 right-0 h-1 bg-gradient-to-r from-green-500/30 via-yellow-500/30 to-purple-500/30 rounded-full" />
-            <div className="absolute top-8 left-0 h-1 bg-gradient-to-r from-green-500 via-green-400 to-yellow-500 rounded-full transition-all duration-700"
-              style={{ width: `${(roadmapJourney.findIndex(m => m.status === 'current') / (roadmapJourney.length - 1)) * 100 + 8}%` }} />
+          {/* Desktop: Premium Curvy Path */}
+          <div className="hidden lg:block relative">
+            {/* SVG Curvy Path */}
+            <svg
+              className="absolute top-0 left-0 w-full h-full pointer-events-none"
+              viewBox="0 0 1000 600"
+              preserveAspectRatio="xMidYMid meet"
+              style={{ minHeight: '500px' }}
+            >
+              <defs>
+                <linearGradient id="pathGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#22c55e" stopOpacity="0.6" />
+                  <stop offset="40%" stopColor="#a855f7" stopOpacity="0.6" />
+                  <stop offset="70%" stopColor="#eab308" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.3" />
+                </linearGradient>
+                <linearGradient id="pathGradientActive" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#22c55e" />
+                  <stop offset="60%" stopColor="#a855f7" />
+                  <stop offset="100%" stopColor="#eab308" />
+                </linearGradient>
+                <filter id="glow">
+                  <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                  <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+              </defs>
 
-            {/* Milestone nodes */}
-            <div className="relative flex justify-between">
+              {/* Background path */}
+              <path
+                d="M 50,100 C 200,100 200,300 350,300 S 500,100 650,100 S 800,300 950,300"
+                fill="none"
+                stroke="url(#pathGradient)"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray="8,8"
+                opacity="0.4"
+              />
+
+              {/* Active/completed path */}
+              <path
+                d="M 50,100 C 200,100 200,300 350,300 S 500,100 650,100"
+                fill="none"
+                stroke="url(#pathGradientActive)"
+                strokeWidth="4"
+                strokeLinecap="round"
+                filter="url(#glow)"
+              />
+            </svg>
+
+            {/* Milestone Cards positioned along curve */}
+            <div className="relative" style={{ minHeight: '500px' }}>
+              {roadmapJourney.slice(0, 4).map((milestone, index) => {
+                const isCompleted = milestone.status === 'completed';
+                const isCurrent = milestone.status === 'current';
+                const positions = [
+                  { left: '0%', top: '0%' },
+                  { left: '28%', top: '45%' },
+                  { left: '56%', top: '0%' },
+                  { left: '84%', top: '45%' }
+                ];
+                const pos = positions[index];
+
+                return (
+                  <div
+                    key={milestone.id}
+                    className={`absolute w-56 transition-all duration-500 group cursor-pointer ${
+                      activeRoadmapMilestone === milestone.id ? 'scale-105 z-10' : 'hover:scale-102'
+                    }`}
+                    style={{ left: pos.left, top: pos.top }}
+                    onClick={() => setActiveRoadmapMilestone(milestone.id)}
+                  >
+                    {/* Glowing dot on path */}
+                    <div className={`absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full ${
+                      isCompleted
+                        ? 'bg-green-500 shadow-lg shadow-green-500/50'
+                        : isCurrent
+                        ? 'bg-yellow-500 shadow-lg shadow-yellow-500/50 animate-pulse'
+                        : 'bg-white/20 border-2 border-white/30'
+                    }`}>
+                      {isCompleted && <Check className="w-4 h-4 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
+                      {isCurrent && <Zap className="w-3 h-3 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
+                    </div>
+
+                    {/* Card */}
+                    <div className={`ml-6 p-5 rounded-2xl backdrop-blur-sm transition-all duration-300 ${
+                      activeRoadmapMilestone === milestone.id
+                        ? isCompleted
+                          ? 'bg-green-500/20 border-2 border-green-500/50 shadow-xl shadow-green-500/20'
+                          : isCurrent
+                          ? 'bg-yellow-500/20 border-2 border-yellow-500/50 shadow-xl shadow-yellow-500/20'
+                          : 'bg-violet-500/20 border-2 border-violet-500/50 shadow-xl shadow-violet-500/20'
+                        : 'bg-white/[0.05] border border-white/10 group-hover:bg-white/[0.08] group-hover:border-white/20'
+                    }`}>
+                      <p className={`text-xs font-bold uppercase tracking-wider mb-2 ${
+                        isCompleted ? 'text-green-400' : isCurrent ? 'text-yellow-400' : 'text-violet-400'
+                      }`}>
+                        {milestone.date}
+                      </p>
+                      <h3 className="text-lg font-bold text-white mb-1">{milestone.title}</h3>
+                      <p className="text-sm text-white/50">{milestone.milestone}</p>
+
+                      {/* Mini progress for current */}
+                      {isCurrent && (
+                        <div className="mt-3">
+                          <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full w-3/4" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Future milestones - faded */}
+              {roadmapJourney.slice(4).map((milestone, index) => {
+                const positions = [
+                  { left: '75%', top: '85%' },
+                  { left: '90%', top: '85%' }
+                ];
+                const pos = positions[index] || { left: '90%', top: '85%' };
+
+                return (
+                  <div
+                    key={milestone.id}
+                    className="absolute opacity-50 hover:opacity-70 transition-opacity cursor-pointer"
+                    style={{ left: pos.left, top: pos.top }}
+                    onClick={() => setActiveRoadmapMilestone(milestone.id)}
+                  >
+                    <div className="flex items-center gap-2 text-sm text-white/40">
+                      <div className="w-3 h-3 rounded-full border border-white/20" />
+                      <span>{milestone.title}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Mobile: Premium Vertical Journey */}
+          <div className="lg:hidden relative">
+            {/* Curvy vertical path */}
+            <svg className="absolute left-6 top-0 w-4 h-full pointer-events-none" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="mobilePathGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#22c55e" />
+                  <stop offset="50%" stopColor="#a855f7" />
+                  <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.3" />
+                </linearGradient>
+              </defs>
+              <path
+                d="M 8,0 Q 2,50 8,100 T 8,200 T 8,300 T 8,400 T 8,500 T 8,600"
+                fill="none"
+                stroke="url(#mobilePathGradient)"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+
+            <div className="space-y-6 pl-16">
               {roadmapJourney.map((milestone, index) => {
                 const isActive = activeRoadmapMilestone === milestone.id;
                 const isCompleted = milestone.status === 'completed';
                 const isCurrent = milestone.status === 'current';
-                const isUpcoming = milestone.status === 'upcoming' || milestone.status === 'future';
+                const isFuture = milestone.status === 'future' || milestone.status === 'upcoming';
 
                 return (
-                  <button
+                  <div
                     key={milestone.id}
+                    className="relative"
                     onClick={() => setActiveRoadmapMilestone(milestone.id)}
-                    className={`relative flex flex-col items-center group transition-all duration-300 ${
-                      isActive ? 'scale-110' : 'hover:scale-105'
-                    }`}
-                    style={{ width: `${100 / roadmapJourney.length}%` }}
                   >
-                    {/* Node */}
-                    <div className={`relative z-10 w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                    {/* Node on the path */}
+                    <div className={`absolute -left-[52px] top-4 w-5 h-5 rounded-full transition-all ${
                       isCompleted
-                        ? 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/30'
-                        : isCurrent
-                        ? 'bg-gradient-to-br from-yellow-500 to-orange-500 shadow-lg shadow-yellow-500/40 animate-pulse'
-                        : 'bg-white/10 border border-white/20'
-                    } ${isActive ? 'ring-4 ring-white/30' : ''}`}>
-                      {isCompleted ? (
-                        <Check className="w-7 h-7 text-white" />
-                      ) : isCurrent ? (
-                        <Zap className="w-7 h-7 text-white" />
-                      ) : (
-                        <Calendar className="w-6 h-6 text-white/50" />
-                      )}
-                    </div>
-
-                    {/* Label */}
-                    <div className="mt-4 text-center">
-                      <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${
-                        isCompleted ? 'text-green-400' : isCurrent ? 'text-yellow-400' : 'text-white/40'
-                      }`}>
-                        {milestone.date}
-                      </p>
-                      <p className={`text-sm font-bold ${
-                        isActive ? 'text-white' : 'text-white/70'
-                      }`}>
-                        {milestone.title}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Mobile Journey - Vertical Timeline */}
-          <div className="lg:hidden relative mb-8">
-            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gradient-to-b from-green-500/50 via-yellow-500/50 to-purple-500/30" />
-            <div className="space-y-4">
-              {roadmapJourney.map((milestone) => {
-                const isActive = activeRoadmapMilestone === milestone.id;
-                const isCompleted = milestone.status === 'completed';
-                const isCurrent = milestone.status === 'current';
-
-                return (
-                  <button
-                    key={milestone.id}
-                    onClick={() => setActiveRoadmapMilestone(milestone.id)}
-                    className={`relative flex items-center gap-4 w-full text-left transition-all duration-300 ${
-                      isActive ? 'pl-2' : ''
-                    }`}
-                  >
-                    <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-                      isCompleted
-                        ? 'bg-green-500 shadow-lg shadow-green-500/30'
+                        ? 'bg-green-500 shadow-lg shadow-green-500/40'
                         : isCurrent
                         ? 'bg-yellow-500 shadow-lg shadow-yellow-500/40 animate-pulse'
-                        : 'bg-white/10 border border-white/20'
-                    } ${isActive ? 'ring-2 ring-white/30 scale-110' : ''}`}>
-                      {isCompleted ? (
-                        <Check className="w-4 h-4 text-white" />
-                      ) : isCurrent ? (
-                        <Zap className="w-4 h-4 text-white" />
-                      ) : (
-                        <div className="w-2 h-2 rounded-full bg-white/30" />
+                        : 'bg-white/10 border border-white/30'
+                    } ${isActive ? 'scale-125 ring-4 ring-white/20' : ''}`}>
+                      {isCompleted && <Check className="w-3 h-3 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
+                    </div>
+
+                    {/* Card */}
+                    <div className={`p-4 rounded-xl transition-all cursor-pointer ${
+                      isActive
+                        ? isCompleted
+                          ? 'bg-green-500/15 border border-green-500/40'
+                          : isCurrent
+                          ? 'bg-yellow-500/15 border border-yellow-500/40'
+                          : 'bg-violet-500/15 border border-violet-500/40'
+                        : 'bg-white/[0.03] border border-white/10'
+                    } ${isFuture ? 'opacity-60' : ''}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className={`text-xs font-bold uppercase tracking-wider ${
+                          isCompleted ? 'text-green-400' : isCurrent ? 'text-yellow-400' : 'text-violet-400/70'
+                        }`}>
+                          {milestone.date}
+                        </p>
+                        {isCompleted && <Check className="w-4 h-4 text-green-400" />}
+                        {isCurrent && <Zap className="w-4 h-4 text-yellow-400" />}
+                      </div>
+                      <h3 className="text-base font-bold text-white mb-1">{milestone.title}</h3>
+                      <p className="text-sm text-white/50">{milestone.milestone}</p>
+
+                      {/* Expanded content when active */}
+                      {isActive && (
+                        <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
+                          {milestone.items.slice(0, 3).map((item, i) => (
+                            <div key={i} className="flex items-center gap-2 text-sm text-white/70">
+                              {isCompleted ? (
+                                <Check className="w-3 h-3 text-green-400 flex-shrink-0" />
+                              ) : (
+                                <div className={`w-2 h-2 rounded-full ${isCurrent ? 'bg-yellow-500' : 'bg-white/30'}`} />
+                              )}
+                              <span>{item}</span>
+                            </div>
+                          ))}
+                          {milestone.items.length > 3 && (
+                            <p className="text-xs text-white/40">+{milestone.items.length - 3} more</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Progress bar for current */}
+                      {isCurrent && isActive && (
+                        <div className="mt-4">
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="text-white/40">Progress</span>
+                            <span className="text-yellow-400 font-bold">75%</span>
+                          </div>
+                          <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full w-3/4 relative">
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                            </div>
+                          </div>
+                        </div>
                       )}
                     </div>
-                    <div className={`flex-1 p-3 rounded-xl transition-all ${
-                      isActive ? 'bg-white/10' : 'bg-transparent'
-                    }`}>
-                      <p className={`text-xs font-bold uppercase tracking-wider ${
-                        isCompleted ? 'text-green-400' : isCurrent ? 'text-yellow-400' : 'text-white/40'
-                      }`}>
-                        {milestone.date}
-                      </p>
-                      <p className="text-sm font-bold text-white">{milestone.title}</p>
-                    </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Active Milestone Details */}
-          {roadmapJourney.map((milestone) => (
-            <div
-              key={milestone.id}
-              className={`transition-all duration-500 ${
-                activeRoadmapMilestone === milestone.id
-                  ? 'opacity-100 translate-y-0'
-                  : 'opacity-0 translate-y-4 absolute pointer-events-none'
-              }`}
-            >
-              {activeRoadmapMilestone === milestone.id && (
-                <div className={`p-6 md:p-8 rounded-2xl border ${
-                  milestone.status === 'completed'
-                    ? 'bg-gradient-to-br from-green-500/10 to-emerald-500/5 border-green-500/30'
-                    : milestone.status === 'current'
-                    ? 'bg-gradient-to-br from-yellow-500/10 to-orange-500/5 border-yellow-500/30'
-                    : 'bg-white/[0.03] border-white/10'
-                }`}>
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                      milestone.status === 'completed'
-                        ? 'bg-green-500/20'
-                        : milestone.status === 'current'
-                        ? 'bg-yellow-500/20'
-                        : 'bg-white/10'
-                    }`}>
-                      {milestone.status === 'completed' ? (
-                        <Check className={`w-6 h-6 text-green-400`} />
-                      ) : milestone.status === 'current' ? (
-                        <Clock className={`w-6 h-6 text-yellow-400`} />
-                      ) : (
-                        <Sparkles className="w-6 h-6 text-white/50" />
-                      )}
-                    </div>
-                    <div>
-                      <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${
-                        milestone.status === 'completed' ? 'text-green-400' : milestone.status === 'current' ? 'text-yellow-400' : 'text-white/40'
-                      }`}>
-                        {milestone.status === 'completed' ? 'Completed' : milestone.status === 'current' ? 'In Progress' : 'Coming Soon'}
-                      </p>
-                      <h3 className="text-xl md:text-2xl font-bold text-white">{milestone.milestone}</h3>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {milestone.items.map((item, i) => (
-                      <div key={i} className={`flex items-center gap-3 p-3 rounded-xl ${
-                        milestone.status === 'completed'
-                          ? 'bg-green-500/10'
-                          : milestone.status === 'current'
-                          ? 'bg-yellow-500/10'
-                          : 'bg-white/5'
-                      }`}>
-                        {milestone.status === 'completed' ? (
-                          <Check className="w-4 h-4 text-green-400 flex-shrink-0" />
-                        ) : milestone.status === 'current' ? (
-                          <div className="w-4 h-4 rounded-full border-2 border-yellow-500 flex-shrink-0 animate-pulse" />
-                        ) : (
-                          <div className="w-4 h-4 rounded-full border border-white/30 flex-shrink-0" />
-                        )}
-                        <span className="text-sm text-white/80">{item}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Progress indicator for current milestone */}
-                  {milestone.status === 'current' && (
-                    <div className="mt-6 pt-6 border-t border-white/10">
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-white/50">Progress</span>
-                        <span className="text-yellow-400 font-bold">75%</span>
-                      </div>
-                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full w-3/4 relative">
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+          {/* Bottom: Currently Building Banner */}
+          <div className="mt-12 md:mt-16 p-5 md:p-6 rounded-2xl bg-gradient-to-r from-violet-500/10 via-purple-500/5 to-violet-500/10 border border-violet-500/20 text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-500/20 border border-yellow-500/30 mb-4">
+              <Zap className="w-4 h-4 text-yellow-400" />
+              <span className="text-sm font-bold text-yellow-400">Now Building</span>
             </div>
-          ))}
-
-          {/* Current focus callout */}
-          <div className="mt-8 p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 via-orange-500/5 to-yellow-500/10 border border-yellow-500/20 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
-              <Zap className="w-5 h-5 text-yellow-400" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-yellow-400">Currently Building</p>
-              <p className="text-white/60 text-sm">Beat marketplace with licensing • Public producer discovery</p>
-            </div>
+            <p className="text-white/70 text-sm md:text-base">
+              Beat marketplace with licensing • Public producer discovery • Landing page optimization
+            </p>
           </div>
         </div>
       </section>
