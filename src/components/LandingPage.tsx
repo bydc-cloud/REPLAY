@@ -384,38 +384,22 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--replay-black)] overflow-x-hidden">
+    <div className="min-h-screen bg-[#050505] overflow-x-hidden isolate">
       {/* Hero Section */}
-      <div className="relative min-h-screen flex flex-col">
-        {/* Background gradient with parallax */}
-        <div
-          className="absolute inset-0 bg-gradient-to-br from-[#1a1a1a] via-[#0d0d0d] to-[#000000]"
-          style={{ transform: `translateY(${scrollY * 0.3}px)` }}
-        />
+      <div className="relative min-h-screen flex flex-col isolate">
+        {/* Static background gradient - no parallax to prevent glitching */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] via-[#050505] to-[#000000]" />
 
-        {/* Animated background elements - Optimized for mobile */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {/* Gradient orbs - Smaller on mobile */}
+        {/* Animated background elements - Simplified for performance */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ transform: 'translateZ(0)' }}>
+          {/* Single primary gradient orb - reduced blur for performance */}
           <div
-            className="absolute top-1/4 left-1/4 w-[250px] md:w-[600px] h-[250px] md:h-[600px] bg-purple-500/[0.12] md:bg-purple-500/[0.15] rounded-full blur-[60px] md:blur-[120px]"
-            style={{ animation: 'float 8s ease-in-out infinite' }}
+            className="absolute top-1/4 left-1/4 w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-purple-600/[0.08] md:bg-purple-600/[0.10] rounded-full blur-[80px] md:blur-[100px]"
+            style={{ animation: 'float 10s ease-in-out infinite', willChange: 'transform' }}
           />
           <div
-            className="absolute bottom-1/4 right-1/4 w-[200px] md:w-[500px] h-[200px] md:h-[500px] bg-indigo-500/[0.08] md:bg-indigo-500/[0.10] rounded-full blur-[50px] md:blur-[100px]"
-            style={{ animation: 'float 10s ease-in-out infinite 2s' }}
-          />
-          <div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] md:w-[700px] h-[300px] md:h-[700px] bg-gradient-radial from-white/[0.03] md:from-white/[0.04] to-transparent rounded-full"
-            style={{ animation: 'pulse 12s ease-in-out infinite 4s' }}
-          />
-          {/* Hide smaller orbs on mobile for performance */}
-          <div
-            className="hidden md:block absolute top-10 right-20 w-[300px] h-[300px] bg-cyan-500/[0.08] rounded-full blur-[80px]"
-            style={{ animation: 'float 12s ease-in-out infinite 3s' }}
-          />
-          <div
-            className="hidden md:block absolute bottom-20 left-10 w-[350px] h-[350px] bg-indigo-500/[0.10] rounded-full blur-[90px]"
-            style={{ animation: 'float 9s ease-in-out infinite 1s' }}
+            className="absolute bottom-1/3 right-1/4 w-[250px] md:w-[400px] h-[250px] md:h-[400px] bg-indigo-600/[0.06] md:bg-indigo-600/[0.08] rounded-full blur-[60px] md:blur-[80px]"
+            style={{ animation: 'float 12s ease-in-out infinite 3s', willChange: 'transform' }}
           />
 
           {/* Animated audio bars in hero background - Full width edge-to-edge */}
@@ -435,98 +419,23 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             ))}
           </div>
 
-          {/* Circular audio visualizer - Left side - Hidden on mobile */}
-          <div className="hidden md:block absolute left-[5%] top-1/3 w-48 h-48 md:w-64 md:h-64 opacity-[0.12]">
-            <div className="relative w-full h-full animate-spin" style={{ animationDuration: '20s' }}>
-              {Array(24).fill(0).map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute left-1/2 top-1/2 origin-center"
-                  style={{
-                    transform: `rotate(${i * 15}deg) translateX(40px)`,
-                  }}
-                >
-                  <div
-                    className="w-1.5 rounded-full"
-                    style={{
-                      height: `${20 + Math.sin(i * 0.5) * 30}px`,
-                      background: `linear-gradient(to top, hsl(${260 + i * 4}, 80%, 55%), hsl(${320 - i * 2}, 85%, 65%))`,
-                      animation: `audioBar ${0.8 + (i % 3) * 0.2}s ease-in-out infinite`,
-                      animationDelay: `${i * 80}ms`,
-                      boxShadow: `0 0 10px hsla(${280 + i * 3}, 80%, 60%, 0.5)`
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Circular audio visualizer - Right side - Hidden on mobile */}
-          <div className="hidden md:block absolute right-[5%] top-1/2 w-40 h-40 md:w-56 md:h-56 opacity-[0.10]">
-            <div className="relative w-full h-full animate-spin" style={{ animationDuration: '25s', animationDirection: 'reverse' }}>
-              {Array(20).fill(0).map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute left-1/2 top-1/2 origin-center"
-                  style={{
-                    transform: `rotate(${i * 18}deg) translateX(35px)`,
-                  }}
-                >
-                  <div
-                    className="w-1 rounded-full"
-                    style={{
-                      height: `${15 + Math.cos(i * 0.6) * 25}px`,
-                      background: `linear-gradient(to top, hsl(${200 + i * 6}, 75%, 50%), hsl(${240 + i * 4}, 80%, 60%))`,
-                      animation: `audioBar ${0.7 + (i % 4) * 0.15}s ease-in-out infinite`,
-                      animationDelay: `${i * 100}ms`,
-                      boxShadow: `0 0 8px hsla(${220 + i * 5}, 75%, 55%, 0.5)`
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Floating waveform lines - Hidden on mobile */}
-          <div className="hidden md:block absolute top-1/4 left-0 right-0 h-20 opacity-[0.08]">
-            <svg className="w-full h-full" preserveAspectRatio="none">
-              <path
-                d="M0,40 Q50,10 100,40 T200,40 T300,40 T400,40 T500,40 T600,40 T700,40 T800,40 T900,40 T1000,40 T1100,40 T1200,40 T1300,40 T1400,40 T1500,40 T1600,40 T1700,40 T1800,40 T1900,40 T2000,40"
-                stroke="url(#waveGradient)"
-                strokeWidth="2"
-                fill="none"
-                className="animate-pulse"
-                style={{ animationDuration: '2s' }}
-              />
-              <defs>
-                <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="transparent" />
-                  <stop offset="20%" stopColor="#a855f7" />
-                  <stop offset="50%" stopColor="#ec4899" />
-                  <stop offset="80%" stopColor="#a855f7" />
-                  <stop offset="100%" stopColor="transparent" />
-                </linearGradient>
-              </defs>
-            </svg>
-          </div>
-
-
-          {/* Pulsing rings - Smaller on mobile, fewer rings */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          {/* Simplified pulsing rings - fewer for performance */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ transform: 'translateZ(0)' }}>
             {[0, 1].map((ring) => (
               <div
                 key={ring}
-                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border md:hidden"
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border"
                 style={{
-                  width: `${150 + ring * 80}px`,
-                  height: `${150 + ring * 80}px`,
-                  borderColor: `hsla(${270 + ring * 15}, 70%, 50%, ${0.06 - ring * 0.02})`,
-                  animation: `pulseRing ${4 + ring}s ease-out infinite`,
-                  animationDelay: `${ring * 0.8}s`
+                  width: `${200 + ring * 120}px`,
+                  height: `${200 + ring * 120}px`,
+                  borderColor: `rgba(139, 92, 246, ${0.08 - ring * 0.03})`,
+                  animation: `pulseRing ${5 + ring}s ease-out infinite`,
+                  animationDelay: `${ring}s`,
+                  willChange: 'transform, opacity'
                 }}
               />
             ))}
-            {[0, 1, 2, 3].map((ring) => (
+            {[0, 1, 2].map((ring) => (
               <div
                 key={ring}
                 className="hidden md:block absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border"

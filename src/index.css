@@ -1166,6 +1166,21 @@ html, body {
    cinematic typography, and smooth transitions
    ======================================== */
 
+/* Force GPU acceleration and prevent color blending issues */
+section {
+  isolation: isolate;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* Fix backdrop-blur causing color shifts during scroll */
+[class*="backdrop-blur"] {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
 /* Animated gradient for text and borders */
 @keyframes gradient-x {
   0%, 100% { background-position: 0% 50%; }
@@ -1197,16 +1212,18 @@ html, body {
   animation: float-particle 6s ease-in-out infinite;
 }
 
-/* Scroll reveal animations */
+/* Scroll reveal animations - GPU accelerated */
 .scroll-reveal {
   opacity: 0;
-  transform: translateY(50px);
-  transition: all 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(50px) translateZ(0);
+  transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1), transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+  backface-visibility: hidden;
 }
 
 .scroll-reveal.visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) translateZ(0);
 }
 
 /* Staggered children reveal */
