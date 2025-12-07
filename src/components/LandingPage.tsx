@@ -153,11 +153,11 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
     return () => clearInterval(interval);
   }, []);
 
-  // Separate auto-rotate for hero visualizer
+  // Separate auto-rotate for hero visualizer - faster for dynamic feel
   useEffect(() => {
     const interval = setInterval(() => {
       setHeroVisualizerIndex(prev => (prev + 1) % 6);
-    }, 5000);
+    }, 2500); // 2.5 seconds - more dynamic
     return () => clearInterval(interval);
   }, []);
 
@@ -599,40 +599,47 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
           )}
         </header>
 
-        {/* Hero Content */}
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 md:px-8 text-center py-12">
-          <div className="max-w-4xl w-full">
-            {/* Large Rhythm Logo */}
-            <div className="flex flex-col items-center mb-6 md:mb-8">
-              <div className="relative mb-4">
-                {/* Outer glow */}
-                <div className="absolute inset-0 w-20 h-20 md:w-28 md:h-28 rounded-full bg-gradient-to-br from-purple-500/40 to-pink-500/30 blur-xl" />
-                {/* Logo container */}
-                <div className="relative w-20 h-20 md:w-28 md:h-28 rounded-full bg-gradient-to-br from-purple-500/30 to-pink-500/20 backdrop-blur-xl flex items-center justify-center border border-purple-500/40 shadow-2xl shadow-purple-500/20">
-                  <div className="absolute inset-[3px] md:inset-1 rounded-full bg-gradient-to-br from-purple-600/20 to-pink-600/10" />
-                  <Disc className="w-10 h-10 md:w-14 md:h-14 text-white relative z-10 drop-shadow-lg" strokeWidth={1.5} />
+        {/* Hero Content - Premium Apple-style Layout */}
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 md:px-8 text-center py-8 md:py-12">
+          <div className="max-w-5xl w-full">
+            {/* Subtle Rhythm Logo - Smaller, top corner feel */}
+            <div className="flex items-center justify-center gap-3 mb-8 md:mb-12 animate-hero-enter">
+              <div className="relative">
+                <div className="absolute inset-0 w-10 h-10 md:w-12 md:h-12 rounded-full bg-violet-500/30 blur-lg" />
+                <div className="relative w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-violet-600/40 to-indigo-600/30 backdrop-blur-xl flex items-center justify-center border border-violet-500/40">
+                  <Disc className="w-5 h-5 md:w-6 md:h-6 text-white" strokeWidth={1.5} />
                 </div>
               </div>
-              <h2 className="text-3xl md:text-5xl font-black tracking-tight text-white mb-2">Rhythm</h2>
-              <p className="text-sm md:text-base text-white/50 font-medium tracking-wide">For Artists, by Artists</p>
+              <span className="text-xl md:text-2xl font-bold text-white tracking-tight">Rhythm</span>
             </div>
 
-            {/* Tagline badge */}
-            <div className="inline-flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-gradient-to-r from-purple-500/10 to-indigo-500/10 border border-purple-500/20 mb-6 md:mb-8 backdrop-blur-sm">
-              <Sparkles className="w-3.5 h-3.5 md:w-4 md:h-4 text-purple-400" />
-              <span className="text-xs md:text-sm font-medium text-white/80">The Future of Music Discovery</span>
-            </div>
+            {/* MASSIVE TYPOGRAPHY FIRST - Apple style (headline before product) */}
+            <h1 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl xl:text-[10rem] font-black text-white mb-4 md:mb-6 leading-[0.9] tracking-[-0.02em] animate-hero-enter">
+              For Artists.
+              <br />
+              <span className="bg-gradient-to-r from-violet-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent">By Artists.</span>
+            </h1>
 
-            {/* HERO VISUALIZER - Real PerformantVisualizer */}
-            <div className="w-full max-w-4xl mx-auto mb-8 md:mb-12 animate-scale-in">
-              <div className="aspect-[21/9] md:aspect-[21/8] rounded-2xl md:rounded-3xl overflow-hidden relative border border-white/10 bg-black/50 backdrop-blur-sm">
-                {/* Glow background */}
+            <p className="text-lg md:text-xl lg:text-2xl text-white/50 mb-10 md:mb-14 max-w-2xl mx-auto leading-relaxed animate-hero-enter-delay-1">
+              The premium music platform that puts creators first.
+              <br className="hidden sm:block" />
+              <span className="text-white/70 font-medium">Keep 85% of every sale.</span>
+            </p>
+
+            {/* HERO VISUALIZER - Product showcase after headline */}
+            <div className="w-full max-w-4xl mx-auto mb-10 md:mb-14 animate-scale-in group">
+              {/* Outer glow ring */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-violet-600/20 via-purple-600/10 to-indigo-600/20 rounded-[2rem] blur-xl opacity-60 group-hover:opacity-80 transition-opacity" />
+
+              <div className="relative aspect-[21/9] md:aspect-[2.5/1] rounded-[1.5rem] md:rounded-[2rem] overflow-hidden border border-white/10 bg-black/60 backdrop-blur-sm shadow-2xl shadow-violet-500/10">
+                {/* Premium glow background */}
                 <div className="absolute inset-0">
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 via-transparent to-indigo-500/20" />
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-purple-500/30 rounded-full blur-[80px]" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-violet-600/15 via-transparent to-indigo-600/15" />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70%] h-[70%] bg-violet-500/20 rounded-full blur-[100px]" />
                 </div>
-                {/* Real Visualizer */}
-                <div className="absolute inset-0">
+
+                {/* Real Visualizer with transition */}
+                <div className="absolute inset-0 transition-opacity duration-500">
                   <PerformantVisualizer
                     isPlaying={true}
                     variant={VISUALIZER_VARIANTS[heroVisualizerIndex]}
@@ -640,60 +647,60 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
                     audioElement={null}
                   />
                 </div>
-                {/* Subtle vignette */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none" />
+
+                {/* Subtle vignette for depth */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 pointer-events-none" />
+
+                {/* Visualizer type indicator */}
+                <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10">
+                  <span className="text-xs font-medium text-white/60 uppercase tracking-wider">
+                    {VISUALIZER_VARIANTS[heroVisualizerIndex]}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* MASSIVE TYPOGRAPHY - Apple style */}
-            <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-black text-white mb-6 md:mb-8 leading-[0.95] tracking-tight animate-hero-enter">
-              For Artists.
-              <br />
-              <span className="text-gradient-animated">By Artists.</span>
-            </h1>
-
-            <p className="text-lg md:text-xl lg:text-2xl text-white/50 mb-10 md:mb-14 max-w-2xl mx-auto leading-relaxed px-4 animate-hero-enter-delay-1">
-              The premium music platform that puts creators first. <span className="text-white/80 font-medium">85% of every sale</span>.
-            </p>
-
+            {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 md:gap-5 justify-center px-4 animate-hero-enter-delay-2">
               <button
                 onClick={onGetStarted}
-                className="group relative flex items-center justify-center gap-2 px-8 md:px-10 py-4 md:py-5 bg-white text-black font-semibold rounded-full transition-all transform hover:scale-[1.02] active:scale-[0.98] overflow-hidden shine-effect"
+                className="group relative flex items-center justify-center gap-2 px-10 md:px-12 py-4 md:py-5 bg-white text-black font-semibold rounded-full transition-all transform hover:scale-[1.03] active:scale-[0.98] overflow-hidden shadow-lg shadow-white/10"
               >
+                {/* Shine effect */}
+                <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-black/5 to-transparent" />
                 <span className="relative z-10">Get Started Free</span>
                 <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
               </button>
 
               <button
                 onClick={() => scrollToSection('features')}
-                className="flex items-center justify-center gap-2 px-8 md:px-10 py-4 md:py-5 border border-white/20 text-white font-semibold rounded-full hover:bg-white/5 hover:border-white/30 transition-all backdrop-blur-sm"
+                className="flex items-center justify-center gap-2 px-10 md:px-12 py-4 md:py-5 border border-white/20 text-white font-semibold rounded-full hover:bg-white/5 hover:border-white/30 transition-all backdrop-blur-sm"
               >
                 Explore Features
               </button>
             </div>
 
-            {/* Trust indicators - more minimal */}
-            <div className="mt-12 md:mt-16 flex flex-wrap items-center justify-center gap-6 md:gap-10 text-white/40 text-sm animate-hero-enter-delay-3">
+            {/* Trust indicators */}
+            <div className="mt-14 md:mt-20 flex flex-wrap items-center justify-center gap-8 md:gap-12 text-white/40 text-sm animate-hero-enter-delay-3">
               <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4 text-green-400/70" />
-                <span>No Ads</span>
+                <Shield className="w-4 h-4 text-emerald-400/70" />
+                <span>No Ads Ever</span>
               </div>
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-purple-400/70" />
-                <span>Discovery Feed</span>
+                <Sparkles className="w-4 h-4 text-violet-400/70" />
+                <span>7 Visualizers</span>
               </div>
               <div className="flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-emerald-400/70" />
-                <span>85% Payouts</span>
+                <span>85% Creator Payouts</span>
               </div>
             </div>
           </div>
 
-          {/* Scroll indicator - Apple style */}
-          <div className="absolute bottom-8 md:bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-scroll-bounce">
-            <span className="text-xs text-white/30 uppercase tracking-widest">Scroll</span>
-            <ChevronDown className="w-5 h-5 text-white/30" />
+          {/* Scroll indicator */}
+          <div className="absolute bottom-6 md:bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-scroll-bounce">
+            <span className="text-[10px] text-white/25 uppercase tracking-[0.2em]">Scroll</span>
+            <ChevronDown className="w-4 h-4 text-white/25" />
           </div>
         </div>
       </div>

@@ -1376,53 +1376,60 @@ html, body {
   animation: gradient-x 4s linear infinite;
 }
 
-/* Hero text entrance */
+/* Hero text entrance - Music "drop" feel with overshoot */
 @keyframes hero-text-enter {
   0% {
     opacity: 0;
-    transform: translateY(40px);
-    filter: blur(10px);
+    transform: translateY(30px) scale(0.95);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.01);
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
+    transform: translateY(0) scale(1);
   }
 }
 
 .animate-hero-enter {
-  animation: hero-text-enter 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: hero-text-enter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 .animate-hero-enter-delay-1 {
-  animation: hero-text-enter 1s cubic-bezier(0.16, 1, 0.3, 1) 0.15s forwards;
+  animation: hero-text-enter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s forwards;
   opacity: 0;
 }
 
 .animate-hero-enter-delay-2 {
-  animation: hero-text-enter 1s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
+  animation: hero-text-enter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s forwards;
   opacity: 0;
 }
 
 .animate-hero-enter-delay-3 {
-  animation: hero-text-enter 1s cubic-bezier(0.16, 1, 0.3, 1) 0.45s forwards;
+  animation: hero-text-enter 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s forwards;
   opacity: 0;
 }
 
-/* Scale up animation for visualizer */
+/* Scale up animation for visualizer - faster drop in */
 @keyframes scale-in {
   0% {
     opacity: 0;
-    transform: scale(0.9);
+    transform: scale(0.92) translateY(20px);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.02) translateY(-2px);
   }
   100% {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1) translateY(0);
   }
 }
 
 .animate-scale-in {
-  animation: scale-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: scale-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s forwards;
+  opacity: 0;
 }
 
 /* Fade transition for visualizer switching */
