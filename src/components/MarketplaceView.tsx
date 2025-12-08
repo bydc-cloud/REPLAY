@@ -331,7 +331,7 @@ export const MarketplaceView = () => {
             onClick={() => setActiveTab(id as any)}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl font-semibold transition-all whitespace-nowrap ${
               activeTab === id
-                ? "bg-white text-black"
+                ? "bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-lg shadow-purple-500/25"
                 : "bg-[#1a1a1a] text-gray-400 hover:text-white border border-white/10"
             }`}
           >

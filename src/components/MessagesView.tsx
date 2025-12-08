@@ -760,41 +760,52 @@ export function MessagesView() {
             {/* Search Results */}
             <div className="max-h-80 overflow-y-auto">
               {searchResults.length > 0 ? (
-                <div className="px-2 pb-4">
-                  {searchResults.map((searchUser) => (
-                    <button
-                      key={searchUser.id}
-                      onClick={() => startConversation(searchUser)}
-                      className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition-colors"
-                    >
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
-                        {searchUser.avatar_url ? (
-                          <img
-                            src={searchUser.avatar_url}
-                            alt={searchUser.username}
-                            className="w-full h-full object-cover rounded-full"
-                          />
-                        ) : (
-                          <span className="text-white font-bold text-lg">
-                            {(searchUser.display_name || searchUser.username).charAt(0).toUpperCase()}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex-1 text-left min-w-0">
-                        <p className="font-semibold text-white truncate">
-                          {searchUser.display_name || searchUser.username}
-                        </p>
-                        <p className="text-sm text-white/40 truncate">@{searchUser.username}</p>
-                      </div>
-                      <UserPlus className="w-5 h-5 text-violet-400 flex-shrink-0" />
-                    </button>
-                  ))}
+                <div className="pb-4">
+                  {/* Section header */}
+                  <div className="px-5 py-2">
+                    <span className="text-xs font-medium text-white/40 uppercase tracking-wider">
+                      {userSearchQuery.trim() ? 'Search Results' : 'Suggested'}
+                    </span>
+                  </div>
+                  <div className="px-2">
+                    {searchResults.map((searchUser) => (
+                      <button
+                        key={searchUser.id}
+                        onClick={() => startConversation(searchUser)}
+                        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition-colors"
+                      >
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                          {searchUser.avatar_url ? (
+                            <img
+                              src={searchUser.avatar_url}
+                              alt={searchUser.username}
+                              className="w-full h-full object-cover rounded-full"
+                            />
+                          ) : (
+                            <span className="text-white font-bold text-lg">
+                              {(searchUser.display_name || searchUser.username).charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex-1 text-left min-w-0">
+                          <p className="font-semibold text-white truncate">
+                            {searchUser.display_name || searchUser.username}
+                          </p>
+                          <p className="text-sm text-white/40 truncate">@{searchUser.username}</p>
+                        </div>
+                        <UserPlus className="w-5 h-5 text-violet-400 flex-shrink-0" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ) : !searchingUsers && searchResults.length === 0 ? (
                 <div className="px-4 py-8 text-center">
                   <UserPlus className="w-12 h-12 text-white/10 mx-auto mb-3" />
                   <p className="text-white/40 text-sm">
-                    {userSearchQuery.trim() ? 'No users found' : 'No users available yet'}
+                    {userSearchQuery.trim() ? 'No users found' : 'No other users yet'}
+                  </p>
+                  <p className="text-white/30 text-xs mt-1">
+                    {userSearchQuery.trim() ? 'Try a different search' : 'Invite friends to join Rhythm'}
                   </p>
                 </div>
               ) : searchingUsers ? (

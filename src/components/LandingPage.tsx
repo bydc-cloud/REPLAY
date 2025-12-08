@@ -286,7 +286,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
     }
   ];
 
-  // Interactive Roadmap Journey - Updated December 2025
+  // Interactive Roadmap Journey - Updated December 2025 - Expanded for investability
   const roadmapJourney = [
     {
       id: 'foundation',
@@ -297,9 +297,9 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       items: [
         'Premium music library with cloud sync',
         '10-band parametric EQ with 12 presets',
-        'AI-powered lyrics transcription',
-        'BPM & key detection',
-        '7 audio visualizer variants'
+        'AI-powered lyrics transcription (OpenAI Whisper)',
+        'BPM & key detection engine',
+        '7 GPU-accelerated visualizer variants'
       ]
     },
     {
@@ -309,11 +309,11 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       status: 'completed',
       milestone: 'Social Features',
       items: [
-        'Producer profiles with uploads',
-        'Follows, likes, comments',
-        'Full-screen Discovery feed',
-        'Direct messaging',
-        'Mobile-responsive UI'
+        'Producer profiles with verified badges',
+        'Social graph: follows, likes, comments',
+        'TikTok-style Discovery feed',
+        'Real-time direct messaging',
+        'Cross-platform responsive UI'
       ]
     },
     {
@@ -324,10 +324,10 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       milestone: 'Pro Features',
       items: [
         'Producer mode with A/B looping',
-        'Crossfade & speed control',
-        'Custom albums with covers',
-        'Analytics dashboard',
-        'Earnings tracking'
+        'Advanced audio effects suite',
+        'Custom albums with AI cover generation',
+        'Real-time analytics dashboard',
+        'Earnings & payout tracking'
       ]
     },
     {
@@ -337,36 +337,66 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       status: 'current',
       milestone: 'Beat Economy',
       items: [
-        'Beat marketplace with licensing',
-        'Like-to-play instant playback',
-        'Landing page optimization',
-        'Public producer discovery'
+        'Beat marketplace with smart licensing',
+        'Instant preview & one-click purchase',
+        'Producer discovery algorithm',
+        'SEO-optimized public pages'
       ]
     },
     {
       id: 'monetization',
-      title: 'Monetization',
+      title: 'Monetization 2.0',
       date: 'Q1 2026',
       status: 'upcoming',
-      milestone: 'Revenue Tools',
+      milestone: 'Revenue Infrastructure',
       items: [
-        'Beat packs & bundles',
-        'Custom licensing templates',
-        'Blockchain-transparent payouts',
-        'Payout request system'
+        'Beat packs & subscription bundles',
+        'Multi-tier licensing (lease, exclusive, unlimited)',
+        'Blockchain-verified royalty payments',
+        'Instant payout to 100+ countries',
+        'Tax document automation (1099, W-8)'
       ]
     },
     {
-      id: 'expansion',
-      title: 'Expansion',
-      date: 'Q2-Q3 2026',
+      id: 'ai',
+      title: 'AI Studio',
+      date: 'Q2 2026',
       status: 'future',
-      milestone: 'Platform Growth',
+      milestone: 'AI-Powered Creation',
       items: [
-        'Native mobile apps',
-        'Collaboration & split sheets',
-        'AI recommendations',
-        'Stem separation'
+        'AI stem separation (vocals, drums, bass)',
+        'Intelligent beat recommendations',
+        'AI-generated cover art studio',
+        'Voice-to-melody conversion',
+        'Auto-tagging & genre classification'
+      ]
+    },
+    {
+      id: 'mobile',
+      title: 'Native Mobile',
+      date: 'Q3 2026',
+      status: 'future',
+      milestone: 'Mobile Apps',
+      items: [
+        'iOS & Android native apps',
+        'Offline mode with sync',
+        'Mobile-first beat creation',
+        'Push notifications for sales/collabs',
+        'Apple Watch / WearOS companion'
+      ]
+    },
+    {
+      id: 'enterprise',
+      title: 'Enterprise & API',
+      date: 'Q4 2026',
+      status: 'future',
+      milestone: 'B2B Expansion',
+      items: [
+        'Public API for developers',
+        'White-label licensing for labels',
+        'Sync licensing marketplace (film/TV/games)',
+        'Record label dashboards',
+        'Enterprise SSO & team management'
       ]
     }
   ];
@@ -663,8 +693,13 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         </div>
       </div>
 
+      {/* Seamless Gradient Divider - Hero to Platform */}
+      <div className="relative h-32 md:h-48 -mt-16 md:-mt-24 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-b from-[#050505] via-transparent to-transparent" />
+      </div>
+
       {/* Platform Section */}
-      <section className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent">
+      <section className="relative py-16 md:py-24 px-4 md:px-8 lg:px-12">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 md:mb-16">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 md:mb-4">
@@ -700,15 +735,22 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         </div>
       </section>
 
+      {/* Seamless Gradient Divider - Platform to Discovery */}
+      <div className="relative h-24 md:h-32 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-500/[0.02] to-purple-500/[0.04]" />
+        <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-purple-500/[0.06] to-transparent" />
+      </div>
+
       {/* Discovery Feed Showcase - Hero Feature */}
       <section
         ref={mobileDiscoveryReveal.ref}
-        className={`relative py-20 md:py-32 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-purple-500/[0.03] to-transparent overflow-hidden transition-all duration-1000 ${
+        className={`relative py-20 md:py-32 px-4 md:px-8 lg:px-12 overflow-hidden transition-all duration-1000 ${
           mobileDiscoveryReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
         }`}>
-        {/* Background glow */}
+        {/* Background glow - extended top blending */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/[0.08] rounded-full blur-[100px]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-purple-500/[0.03] via-purple-500/[0.05] to-purple-500/[0.02]" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/[0.08] rounded-full blur-[120px]" />
         </div>
 
         <div className="max-w-6xl mx-auto relative z-10">
@@ -953,6 +995,11 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         </div>
       </section>
 
+      {/* Seamless Gradient Divider - Discovery to Features */}
+      <div className="relative h-24 md:h-40 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-purple-500/[0.02] via-transparent to-transparent" />
+      </div>
+
       {/* Features Section - Premium Teaser Grid */}
       <section
         ref={featuresSectionReveal.ref}
@@ -1035,12 +1082,19 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         </div>
       </section>
 
+      {/* Seamless Gradient Divider - Features to Visualizer */}
+      <div className="relative h-20 md:h-32 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-500/[0.015] to-purple-500/[0.03]" />
+      </div>
+
       {/* Visualizer Preview Section - REAL PerformantVisualizer Components */}
       <section
         ref={visualizerSectionReveal.ref}
-        className={`relative section-apple px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-purple-500/[0.02] to-transparent overflow-hidden transition-all duration-1000 ${
+        className={`relative section-apple px-4 md:px-8 lg:px-12 overflow-hidden transition-all duration-1000 ${
           visualizerSectionReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
         }`}>
+        {/* Seamless background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-b from-purple-500/[0.03] via-purple-500/[0.02] to-transparent pointer-events-none" />
         <div className="max-w-6xl mx-auto">
           {/* Apple-style header */}
           <div className="text-center mb-16 md:mb-24">
@@ -1405,71 +1459,87 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             </p>
           </div>
 
-          {/* Revenue Split Visualization - Premium Glass Cards */}
+          {/* Revenue Split Visualization - Ultra-Premium Cards */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-16">
-            {/* Direct Sales - Glass Card */}
+            {/* Direct Sales - Premium Tech Card */}
             <div className="group relative">
-              {/* Animated gradient border */}
-              <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-green-500/50 via-emerald-400/30 to-green-500/50 opacity-60 blur-sm group-hover:opacity-80 transition-opacity animate-gradient-x" />
+              {/* Multi-layer glow effect */}
+              <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500/15 via-green-400/10 to-emerald-500/15 rounded-[2rem] blur-2xl opacity-40 group-hover:opacity-60 transition-opacity" />
+              <div className="absolute -inset-1 rounded-[2rem] bg-gradient-to-r from-green-500/40 via-emerald-400/20 to-green-500/40 opacity-60 blur-md group-hover:opacity-80 transition-opacity animate-gradient-x" />
 
-              {/* Glass card */}
-              <div className="relative rounded-3xl bg-black/80 backdrop-blur-xl border border-green-500/20 p-8 md:p-10 overflow-hidden">
-                {/* Floating particles */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                  {[...Array(6)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="absolute w-1.5 h-1.5 rounded-full bg-green-400/30 animate-float-particle"
-                      style={{
-                        left: `${15 + i * 14}%`,
-                        top: `${25 + (i % 3) * 20}%`,
-                        animationDelay: `${i * 0.5}s`,
-                      }}
-                    />
-                  ))}
-                </div>
+              {/* Main card */}
+              <div className="relative rounded-[2rem] bg-[#0a0f14] backdrop-blur-xl border border-green-500/20 p-8 md:p-10 overflow-hidden">
+                {/* Corner tech accents */}
+                <div className="absolute top-4 left-4 w-6 h-6 border-l-2 border-t-2 border-green-500/30 rounded-tl" />
+                <div className="absolute top-4 right-4 w-6 h-6 border-r-2 border-t-2 border-green-500/30 rounded-tr" />
+                <div className="absolute bottom-4 left-4 w-6 h-6 border-l-2 border-b-2 border-green-500/30 rounded-bl" />
+                <div className="absolute bottom-4 right-4 w-6 h-6 border-r-2 border-b-2 border-green-500/30 rounded-br" />
+
+                {/* Subtle grid pattern */}
+                <div className="absolute inset-0 opacity-[0.03]" style={{
+                  backgroundImage: 'linear-gradient(to right, #22c55e 1px, transparent 1px), linear-gradient(to bottom, #22c55e 1px, transparent 1px)',
+                  backgroundSize: '40px 40px'
+                }} />
 
                 {/* Content */}
                 <div className="relative z-10">
-                  {/* Icon with glow */}
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-green-500/30 to-emerald-500/20 flex items-center justify-center mb-8 border border-green-500/30 shadow-lg shadow-green-500/20 group-hover:scale-110 group-hover:rotate-3 transition-transform">
-                    <Store className="w-8 h-8 md:w-10 md:h-10 text-green-400" />
+                  {/* Premium icon with glow */}
+                  <div className="relative inline-block mb-8">
+                    <div className="absolute -inset-3 bg-green-500/20 rounded-2xl blur-xl" />
+                    <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-[#0d1117] to-[#0a0f14] flex items-center justify-center border border-green-500/30 shadow-2xl shadow-green-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                      <div className="absolute inset-2 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/5" />
+                      <Store className="w-8 h-8 md:w-10 md:h-10 text-green-400 relative z-10" />
+                    </div>
+                    {/* Status indicator */}
+                    <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center animate-pulse shadow-lg shadow-green-500/50">
+                      <Check className="w-2.5 h-2.5 text-white" />
+                    </div>
                   </div>
 
-                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">Direct Sales</h3>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 mb-3">
+                    <span className="text-[10px] font-mono font-medium text-green-300 uppercase tracking-wider">Marketplace</span>
+                  </div>
+
+                  <h3 className="text-2xl md:text-3xl font-black text-white mb-2">Direct Sales</h3>
                   <p className="text-white/50 mb-8">Beats, samples, licenses</p>
 
                   {/* Premium Split Bar */}
                   <div className="mb-8">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-white/60 text-lg">$100 Sale</span>
-                      <span className="text-green-400 font-bold text-xl">You Keep $85</span>
+                      <span className="text-white/60 text-sm font-mono">$100 SALE</span>
+                      <span className="text-green-400 font-mono font-bold text-lg">YOU KEEP $85</span>
                     </div>
-                    <div className="h-14 rounded-2xl overflow-hidden flex bg-white/5 border border-white/10 relative">
-                      <div className="h-full bg-gradient-to-r from-green-600 via-emerald-500 to-green-400 flex items-center justify-center font-bold text-black text-lg relative overflow-hidden" style={{ width: '85%' }}>
-                        {/* Animated shine */}
-                        <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-                        <span className="relative z-10">85% Creator</span>
+                    <div className="h-12 md:h-14 rounded-xl overflow-hidden flex bg-[#0d1117] border border-green-500/20 relative">
+                      <div className="h-full bg-gradient-to-r from-green-600 via-emerald-500 to-green-400 flex items-center justify-center font-mono font-bold text-black text-sm md:text-base relative overflow-hidden" style={{ width: '85%' }}>
+                        <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+                        <span className="relative z-10 flex items-center gap-2">
+                          <Check className="w-4 h-4" />
+                          85% CREATOR
+                        </span>
                       </div>
-                      <div className="h-full bg-white/10 flex items-center justify-center text-sm text-white/50 flex-1">
+                      <div className="h-full bg-white/5 flex items-center justify-center text-xs font-mono text-white/40 flex-1 border-l border-white/10">
                         15%
                       </div>
                     </div>
                   </div>
 
-                  {/* Breakdown */}
-                  <div className="space-y-3">
+                  {/* Breakdown - Tech style */}
+                  <div className="space-y-2">
                     {[
-                      { label: 'Creator Payout', value: '$85.00', color: 'green', active: true },
-                      { label: 'Platform Fee', value: '$10.00', color: 'white/30', active: false },
-                      { label: 'Processing', value: '$5.00', color: 'white/20', active: false },
+                      { label: 'Creator Payout', value: '$85.00', active: true },
+                      { label: 'Platform Fee', value: '$10.00', active: false },
+                      { label: 'Processing', value: '$5.00', active: false },
                     ].map((item, i) => (
-                      <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-green-500/30 transition-all">
+                      <div key={i} className={`flex items-center justify-between p-3 md:p-4 rounded-xl transition-all ${
+                        item.active
+                          ? 'bg-green-500/10 border border-green-500/20 hover:border-green-500/40'
+                          : 'bg-white/[0.02] border border-white/5 hover:border-white/10'
+                      }`}>
                         <div className="flex items-center gap-3">
-                          <div className={`w-3 h-3 rounded-full ${item.active ? 'bg-green-500 shadow-lg shadow-green-500/50' : 'bg-white/30'}`} />
-                          <span className={item.active ? 'text-white' : 'text-white/50'}>{item.label}</span>
+                          <div className={`w-2.5 h-2.5 rounded-full ${item.active ? 'bg-green-500 shadow-lg shadow-green-500/50' : 'bg-white/20'}`} />
+                          <span className={`text-sm font-medium ${item.active ? 'text-white' : 'text-white/40'}`}>{item.label}</span>
                         </div>
-                        <span className={`font-bold ${item.active ? 'text-green-400 text-lg' : 'text-white/50'}`}>
+                        <span className={`font-mono font-bold ${item.active ? 'text-green-400 text-lg' : 'text-white/40 text-sm'}`}>
                           {item.value}
                         </span>
                       </div>
@@ -1479,69 +1549,77 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
               </div>
             </div>
 
-            {/* Stream Revenue - Glass Card */}
+            {/* Stream Revenue - Premium Tech Card */}
             <div className="group relative">
-              {/* Animated gradient border */}
-              <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-violet-500/50 via-indigo-400/30 to-violet-500/50 opacity-60 blur-sm group-hover:opacity-80 transition-opacity animate-gradient-x" />
+              {/* Multi-layer glow effect */}
+              <div className="absolute -inset-2 bg-gradient-to-r from-violet-500/15 via-indigo-400/10 to-violet-500/15 rounded-[2rem] blur-2xl opacity-40 group-hover:opacity-60 transition-opacity" />
+              <div className="absolute -inset-1 rounded-[2rem] bg-gradient-to-r from-violet-500/40 via-indigo-400/20 to-violet-500/40 opacity-60 blur-md group-hover:opacity-80 transition-opacity animate-gradient-x" />
 
-              {/* Glass card */}
-              <div className="relative rounded-3xl bg-black/80 backdrop-blur-xl border border-purple-500/20 p-8 md:p-10 overflow-hidden">
-                {/* Floating particles */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                  {[...Array(6)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="absolute w-1.5 h-1.5 rounded-full bg-purple-400/30 animate-float-particle"
-                      style={{
-                        left: `${15 + i * 14}%`,
-                        top: `${25 + (i % 3) * 20}%`,
-                        animationDelay: `${i * 0.6}s`,
-                      }}
-                    />
-                  ))}
-                </div>
+              {/* Main card */}
+              <div className="relative rounded-[2rem] bg-[#0a0f14] backdrop-blur-xl border border-purple-500/20 p-8 md:p-10 overflow-hidden">
+                {/* Corner tech accents */}
+                <div className="absolute top-4 left-4 w-6 h-6 border-l-2 border-t-2 border-purple-500/30 rounded-tl" />
+                <div className="absolute top-4 right-4 w-6 h-6 border-r-2 border-t-2 border-purple-500/30 rounded-tr" />
+                <div className="absolute bottom-4 left-4 w-6 h-6 border-l-2 border-b-2 border-purple-500/30 rounded-bl" />
+                <div className="absolute bottom-4 right-4 w-6 h-6 border-r-2 border-b-2 border-purple-500/30 rounded-br" />
+
+                {/* Subtle grid pattern */}
+                <div className="absolute inset-0 opacity-[0.03]" style={{
+                  backgroundImage: 'linear-gradient(to right, #8b5cf6 1px, transparent 1px), linear-gradient(to bottom, #8b5cf6 1px, transparent 1px)',
+                  backgroundSize: '40px 40px'
+                }} />
 
                 {/* Content */}
                 <div className="relative z-10">
-                  {/* Icon with glow */}
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-violet-500/30 to-indigo-500/20 flex items-center justify-center mb-8 border border-purple-500/30 shadow-lg shadow-purple-500/20 group-hover:scale-110 group-hover:rotate-3 transition-transform">
-                    <Headphones className="w-8 h-8 md:w-10 md:h-10 text-purple-400" />
+                  {/* Premium icon with glow */}
+                  <div className="relative inline-block mb-8">
+                    <div className="absolute -inset-3 bg-purple-500/20 rounded-2xl blur-xl" />
+                    <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-[#0d1117] to-[#0a0f14] flex items-center justify-center border border-purple-500/30 shadow-2xl shadow-purple-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                      <div className="absolute inset-2 rounded-xl bg-gradient-to-br from-violet-500/10 to-indigo-500/5" />
+                      <Headphones className="w-8 h-8 md:w-10 md:h-10 text-purple-400 relative z-10" />
+                    </div>
                   </div>
 
-                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">Stream Revenue</h3>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 mb-3">
+                    <span className="text-[10px] font-mono font-medium text-purple-300 uppercase tracking-wider">Streaming</span>
+                  </div>
+
+                  <h3 className="text-2xl md:text-3xl font-black text-white mb-2">Stream Revenue</h3>
                   <p className="text-white/50 mb-8">From subscriber pool</p>
 
                   {/* Premium Split Bar */}
                   <div className="mb-8">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-white/60 text-lg">Subscriber Pool</span>
-                      <span className="text-purple-400 font-bold text-xl">70% to Creators</span>
+                      <span className="text-white/60 text-sm font-mono">SUBSCRIBER POOL</span>
+                      <span className="text-purple-400 font-mono font-bold text-lg">70% TO CREATORS</span>
                     </div>
-                    <div className="h-14 rounded-2xl overflow-hidden flex bg-white/5 border border-white/10">
-                      <div className="h-full bg-gradient-to-r from-violet-600 via-indigo-500 to-violet-400 flex items-center justify-center font-bold text-white text-lg" style={{ width: '70%' }}>
-                        70% Creators
+                    <div className="h-12 md:h-14 rounded-xl overflow-hidden flex bg-[#0d1117] border border-purple-500/20 relative">
+                      <div className="h-full bg-gradient-to-r from-violet-600 via-indigo-500 to-violet-400 flex items-center justify-center font-mono font-bold text-white text-sm md:text-base relative overflow-hidden" style={{ width: '70%' }}>
+                        <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+                        <span className="relative z-10">70% CREATORS</span>
                       </div>
-                      <div className="h-full bg-white/10 flex items-center justify-center text-sm text-white/50 flex-1">
+                      <div className="h-full bg-white/5 flex items-center justify-center text-xs font-mono text-white/40 flex-1 border-l border-white/10">
                         30%
                       </div>
                     </div>
                   </div>
 
-                  {/* How it works - Premium steps */}
-                  <div className="space-y-3">
+                  {/* How it works - Tech style steps */}
+                  <div className="space-y-2">
                     {[
-                      { num: '1', title: 'Users subscribe to Rhythm', sub: '$9.99/month Premium' },
-                      { num: '2', title: '70% goes to creator pool', sub: 'Distributed by play count' },
-                      { num: '3', title: 'Monthly payouts via PayPal/bank', sub: '$50 minimum threshold' },
+                      { num: '01', title: 'Users subscribe to Rhythm', sub: '$9.99/month Premium' },
+                      { num: '02', title: '70% goes to creator pool', sub: 'Distributed by play count' },
+                      { num: '03', title: 'Monthly payouts', sub: '$50 minimum threshold' },
                     ].map((step, i) => (
-                      <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-purple-500/30 transition-all">
-                        <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 font-bold border border-purple-500/30">
+                      <div key={i} className="flex items-center gap-4 p-3 md:p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-purple-500/30 hover:bg-purple-500/[0.02] transition-all">
+                        <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 font-mono font-bold text-sm border border-purple-500/20">
                           {step.num}
                         </div>
-                        <div>
-                          <p className="text-white font-medium">{step.title}</p>
-                          <p className="text-white/40 text-sm">{step.sub}</p>
+                        <div className="flex-1">
+                          <p className="text-white font-medium text-sm">{step.title}</p>
+                          <p className="text-white/40 text-xs font-mono">{step.sub}</p>
                         </div>
+                        <ChevronRight className="w-4 h-4 text-purple-500/40" />
                       </div>
                     ))}
                   </div>
@@ -1550,56 +1628,111 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             </div>
           </div>
 
-          {/* Premium Blockchain Verification - Centered on Desktop */}
+          {/* Premium Blockchain Verification - Ultra-Tech Design */}
           <div className="max-w-4xl mx-auto mb-16 md:mb-20">
             <div className="group relative">
-              {/* Animated gradient border */}
-              <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-emerald-500/30 via-cyan-400/20 to-emerald-500/30 opacity-50 blur-sm group-hover:opacity-70 transition-opacity animate-gradient-x" />
+              {/* Multi-layer glow effect */}
+              <div className="absolute -inset-2 bg-gradient-to-r from-cyan-500/20 via-emerald-400/15 to-cyan-500/20 rounded-[2rem] blur-2xl opacity-40 group-hover:opacity-60 transition-opacity" />
+              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/30 via-cyan-400/20 to-emerald-500/30 rounded-[2rem] blur-md opacity-50 group-hover:opacity-70 transition-opacity animate-gradient-x" />
 
-              <div className="relative rounded-3xl bg-black/60 backdrop-blur-xl border border-emerald-500/20 p-8 md:p-12 lg:p-16 overflow-hidden text-center">
-                {/* Subtle grid background */}
-                <div className="absolute inset-0 opacity-5">
-                  <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f_1px,transparent_1px)] bg-[size:40px_40px]" />
+              <div className="relative rounded-[2rem] bg-[#0a0f14] backdrop-blur-xl border border-cyan-500/20 p-8 md:p-12 lg:p-16 overflow-hidden text-center">
+                {/* Hexagonal tech pattern background */}
+                <div className="absolute inset-0 opacity-[0.04]" style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='52' viewBox='0 0 60 52' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L60 15v22L30 52 0 37V15z' fill='none' stroke='%2322d3ee' stroke-width='0.5'/%3E%3C/svg%3E")`,
+                  backgroundSize: '30px 26px'
+                }} />
+
+                {/* Animated scan line */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  <div className="absolute w-full h-px bg-gradient-to-r from-transparent via-cyan-400/60 to-transparent animate-pulse" style={{ top: '30%' }} />
+                  <div className="absolute w-full h-px bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent animate-pulse" style={{ top: '70%', animationDelay: '1s' }} />
                 </div>
 
+                {/* Corner accents */}
+                <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-cyan-500/40 rounded-tl-lg" />
+                <div className="absolute top-4 right-4 w-8 h-8 border-r-2 border-t-2 border-cyan-500/40 rounded-tr-lg" />
+                <div className="absolute bottom-4 left-4 w-8 h-8 border-l-2 border-b-2 border-cyan-500/40 rounded-bl-lg" />
+                <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-cyan-500/40 rounded-br-lg" />
+
                 <div className="relative z-10">
-                  {/* 3D Blockchain Icon - Centered */}
+                  {/* Premium Shield/Lock Icon with 3D effect */}
                   <div className="flex justify-center mb-8">
                     <div className="relative">
-                      <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/10 flex items-center justify-center border border-emerald-500/30 shadow-2xl shadow-emerald-500/20 transform group-hover:scale-110 transition-transform duration-500">
-                        <Blocks className="w-10 h-10 md:w-12 md:h-12 text-emerald-400" />
+                      {/* Outer glow rings */}
+                      <div className="absolute -inset-8 rounded-full border border-cyan-500/10 animate-pulse" />
+                      <div className="absolute -inset-5 rounded-full border border-emerald-500/15 animate-pulse" style={{ animationDelay: '0.5s' }} />
+                      <div className="absolute -inset-2 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 blur-xl" />
+
+                      {/* Main icon container */}
+                      <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-gradient-to-br from-[#0d1117] to-[#0a0f14] flex items-center justify-center border border-cyan-500/30 shadow-2xl shadow-cyan-500/20 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                        {/* Inner glow */}
+                        <div className="absolute inset-2 rounded-xl bg-gradient-to-br from-cyan-500/10 to-emerald-500/5" />
+                        <div className="relative flex items-center justify-center">
+                          <Shield className="w-8 h-8 md:w-10 md:h-10 text-cyan-400" />
+                          <Lock className="w-4 h-4 md:w-5 md:h-5 text-emerald-400 absolute" />
+                        </div>
                       </div>
-                      {/* Floating rings */}
-                      <div className="absolute -inset-3 rounded-2xl border border-emerald-500/20 animate-pulse" />
-                      <div className="absolute -inset-6 rounded-3xl border border-emerald-500/10 animate-pulse" style={{ animationDelay: '0.5s' }} />
+
+                      {/* Floating security indicators */}
+                      <div className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center animate-pulse">
+                        <Check className="w-2.5 h-2.5 text-white" />
+                      </div>
                     </div>
                   </div>
 
-                  <h4 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-4">Blockchain-Verified</h4>
-                  <p className="text-white/50 text-lg md:text-xl max-w-2xl mx-auto mb-10">
-                    Every transaction recorded on-chain. Complete transparency, always.
+                  {/* Tech typography */}
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 mb-4">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-xs font-mono font-medium text-cyan-300 uppercase tracking-wider">Immutable Ledger</span>
+                  </div>
+
+                  <h4 className="text-2xl md:text-3xl lg:text-4xl font-black text-white mb-4">
+                    Blockchain-<span className="bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">Verified</span>
+                  </h4>
+                  <p className="text-white/50 text-lg md:text-xl max-w-2xl mx-auto mb-10 font-light">
+                    Every transaction cryptographically signed and recorded on-chain.
+                    <span className="text-cyan-400/80 font-medium"> Tamper-proof. Auditable. Forever.</span>
                   </p>
 
-                  {/* Animated Visual Chain - Centered */}
-                  <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4">
+                  {/* Premium Animated Visual Chain */}
+                  <div className="flex flex-wrap items-center justify-center gap-2 md:gap-3">
                     {[
-                      { label: 'Sale', value: '$29.99', color: 'emerald' },
-                      { label: 'Verify', value: '✓', color: 'cyan' },
-                      { label: 'Split', value: '85/15', color: 'teal' },
-                      { label: 'Payout', value: '$25.49', color: 'emerald' },
+                      { label: 'SALE', value: '$29.99', icon: '💰' },
+                      { label: 'HASH', value: '0x7f3a...', icon: '🔐' },
+                      { label: 'VERIFY', value: '✓', icon: '✅' },
+                      { label: 'SPLIT', value: '85/15', icon: '📊' },
+                      { label: 'PAYOUT', value: '$25.49', icon: '💸' },
                     ].map((block, i) => (
                       <div key={i} className="flex items-center">
-                        <div className="px-5 py-3 rounded-xl min-w-[90px] text-center transform hover:scale-105 transition-all duration-300 cursor-default bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40">
-                          <p className="text-[10px] text-emerald-300/60 uppercase tracking-wider mb-1">{block.label}</p>
-                          <p className="text-sm font-bold text-white">{block.value}</p>
+                        <div className="group/block px-4 md:px-5 py-3 md:py-4 rounded-xl min-w-[80px] md:min-w-[100px] text-center transform hover:scale-105 hover:-translate-y-1 transition-all duration-300 cursor-default bg-gradient-to-br from-cyan-500/10 to-emerald-500/5 border border-cyan-500/20 hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-500/20">
+                          <p className="text-[9px] md:text-[10px] text-cyan-300/60 font-mono uppercase tracking-widest mb-1">{block.label}</p>
+                          <p className="text-sm md:text-base font-mono font-bold text-white group-hover/block:text-cyan-300 transition-colors">{block.value}</p>
                         </div>
-                        {i < 3 && (
-                          <div className="w-8 h-0.5 bg-gradient-to-r from-emerald-500/40 to-cyan-500/40 relative hidden sm:block mx-1">
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-chain-pulse" style={{ animationDelay: `${i * 0.3}s` }} />
+                        {i < 4 && (
+                          <div className="w-4 md:w-6 h-[2px] bg-gradient-to-r from-cyan-500/30 to-emerald-500/30 relative hidden sm:block mx-0.5">
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-400/80 to-transparent animate-chain-pulse" style={{ animationDelay: `${i * 0.2}s` }} />
                           </div>
                         )}
                       </div>
                     ))}
+                  </div>
+
+                  {/* Security badges */}
+                  <div className="flex flex-wrap items-center justify-center gap-4 mt-8 pt-8 border-t border-white/5">
+                    <div className="flex items-center gap-2 text-xs text-white/40">
+                      <Shield className="w-4 h-4 text-emerald-400/60" />
+                      <span className="font-mono">256-bit Encryption</span>
+                    </div>
+                    <div className="hidden md:block w-px h-4 bg-white/10" />
+                    <div className="flex items-center gap-2 text-xs text-white/40">
+                      <Lock className="w-4 h-4 text-cyan-400/60" />
+                      <span className="font-mono">Smart Contract Audit</span>
+                    </div>
+                    <div className="hidden md:block w-px h-4 bg-white/10" />
+                    <div className="flex items-center gap-2 text-xs text-white/40">
+                      <Blocks className="w-4 h-4 text-violet-400/60" />
+                      <span className="font-mono">Decentralized</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1639,6 +1772,11 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         </div>
       </section>
 
+      {/* Seamless Gradient Divider - Payouts to Roadmap */}
+      <div className="relative h-24 md:h-40 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/[0.01] via-transparent to-violet-500/[0.02]" />
+      </div>
+
       {/* Premium Curvy Roadmap */}
       <section
         ref={roadmapReveal.ref}
@@ -1647,7 +1785,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
           roadmapReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
         }`}>
         {/* Premium gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-violet-500/[0.02] to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-violet-500/[0.02] via-violet-500/[0.025] to-violet-500/[0.015] pointer-events-none" />
 
         <div className="max-w-5xl mx-auto relative">
           {/* Header */}
@@ -1660,141 +1798,90 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             </p>
           </div>
 
-          {/* Desktop: Premium Curvy Path */}
+          {/* Desktop: Premium Grid Roadmap with Connecting Lines */}
           <div className="hidden lg:block relative">
-            {/* SVG Curvy Path */}
-            <svg
-              className="absolute top-0 left-0 w-full h-full pointer-events-none"
-              viewBox="0 0 1000 600"
-              preserveAspectRatio="xMidYMid meet"
-              style={{ minHeight: '500px' }}
-            >
-              <defs>
-                <linearGradient id="pathGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#22c55e" stopOpacity="0.6" />
-                  <stop offset="40%" stopColor="#a855f7" stopOpacity="0.6" />
-                  <stop offset="70%" stopColor="#eab308" stopOpacity="0.6" />
-                  <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.3" />
-                </linearGradient>
-                <linearGradient id="pathGradientActive" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#22c55e" />
-                  <stop offset="60%" stopColor="#a855f7" />
-                  <stop offset="100%" stopColor="#eab308" />
-                </linearGradient>
-                <filter id="glow">
-                  <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-                  <feMerge>
-                    <feMergeNode in="coloredBlur"/>
-                    <feMergeNode in="SourceGraphic"/>
-                  </feMerge>
-                </filter>
-              </defs>
+            {/* Grid of milestone cards - 2 rows of 4 */}
+            <div className="grid grid-cols-4 gap-6 relative">
+              {/* Connecting line - horizontal across top row */}
+              <div className="absolute top-[72px] left-[12%] right-[12%] h-[2px] bg-gradient-to-r from-green-500 via-purple-500 to-violet-500/30 z-0">
+                <div className="absolute inset-0 bg-gradient-to-r from-green-500/50 via-purple-500/50 to-violet-500/20 blur-sm" />
+              </div>
 
-              {/* Background path */}
-              <path
-                d="M 50,100 C 200,100 200,300 350,300 S 500,100 650,100 S 800,300 950,300"
-                fill="none"
-                stroke="url(#pathGradient)"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeDasharray="8,8"
-                opacity="0.4"
-              />
+              {/* Connecting line - vertical on right side */}
+              <div className="absolute top-[72px] right-[6%] w-[2px] h-[120px] bg-gradient-to-b from-violet-500/30 to-violet-500/30 z-0" />
 
-              {/* Active/completed path */}
-              <path
-                d="M 50,100 C 200,100 200,300 350,300 S 500,100 650,100"
-                fill="none"
-                stroke="url(#pathGradientActive)"
-                strokeWidth="4"
-                strokeLinecap="round"
-                filter="url(#glow)"
-              />
-            </svg>
+              {/* Connecting line - horizontal across bottom row */}
+              <div className="absolute bottom-[72px] left-[12%] right-[12%] h-[2px] bg-gradient-to-l from-cyan-500/50 via-blue-500/30 to-violet-500/20 z-0" />
 
-            {/* Milestone Cards positioned along curve */}
-            <div className="relative" style={{ minHeight: '500px' }}>
-              {roadmapJourney.slice(0, 4).map((milestone, index) => {
+              {roadmapJourney.map((milestone, index) => {
                 const isCompleted = milestone.status === 'completed';
                 const isCurrent = milestone.status === 'current';
-                const positions = [
-                  { left: '0%', top: '0%' },
-                  { left: '28%', top: '45%' },
-                  { left: '56%', top: '0%' },
-                  { left: '84%', top: '45%' }
-                ];
-                const pos = positions[index];
+                const isUpcoming = milestone.status === 'upcoming';
+                const isFuture = milestone.status === 'future';
+
+                // Determine glow colors based on status
+                const statusColors = {
+                  completed: { bg: 'bg-green-500/15', border: 'border-green-500/40', glow: 'shadow-green-500/30', text: 'text-green-400', dot: 'bg-green-500' },
+                  current: { bg: 'bg-yellow-500/15', border: 'border-yellow-500/40', glow: 'shadow-yellow-500/30', text: 'text-yellow-400', dot: 'bg-yellow-500' },
+                  upcoming: { bg: 'bg-violet-500/10', border: 'border-violet-500/30', glow: 'shadow-violet-500/20', text: 'text-violet-400', dot: 'bg-violet-500' },
+                  future: { bg: 'bg-white/[0.03]', border: 'border-white/10', glow: '', text: 'text-white/40', dot: 'bg-white/20' }
+                };
+                const colors = statusColors[milestone.status as keyof typeof statusColors] || statusColors.future;
 
                 return (
                   <div
                     key={milestone.id}
-                    className={`absolute w-56 transition-all duration-500 group cursor-pointer ${
-                      activeRoadmapMilestone === milestone.id ? 'scale-105 z-10' : 'hover:scale-102'
+                    className={`relative group cursor-pointer transition-all duration-300 ${
+                      activeRoadmapMilestone === milestone.id ? 'scale-[1.02] z-10' : 'hover:scale-[1.01]'
                     }`}
-                    style={{ left: pos.left, top: pos.top }}
                     onClick={() => setActiveRoadmapMilestone(milestone.id)}
                   >
-                    {/* Glowing dot on path */}
-                    <div className={`absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full ${
-                      isCompleted
-                        ? 'bg-green-500 shadow-lg shadow-green-500/50'
-                        : isCurrent
-                        ? 'bg-yellow-500 shadow-lg shadow-yellow-500/50 animate-pulse'
-                        : 'bg-white/20 border-2 border-white/30'
-                    }`}>
-                      {isCompleted && <Check className="w-4 h-4 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
-                      {isCurrent && <Zap className="w-3 h-3 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
-                    </div>
-
-                    {/* Card */}
-                    <div className={`ml-6 p-5 rounded-2xl backdrop-blur-sm transition-all duration-300 ${
+                    {/* Milestone card */}
+                    <div className={`relative p-5 rounded-2xl backdrop-blur-sm transition-all duration-300 ${
                       activeRoadmapMilestone === milestone.id
-                        ? isCompleted
-                          ? 'bg-green-500/20 border-2 border-green-500/50 shadow-xl shadow-green-500/20'
-                          : isCurrent
-                          ? 'bg-yellow-500/20 border-2 border-yellow-500/50 shadow-xl shadow-yellow-500/20'
-                          : 'bg-violet-500/20 border-2 border-violet-500/50 shadow-xl shadow-violet-500/20'
-                        : 'bg-white/[0.05] border border-white/10 group-hover:bg-white/[0.08] group-hover:border-white/20'
+                        ? `${colors.bg} border-2 ${colors.border} shadow-xl ${colors.glow}`
+                        : `bg-white/[0.03] border border-white/10 group-hover:bg-white/[0.05] group-hover:border-white/15`
                     }`}>
-                      <p className={`text-xs font-bold uppercase tracking-wider mb-2 ${
-                        isCompleted ? 'text-green-400' : isCurrent ? 'text-yellow-400' : 'text-violet-400'
-                      }`}>
+                      {/* Status dot */}
+                      <div className={`absolute -top-2 left-5 w-4 h-4 rounded-full ${colors.dot} ${isCurrent ? 'animate-pulse' : ''} ${isCompleted || isCurrent ? 'shadow-lg' : ''}`}>
+                        {isCompleted && <Check className="w-2.5 h-2.5 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
+                      </div>
+
+                      <p className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${colors.text}`}>
                         {milestone.date}
                       </p>
-                      <h3 className="text-lg font-bold text-white mb-1">{milestone.title}</h3>
-                      <p className="text-sm text-white/50">{milestone.milestone}</p>
+                      <h3 className={`text-base font-bold mb-1 ${isFuture ? 'text-white/60' : 'text-white'}`}>{milestone.title}</h3>
+                      <p className={`text-xs ${isFuture ? 'text-white/30' : 'text-white/50'}`}>{milestone.milestone}</p>
 
-                      {/* Mini progress for current */}
+                      {/* Progress bar for current */}
                       {isCurrent && (
                         <div className="mt-3">
-                          <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full w-3/4" />
+                          <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full w-3/4 relative">
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
+                            </div>
                           </div>
                         </div>
                       )}
-                    </div>
-                  </div>
-                );
-              })}
 
-              {/* Future milestones - faded */}
-              {roadmapJourney.slice(4).map((milestone, index) => {
-                const positions = [
-                  { left: '75%', top: '85%' },
-                  { left: '90%', top: '85%' }
-                ];
-                const pos = positions[index] || { left: '90%', top: '85%' };
-
-                return (
-                  <div
-                    key={milestone.id}
-                    className="absolute opacity-50 hover:opacity-70 transition-opacity cursor-pointer"
-                    style={{ left: pos.left, top: pos.top }}
-                    onClick={() => setActiveRoadmapMilestone(milestone.id)}
-                  >
-                    <div className="flex items-center gap-2 text-sm text-white/40">
-                      <div className="w-3 h-3 rounded-full border border-white/20" />
-                      <span>{milestone.title}</span>
+                      {/* Expanded content on active */}
+                      {activeRoadmapMilestone === milestone.id && (
+                        <div className="mt-4 pt-3 border-t border-white/10 space-y-1.5 animate-fade-in">
+                          {milestone.items.slice(0, 3).map((item, i) => (
+                            <div key={i} className="flex items-start gap-2 text-xs text-white/60">
+                              {isCompleted ? (
+                                <Check className="w-3 h-3 text-green-400 flex-shrink-0 mt-0.5" />
+                              ) : (
+                                <div className={`w-1.5 h-1.5 rounded-full ${isCurrent ? 'bg-yellow-500' : 'bg-white/30'} flex-shrink-0 mt-1.5`} />
+                              )}
+                              <span>{item}</span>
+                            </div>
+                          ))}
+                          {milestone.items.length > 3 && (
+                            <p className="text-[10px] text-white/30 pl-5">+{milestone.items.length - 3} more</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -1921,152 +2008,221 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         </div>
       </section>
 
-      {/* Blockchain Transparency Section */}
+      {/* Seamless Gradient Divider - Roadmap to Blockchain */}
+      <div className="relative h-24 md:h-40 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-violet-500/[0.015] via-transparent to-cyan-500/[0.02]" />
+      </div>
+
+      {/* Blockchain Transparency Section - Premium Crypto/Tech Vibe */}
       <section
         ref={transparencyReveal.ref}
         id="transparency"
-        className={`relative py-16 md:py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-transparent via-cyan-500/[0.03] to-transparent overflow-hidden transition-all duration-1000 ${
+        className={`relative py-20 md:py-32 px-4 md:px-8 lg:px-12 overflow-hidden transition-all duration-1000 ${
           transparencyReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'
         }`}>
-        {/* Animated blockchain background */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
-          <div className="absolute top-1/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-500 to-transparent animate-pulse" />
-          <div className="absolute top-2/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-purple-500 to-transparent animate-pulse" style={{ animationDelay: '1s' }} />
-          <div className="absolute top-3/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-500 to-transparent animate-pulse" style={{ animationDelay: '2s' }} />
+        {/* Premium Tech Background - Hexagonal Grid Pattern */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {/* Animated gradient base - with top blending */}
+          <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/[0.02] via-cyan-500/[0.025] to-emerald-500/[0.02]" />
+
+          {/* Hexagonal grid overlay */}
+          <div className="absolute inset-0 opacity-[0.03]" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='52' viewBox='0 0 60 52' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L60 15v22L30 52 0 37V15z' fill='none' stroke='%2322d3ee' stroke-width='0.5'/%3E%3C/svg%3E")`,
+            backgroundSize: '60px 52px'
+          }} />
+
+          {/* Animated connecting lines */}
+          <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="techLine1" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="transparent" />
+                <stop offset="50%" stopColor="#22d3ee" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="transparent" />
+              </linearGradient>
+              <linearGradient id="techLine2" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="transparent" />
+                <stop offset="50%" stopColor="#10b981" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="transparent" />
+              </linearGradient>
+            </defs>
+            {/* Horizontal scan lines */}
+            <line x1="0" y1="20%" x2="100%" y2="20%" stroke="url(#techLine1)" strokeWidth="1">
+              <animate attributeName="opacity" values="0.2;0.6;0.2" dur="4s" repeatCount="indefinite" />
+            </line>
+            <line x1="0" y1="50%" x2="100%" y2="50%" stroke="url(#techLine2)" strokeWidth="1">
+              <animate attributeName="opacity" values="0.2;0.5;0.2" dur="5s" repeatCount="indefinite" begin="1s" />
+            </line>
+            <line x1="0" y1="80%" x2="100%" y2="80%" stroke="url(#techLine1)" strokeWidth="1">
+              <animate attributeName="opacity" values="0.2;0.4;0.2" dur="6s" repeatCount="indefinite" begin="2s" />
+            </line>
+          </svg>
+
+          {/* Floating data nodes */}
+          <div className="hidden md:block absolute top-[15%] left-[10%] w-2 h-2 rounded-full bg-cyan-400/40 animate-pulse" />
+          <div className="hidden md:block absolute top-[25%] right-[15%] w-3 h-3 rounded-full bg-emerald-400/30 animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="hidden md:block absolute bottom-[20%] left-[20%] w-2 h-2 rounded-full bg-cyan-400/30 animate-pulse" style={{ animationDelay: '2s' }} />
+          <div className="hidden md:block absolute bottom-[30%] right-[10%] w-2 h-2 rounded-full bg-emerald-400/40 animate-pulse" style={{ animationDelay: '0.5s' }} />
         </div>
 
-        <div className="max-w-6xl mx-auto relative">
-          <div className="text-center mb-10 md:mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 mb-4 md:mb-6">
-              <Blocks className="w-4 h-4 text-cyan-400" />
-              <span className="text-xs md:text-sm font-medium text-cyan-300">Blockchain Transparency</span>
+        <div className="max-w-6xl mx-auto relative z-10">
+          {/* Premium Header with Tech Typography */}
+          <div className="text-center mb-12 md:mb-20">
+            <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-gradient-to-r from-cyan-500/10 to-emerald-500/10 border border-cyan-500/20 mb-6 md:mb-8">
+              <div className="relative">
+                <Blocks className="w-5 h-5 text-cyan-400" />
+                <div className="absolute inset-0 bg-cyan-400/30 blur-md" />
+              </div>
+              <span className="text-sm font-mono font-medium text-cyan-300 tracking-wider uppercase">On-Chain Verification</span>
+              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             </div>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 md:mb-4">
-              Every Payout, On-Chain
+
+            <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white mb-4 md:mb-6 leading-[0.95] tracking-tight">
+              Transparent
+              <br />
+              <span className="bg-gradient-to-r from-cyan-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">By Design.</span>
             </h2>
-            <p className="text-white/50 max-w-2xl mx-auto text-sm md:text-base">
-              No hidden fees. No surprise deductions. Every producer payout is recorded on the blockchain
-              for complete transparency. Verify any transaction, anytime.
+            <p className="text-lg md:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed">
+              Every royalty payment verified on-chain. No black boxes.
+              <span className="text-cyan-400/80 font-medium"> Zero hidden fees.</span>
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Live Transaction Feed */}
-            <div className="p-6 rounded-2xl bg-gradient-to-br from-[#0a0a12] to-[#15151f] border border-cyan-500/20">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  Live Payouts
-                </h3>
-                <span className="text-xs text-white/40">Updating in real-time</span>
-              </div>
-              <div className="space-y-3">
-                {sampleTransactions.map((tx, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:border-cyan-500/30 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 flex items-center justify-center text-xs font-bold text-white">
-                        {tx.producer.charAt(1).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">{tx.producer}</p>
-                        <p className="text-xs text-white/40">{tx.date}</p>
-                      </div>
+          {/* Main Content - Tech Cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 mb-12">
+            {/* Live Transaction Feed - Terminal Style */}
+            <div className="group relative">
+              {/* Glow effect */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 via-emerald-500/10 to-cyan-500/20 rounded-3xl blur-lg opacity-50 group-hover:opacity-70 transition-opacity" />
+
+              <div className="relative p-6 md:p-8 rounded-2xl bg-[#0a0f14] border border-cyan-500/20 overflow-hidden">
+                {/* Terminal header bar */}
+                <div className="flex items-center justify-between mb-6 pb-4 border-b border-cyan-500/10">
+                  <div className="flex items-center gap-3">
+                    <div className="flex gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-red-500/60" />
+                      <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
+                      <div className="w-3 h-3 rounded-full bg-green-500/60" />
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-green-400">+${tx.amount}</p>
-                      <a
-                        href="#"
-                        className="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
-                      >
-                        {tx.txHash}
-                        <ExternalLink className="w-2.5 h-2.5" />
-                      </a>
-                    </div>
+                    <span className="text-xs font-mono text-cyan-400/60">rhythm://transactions/live</span>
                   </div>
-                ))}
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-xs font-mono text-emerald-400">LIVE</span>
+                  </div>
+                </div>
+
+                {/* Transaction list */}
+                <div className="space-y-3">
+                  {sampleTransactions.map((tx, i) => (
+                    <div
+                      key={i}
+                      className="group/tx flex items-center justify-between p-3 rounded-xl bg-cyan-500/[0.03] border border-cyan-500/10 hover:border-cyan-500/30 hover:bg-cyan-500/[0.06] transition-all cursor-pointer"
+                      style={{ animationDelay: `${i * 100}ms` }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-emerald-500/10 border border-cyan-500/20 flex items-center justify-center font-mono text-sm font-bold text-cyan-300">
+                          {tx.producer.charAt(1).toUpperCase()}{tx.producer.charAt(2).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-mono font-medium text-white group-hover/tx:text-cyan-300 transition-colors">{tx.producer}</p>
+                          <p className="text-xs font-mono text-white/30">{tx.date}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-base font-mono font-bold text-emerald-400">+${tx.amount}</p>
+                        <div className="flex items-center gap-1.5 text-cyan-400/60 group-hover/tx:text-cyan-400 transition-colors">
+                          <span className="text-[10px] font-mono">{tx.txHash}</span>
+                          <ExternalLink className="w-2.5 h-2.5" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* View all button */}
+                <button className="w-full mt-6 py-3 text-sm font-mono text-cyan-400 hover:text-cyan-300 flex items-center justify-center gap-2 transition-colors rounded-xl border border-cyan-500/20 hover:border-cyan-500/40 hover:bg-cyan-500/[0.05]">
+                  <span className="text-cyan-500/60">&gt;</span> View All Transactions
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
-              <button className="w-full mt-4 py-2 text-sm text-cyan-400 hover:text-cyan-300 flex items-center justify-center gap-2 transition-colors">
-                View All Transactions
-                <ChevronRight className="w-4 h-4" />
-              </button>
             </div>
 
-            {/* Transparency Features */}
+            {/* Transparency Features - Tech Style */}
             <div className="space-y-4">
-              <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-cyan-500/30 transition-colors">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
-                    <Eye className="w-5 h-5 text-cyan-400" />
+              {[
+                { icon: Eye, title: 'Public Ledger', desc: 'Every payout recorded on-chain. Verify any transaction, anytime.', color: 'cyan' },
+                { icon: DollarSign, title: '85% Creator Split', desc: 'Industry-leading revenue share. You keep 85% of every sale.', color: 'emerald' },
+                { icon: FileText, title: 'Smart Contracts', desc: 'Automated licensing with instant PDF delivery and verifiable terms.', color: 'cyan' },
+                { icon: Link2, title: 'Direct Payouts', desc: 'Instant transfers to wallet or bank. No middlemen, no delays.', color: 'emerald' }
+              ].map((feature, i) => {
+                const Icon = feature.icon;
+                const isEmerald = feature.color === 'emerald';
+                return (
+                  <div key={i} className="group p-5 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-cyan-500/30 hover:bg-cyan-500/[0.02] transition-all cursor-default">
+                    <div className="flex items-start gap-4">
+                      <div className={`relative w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                        isEmerald ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-cyan-500/10 border border-cyan-500/20'
+                      }`}>
+                        <Icon className={`w-6 h-6 ${isEmerald ? 'text-emerald-400' : 'text-cyan-400'}`} />
+                        {/* Glow on hover */}
+                        <div className={`absolute inset-0 rounded-xl ${isEmerald ? 'bg-emerald-500/20' : 'bg-cyan-500/20'} blur-md opacity-0 group-hover:opacity-60 transition-opacity`} />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-white mb-1 group-hover:text-cyan-300 transition-colors">{feature.title}</h4>
+                        <p className="text-sm text-white/50">{feature.desc}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-bold text-white mb-1">Public Ledger</h4>
-                    <p className="text-sm text-white/50">Every payout is recorded on the blockchain. Anyone can verify transactions without compromising privacy.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-cyan-500/30 transition-colors">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
-                    <DollarSign className="w-5 h-5 text-cyan-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-white mb-1">85% to Producers</h4>
-                    <p className="text-sm text-white/50">Industry-leading split. Producers keep 85% of every sale. Platform takes just 15%.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-cyan-500/30 transition-colors">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
-                    <FileText className="w-5 h-5 text-cyan-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-white mb-1">Automated Licensing</h4>
-                    <p className="text-sm text-white/50">Smart contracts handle licensing automatically. Instant PDF delivery with verifiable terms.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-cyan-500/30 transition-colors">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
-                    <Link2 className="w-5 h-5 text-cyan-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-white mb-1">No Middlemen</h4>
-                    <p className="text-sm text-white/50">Direct payouts to your wallet or bank. No waiting for monthly statements or hidden processing fees.</p>
-                  </div>
-                </div>
-              </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* Stats bar */}
-          <div className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 text-center">
-              <p className="text-2xl md:text-3xl font-black text-white">$0</p>
-              <p className="text-xs text-white/40 mt-1">Total Paid Out</p>
+          {/* Stats bar - Premium Tech Style */}
+          <div className="relative">
+            {/* Connecting line above stats */}
+            <div className="absolute top-0 left-[10%] right-[10%] h-px bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent" />
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 pt-8">
+              {[
+                { value: '$0', label: 'Total Paid Out', prefix: '', color: 'emerald' },
+                { value: '0', label: 'Verified Transactions', prefix: '', color: 'cyan' },
+                { value: '85%', label: 'To Creators', prefix: '', color: 'emerald' },
+                { value: '0', label: 'Hidden Fees', prefix: '$', color: 'cyan' }
+              ].map((stat, i) => {
+                const isEmerald = stat.color === 'emerald';
+                return (
+                  <div key={i} className="group p-5 md:p-6 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-cyan-500/20 text-center transition-all">
+                    <p className={`text-3xl md:text-4xl font-black font-mono ${
+                      isEmerald ? 'text-emerald-400' : 'text-cyan-400'
+                    }`}>
+                      {stat.prefix}{stat.value}
+                    </p>
+                    <p className="text-xs md:text-sm text-white/40 mt-2 font-medium uppercase tracking-wider">{stat.label}</p>
+                  </div>
+                );
+              })}
             </div>
-            <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 text-center">
-              <p className="text-2xl md:text-3xl font-black text-white">0</p>
-              <p className="text-xs text-white/40 mt-1">Transactions</p>
-            </div>
-            <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 text-center">
-              <p className="text-2xl md:text-3xl font-black text-white">85%</p>
-              <p className="text-xs text-white/40 mt-1">To Producers</p>
-            </div>
-            <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 text-center">
-              <p className="text-2xl md:text-3xl font-black text-white">0</p>
-              <p className="text-xs text-white/40 mt-1">Hidden Fees</p>
+          </div>
+
+          {/* Bottom CTA - Crypto Style */}
+          <div className="mt-12 md:mt-16 p-6 md:p-8 rounded-2xl bg-gradient-to-r from-cyan-500/5 via-emerald-500/5 to-cyan-500/5 border border-cyan-500/20 text-center">
+            <div className="flex flex-col md:flex-row items-center justify-center gap-4">
+              <div className="flex items-center gap-3">
+                <Shield className="w-6 h-6 text-emerald-400" />
+                <span className="text-white font-semibold">Powered by immutable blockchain technology</span>
+              </div>
+              <div className="hidden md:block w-px h-6 bg-white/20" />
+              <span className="text-cyan-400/80 text-sm font-mono">Transparency you can verify, not just trust</span>
             </div>
           </div>
         </div>
       </section>
+
+      {/* Seamless Gradient Divider - Blockchain to Pricing */}
+      <div className="relative h-24 md:h-40 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/[0.015] via-transparent to-transparent" />
+      </div>
 
       {/* Pricing Section */}
       <section

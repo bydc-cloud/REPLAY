@@ -1,4 +1,4 @@
-import { Home, Search, Library, Heart, Disc, ListMusic, Plus, X, Folder, Settings, Info, Store, Check, Compass, MessageCircle, User, Upload, Bell, BarChart3 } from "lucide-react";
+import { Home, Search, Library, Heart, Disc, ListMusic, Plus, X, Folder, Settings, Info, Store, Check, Compass, MessageCircle, User, Bell, BarChart3 } from "lucide-react";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
 import { useState, useRef, useEffect } from "react";
 
@@ -16,7 +16,7 @@ const NavItem = ({ icon, label, active, onClick, badge }: NavItemProps) => {
       onClick={onClick}
       className={`w-full flex items-center gap-4 px-6 py-3 transition-all duration-200 relative ${
         active
-          ? "text-[var(--replay-off-white)] bg-gradient-to-r from-white/10 to-transparent border-l-4 border-[var(--replay-off-white)]"
+          ? "text-[var(--replay-off-white)] bg-gradient-to-r from-purple-500/15 via-violet-500/10 to-transparent border-l-4 border-purple-400"
           : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] hover:bg-white/5"
       }`}
     >
@@ -159,8 +159,8 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
 
         {/* Scrollable Content Area - with extra padding for mobile to ensure projects visible */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pb-safe" style={{ WebkitOverflowScrolling: 'touch' }}>
-          {/* Primary Navigation */}
-          <nav className="pt-6">
+          {/* Main Navigation */}
+          <nav className="pt-4">
             <NavItem
               icon={<Home size={20} />}
               label="Home"
@@ -179,99 +179,114 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
               active={activeTab === "search"}
               onClick={() => handleNavClick("search")}
             />
-            <NavItem
-              icon={<Library size={20} />}
-              label="Library"
-              active={activeTab === "library"}
-              onClick={() => handleNavClick("library")}
-            />
-            <NavItem
-              icon={<Heart size={20} />}
-              label="Liked Songs"
-              active={activeTab === "liked"}
-              onClick={() => handleNavClick("liked")}
-            />
-            <NavItem
-              icon={<MessageCircle size={20} />}
-              label="Messages"
-              active={activeTab === "messages"}
-              onClick={() => handleNavClick("messages")}
-              badge={messageCount}
-            />
-            <NavItem
-              icon={<Bell size={20} />}
-              label="Notifications"
-              active={activeTab === "notifications"}
-              onClick={() => handleNavClick("notifications")}
-              badge={notificationCount}
-            />
-            <NavItem
-              icon={<User size={20} />}
-              label="My Profile"
-              active={activeTab === "profile"}
-              onClick={() => handleNavClick("profile")}
-            />
-            <NavItem
-              icon={<BarChart3 size={20} />}
-              label="Dashboard"
-              active={activeTab === "dashboard"}
-              onClick={() => {
-                onDashboardClick?.();
-                onClose?.();
-              }}
-            />
           </nav>
 
-          {/* Secondary Navigation */}
-          {/* Upload Button */}
-          <div className="px-3 pt-6 border-t border-[var(--replay-border)] mt-6">
-            <button
-              onClick={() => {
-                onUploadClick?.();
-                onClose?.();
-              }}
-              className="w-full py-3 bg-gradient-to-r from-[var(--replay-accent-blue)] to-[var(--replay-accent-purple)] text-white hover:opacity-90 transition-all rounded-lg hover-lift active:scale-95 font-semibold flex items-center justify-center gap-2"
-            >
-              <Upload size={18} />
-              Upload Track
-            </button>
+          {/* Your Music Section */}
+          <div className="pt-4 mt-2">
+            <div className="px-6 pb-2">
+              <span className="text-[10px] uppercase tracking-widest text-[var(--replay-mid-grey)]/60 font-medium">
+                Your Music
+              </span>
+            </div>
+            <nav>
+              <NavItem
+                icon={<Library size={20} />}
+                label="Library"
+                active={activeTab === "library"}
+                onClick={() => handleNavClick("library")}
+              />
+              <NavItem
+                icon={<Heart size={20} />}
+                label="Liked Songs"
+                active={activeTab === "liked"}
+                onClick={() => handleNavClick("liked")}
+              />
+              <NavItem
+                icon={<Disc size={20} />}
+                label="Albums"
+                active={activeTab === "albums"}
+                onClick={() => handleNavClick("albums")}
+              />
+              <NavItem
+                icon={<ListMusic size={20} />}
+                label="Queue"
+                active={activeTab === "queue"}
+                onClick={() => handleNavClick("queue")}
+              />
+            </nav>
           </div>
 
-          <nav className="pt-4">
-            <NavItem
-              icon={<Disc size={20} />}
-              label="Albums"
-              active={activeTab === "albums"}
-              onClick={() => handleNavClick("albums")}
-            />
-            <NavItem
-              icon={<ListMusic size={20} />}
-              label="Queue"
-              active={activeTab === "queue"}
-              onClick={() => handleNavClick("queue")}
-            />
-            <NavItem
-              icon={<Settings size={20} />}
-              label="Settings"
-              active={activeTab === "settings"}
-              onClick={() => handleNavClick("settings")}
-            />
-            <NavItem
-              icon={<Store size={20} />}
-              label="Marketplace"
-              active={activeTab === "marketplace"}
-              onClick={() => handleNavClick("marketplace")}
-            />
-            <NavItem
-              icon={<Info size={20} />}
-              label="About Rhythm"
-              active={activeTab === "about"}
-              onClick={() => {
-                onAboutClick?.();
-                onClose?.();
-              }}
-            />
-          </nav>
+          {/* Social Section */}
+          <div className="pt-4 mt-2">
+            <div className="px-6 pb-2">
+              <span className="text-[10px] uppercase tracking-widest text-[var(--replay-mid-grey)]/60 font-medium">
+                Social
+              </span>
+            </div>
+            <nav>
+              <NavItem
+                icon={<User size={20} />}
+                label="My Profile"
+                active={activeTab === "profile"}
+                onClick={() => handleNavClick("profile")}
+              />
+              <NavItem
+                icon={<MessageCircle size={20} />}
+                label="Messages"
+                active={activeTab === "messages"}
+                onClick={() => handleNavClick("messages")}
+                badge={messageCount}
+              />
+              <NavItem
+                icon={<Bell size={20} />}
+                label="Notifications"
+                active={activeTab === "notifications"}
+                onClick={() => handleNavClick("notifications")}
+                badge={notificationCount}
+              />
+              <NavItem
+                icon={<Store size={20} />}
+                label="Marketplace"
+                active={activeTab === "marketplace"}
+                onClick={() => handleNavClick("marketplace")}
+              />
+            </nav>
+          </div>
+
+          {/* More Section */}
+          <div className="pt-4 mt-2">
+            <div className="px-6 pb-2">
+              <span className="text-[10px] uppercase tracking-widest text-[var(--replay-mid-grey)]/60 font-medium">
+                More
+              </span>
+            </div>
+            <nav>
+              <NavItem
+                icon={<BarChart3 size={20} />}
+                label="Dashboard"
+                active={activeTab === "dashboard"}
+                onClick={() => {
+                  onDashboardClick?.();
+                  onClose?.();
+                }}
+              />
+              <NavItem
+                icon={<Settings size={20} />}
+                label="Settings"
+                active={activeTab === "settings"}
+                onClick={() => handleNavClick("settings")}
+              />
+              <NavItem
+                icon={<Info size={20} />}
+                label="About Rhythm"
+                active={activeTab === "about"}
+                onClick={() => {
+                  onAboutClick?.();
+                  onClose?.();
+                }}
+              />
+            </nav>
+          </div>
 
           {/* Projects Section */}
           <div className="pt-6 border-t border-[var(--replay-border)] mt-6">

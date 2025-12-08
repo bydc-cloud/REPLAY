@@ -32,6 +32,7 @@ import { LazyContextLoader } from "./components/LazyContextLoader";
 import { TrackUploadModal } from "./components/TrackUploadModal";
 import { NotificationsView } from "./components/NotificationsView";
 import { AnalyticsDashboard } from "./components/AnalyticsDashboard";
+import { DevDashboard } from "./components/DevDashboard";
 import NotificationsContext from "./contexts/NotificationsContext";
 import MessagingContext from "./contexts/MessagingContext";
 
@@ -199,6 +200,8 @@ function AppContent() {
         return <MarketplaceView />;
       case "notifications":
         return <NotificationsView />;
+      case "dev-dashboard":
+        return <DevDashboard />;
       default:
         return <HomeView />;
     }

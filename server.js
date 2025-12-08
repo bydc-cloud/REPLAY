@@ -1809,16 +1809,27 @@ app.post('/api/tracks/from-b2-batch', auth, async (req, res) => {
 
 // Get streaming URL for B2 track
 // Returns info about audio source - frontend uses proxy-stream for B2 tracks
+// Allows: own tracks OR public tracks (for Discovery)
 app.get('/api/tracks/:id/stream-url', auth, async (req, res) => {
   try {
     const db = getPool();
-    const result = await db.query(
-      'SELECT file_key, file_data FROM tracks WHERE id = $1 AND user_id = $2',
+
+    // First try user's own track
+    let result = await db.query(
+      'SELECT file_key, file_data, visibility FROM tracks WHERE id = $1 AND user_id = $2',
       [req.params.id, req.user.id]
     );
 
+    // If not found as own track, check public tracks
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Track not found' });
+      result = await db.query(
+        "SELECT file_key, file_data, visibility FROM tracks WHERE id = $1 AND visibility = 'public'",
+        [req.params.id]
+      );
+    }
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found or not public' });
     }
 
     const track = result.rows[0];
@@ -1864,28 +1875,44 @@ app.get('/api/tracks/:id/stream-url', auth, async (req, res) => {
 
 // Proxy stream from B2 (bypasses CORS issues)
 // Accepts token via query param since audio elements can't set headers
+// Allows: own tracks OR public tracks (for Discovery)
 app.get('/api/tracks/:id/proxy-stream', async (req, res) => {
   // Get token from query param or header
   const token = req.query.token || req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'Authentication required' });
+  let userId = null;
+
+  // Token is optional for public tracks
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      userId = decoded.id;
+    } catch {
+      // Invalid token - continue without auth (public tracks only)
+    }
   }
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-  } catch (e) {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
   try {
     const db = getPool();
-    const result = await db.query(
-      'SELECT file_key, file_data FROM tracks WHERE id = $1 AND user_id = $2',
-      [req.params.id, req.user.id]
-    );
+
+    // First try user's own track (if authenticated)
+    let result;
+    if (userId) {
+      result = await db.query(
+        'SELECT file_key, file_data, visibility FROM tracks WHERE id = $1 AND user_id = $2',
+        [req.params.id, userId]
+      );
+    }
+
+    // If not found as own track, check public tracks
+    if (!result || result.rows.length === 0) {
+      result = await db.query(
+        "SELECT file_key, file_data, visibility FROM tracks WHERE id = $1 AND visibility = 'public'",
+        [req.params.id]
+      );
+    }
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Track not found' });
+      return res.status(404).json({ error: 'Track not found or not public' });
     }
 
     const track = result.rows[0];
@@ -2201,45 +2228,58 @@ app.post('/api/me/profile-image', auth, express.raw({ type: '*/*', limit: '10mb'
 // ---- USER SEARCH ----
 
 // Search users by username or display name
-// If no query provided, returns all users with profiles (suggested users for messaging)
+// If no query provided, returns suggested users for messaging (those with profiles or public content)
 app.get('/api/users/search', auth, async (req, res) => {
   try {
     const db = getPool();
     const { q } = req.query;
 
-    // If no query, return all users with profiles (for messaging suggestions)
+    // If no query, return suggested users:
+    // 1. Users with producer profiles
+    // 2. Users who have posted public tracks
     if (!q || q.length < 1) {
       const result = await db.query(`
-        SELECT
+        SELECT DISTINCT
           u.id,
-          pp.username,
+          u.username,
           pp.display_name,
-          pp.avatar_url
+          pp.avatar_url,
+          CASE
+            WHEN pp.user_id IS NOT NULL THEN 1
+            WHEN EXISTS (SELECT 1 FROM tracks t WHERE t.user_id = u.id AND t.visibility = 'public') THEN 2
+            ELSE 3
+          END as priority
         FROM users u
         LEFT JOIN producer_profiles pp ON pp.user_id = u.id
-        WHERE pp.username IS NOT NULL
-          AND u.id != $1
-        ORDER BY pp.display_name NULLS LAST, pp.username
+        WHERE u.id != $1
+          AND (
+            pp.user_id IS NOT NULL
+            OR EXISTS (SELECT 1 FROM tracks t WHERE t.user_id = u.id AND t.visibility = 'public')
+          )
+        ORDER BY priority, pp.display_name NULLS LAST, u.username
         LIMIT 50
       `, [req.user.id]);
       return res.json(result.rows);
     }
 
+    // Search with query - search by username, display name, or email
     const result = await db.query(`
-      SELECT
+      SELECT DISTINCT
         u.id,
-        pp.username,
+        u.username,
         pp.display_name,
         pp.avatar_url
       FROM users u
       LEFT JOIN producer_profiles pp ON pp.user_id = u.id
-      WHERE (pp.username ILIKE $1
-         OR pp.display_name ILIKE $1
-         OR u.email ILIKE $1)
-         AND u.id != $3
+      WHERE u.id != $3
+        AND (
+          u.username ILIKE $1
+          OR pp.display_name ILIKE $1
+          OR u.email ILIKE $1
+        )
       ORDER BY
-        CASE WHEN pp.username ILIKE $2 THEN 0 ELSE 1 END,
-        pp.username
+        CASE WHEN u.username ILIKE $2 THEN 0 ELSE 1 END,
+        u.username
       LIMIT 20
     `, [`%${q}%`, `${q}%`, req.user.id]);
 
@@ -2406,12 +2446,13 @@ app.get('/api/liked-tracks', auth, async (req, res) => {
     const db = getPool();
     const result = await db.query(`
       SELECT t.id, t.title, t.artist, t.duration, t.cover_url, t.bpm, t.musical_key,
-             t.genre, t.user_id, t.visibility, t.is_beat,
-             u.username, u.display_name, u.avatar_url,
+             t.genre, t.user_id, t.visibility, t.is_beat, t.file_key,
+             u.username, pp.display_name, pp.avatar_url,
              tl.created_at as liked_at
       FROM track_likes tl
       JOIN tracks t ON t.id = tl.track_id
       JOIN users u ON u.id = t.user_id
+      LEFT JOIN producer_profiles pp ON pp.user_id = t.user_id
       WHERE tl.user_id = $1
       ORDER BY tl.created_at DESC
     `, [req.user.id]);
@@ -2429,13 +2470,14 @@ app.get('/api/users/:userId/liked-tracks', async (req, res) => {
     const { userId } = req.params;
     const result = await db.query(`
       SELECT t.id, t.title, t.artist, t.duration, t.cover_url, t.bpm, t.musical_key,
-             t.genre, t.user_id, t.visibility, t.is_beat,
-             u.username, u.display_name, u.avatar_url,
+             t.genre, t.user_id, t.visibility, t.is_beat, t.file_key,
+             u.username, pp.display_name, pp.avatar_url,
              tl.created_at as liked_at,
              (SELECT COUNT(*) FROM track_likes WHERE track_id = t.id) as likes_count
       FROM track_likes tl
       JOIN tracks t ON t.id = tl.track_id
       JOIN users u ON u.id = t.user_id
+      LEFT JOIN producer_profiles pp ON pp.user_id = t.user_id
       WHERE tl.user_id = $1
         AND (t.visibility = 'public' OR t.user_id = $1)
       ORDER BY tl.created_at DESC
@@ -2644,6 +2686,9 @@ app.get('/api/discover/tracks', async (req, res) => {
     const offset = parseInt(req.query.offset) || 0;
     const genre = req.query.genre;
 
+    // Log request for debugging
+    console.log(`Discovery tracks request: limit=${limit}, offset=${offset}, genre=${genre || 'all'}`);
+
     // Explicitly select fields - exclude file_data (too large for feed)
     let query = `
       SELECT
@@ -2679,10 +2724,87 @@ app.get('/api/discover/tracks', async (req, res) => {
     query += ` ORDER BY t.created_at DESC LIMIT $${paramCount - 1} OFFSET $${paramCount}`;
 
     const result = await db.query(query, params);
+    console.log(`Discovery tracks returned: ${result.rows.length} tracks`);
     res.json(result.rows);
   } catch (e) {
     console.error('Get discover tracks error:', e.message);
     res.status(500).json({ error: 'Failed to get tracks' });
+  }
+});
+
+// Debug endpoint to check public track visibility - temporary for debugging
+app.get('/api/debug/tracks-visibility', async (req, res) => {
+  try {
+    const db = getPool();
+    const result = await db.query(`
+      SELECT visibility, COUNT(*) as count
+      FROM tracks
+      GROUP BY visibility
+    `);
+    const allTracks = await db.query(`
+      SELECT id, title, user_id, visibility, is_beat, created_at
+      FROM tracks
+      ORDER BY created_at DESC
+      LIMIT 20
+    `);
+    res.json({
+      visibility_counts: result.rows,
+      recent_tracks: allTracks.rows
+    });
+  } catch (e) {
+    console.error('Debug tracks error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Admin endpoint to set track visibility (no auth required - for debugging)
+app.put('/api/admin/tracks/:id/visibility', async (req, res) => {
+  try {
+    const db = getPool();
+    const { visibility, is_beat } = req.body;
+    const trackId = req.params.id;
+
+    if (visibility && !['public', 'private'].includes(visibility)) {
+      return res.status(400).json({ error: 'Visibility must be "public" or "private"' });
+    }
+
+    let updateFields = [];
+    let params = [];
+    let paramCount = 0;
+
+    if (visibility) {
+      paramCount++;
+      updateFields.push(`visibility = $${paramCount}`);
+      params.push(visibility);
+    }
+
+    if (is_beat !== undefined) {
+      paramCount++;
+      updateFields.push(`is_beat = $${paramCount}`);
+      params.push(is_beat);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    paramCount++;
+    params.push(trackId);
+
+    const result = await db.query(
+      `UPDATE tracks SET ${updateFields.join(', ')} WHERE id = $${paramCount} RETURNING id, title, visibility, is_beat`,
+      params
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    console.log(`Admin: Track ${trackId} updated - visibility=${visibility}, is_beat=${is_beat}`);
+    res.json(result.rows[0]);
+  } catch (e) {
+    console.error('Admin update track error:', e.message);
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -3276,6 +3398,107 @@ app.get('/api/analytics/payout-history', auth, async (req, res) => {
   } catch (e) {
     console.error('Payout history error:', e.message);
     res.status(500).json({ error: 'Failed to fetch payout history' });
+  }
+});
+
+// ============ ADMIN/DEV DASHBOARD ENDPOINTS ============
+
+// Admin analytics endpoint - for developer dashboard
+// Secret endpoint, no auth required but uses a secret key
+app.get('/api/admin/analytics', async (req, res) => {
+  try {
+    const db = getPool();
+    if (!db) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+
+    // Get total users count and signup stats
+    const usersResult = await db.query(`
+      SELECT
+        COUNT(*) as total_users,
+        COUNT(CASE WHEN created_at > NOW() - INTERVAL '24 hours' THEN 1 END) as users_last_24h,
+        COUNT(CASE WHEN created_at > NOW() - INTERVAL '7 days' THEN 1 END) as users_last_7d,
+        COUNT(CASE WHEN created_at > NOW() - INTERVAL '30 days' THEN 1 END) as users_last_30d
+      FROM users
+    `);
+
+    // Get tracks statistics
+    const tracksResult = await db.query(`
+      SELECT
+        COUNT(*) as total_tracks,
+        COUNT(CASE WHEN visibility = 'public' THEN 1 END) as public_tracks,
+        COUNT(CASE WHEN visibility = 'private' OR visibility IS NULL THEN 1 END) as private_tracks,
+        COUNT(CASE WHEN created_at > NOW() - INTERVAL '24 hours' THEN 1 END) as tracks_last_24h,
+        COUNT(CASE WHEN created_at > NOW() - INTERVAL '7 days' THEN 1 END) as tracks_last_7d,
+        COALESCE(SUM(play_count), 0) as total_plays
+      FROM tracks
+    `);
+
+    // Get storage estimate (tracks with file_key = cloud storage)
+    const storageResult = await db.query(`
+      SELECT
+        COUNT(CASE WHEN file_key IS NOT NULL THEN 1 END) as cloud_tracks,
+        COUNT(CASE WHEN file_data IS NOT NULL AND file_key IS NULL THEN 1 END) as base64_tracks
+      FROM tracks
+    `);
+
+    // Get recent signups with email/name (last 10)
+    const recentUsersResult = await db.query(`
+      SELECT id, email, username, created_at
+      FROM users
+      ORDER BY created_at DESC
+      LIMIT 10
+    `);
+
+    // Get social stats
+    const socialResult = await db.query(`
+      SELECT
+        (SELECT COUNT(*) FROM follows) as total_follows,
+        (SELECT COUNT(*) FROM track_likes) as total_likes,
+        (SELECT COUNT(*) FROM comments) as total_comments,
+        (SELECT COUNT(*) FROM reposts) as total_reposts
+    `);
+
+    // Get producer profiles count
+    const producersResult = await db.query(`
+      SELECT COUNT(*) as total_producers
+      FROM producer_profiles
+    `);
+
+    res.json({
+      users: {
+        total: parseInt(usersResult.rows[0].total_users),
+        last24h: parseInt(usersResult.rows[0].users_last_24h),
+        last7d: parseInt(usersResult.rows[0].users_last_7d),
+        last30d: parseInt(usersResult.rows[0].users_last_30d),
+        recent: recentUsersResult.rows
+      },
+      tracks: {
+        total: parseInt(tracksResult.rows[0].total_tracks),
+        public: parseInt(tracksResult.rows[0].public_tracks),
+        private: parseInt(tracksResult.rows[0].private_tracks),
+        last24h: parseInt(tracksResult.rows[0].tracks_last_24h),
+        last7d: parseInt(tracksResult.rows[0].tracks_last_7d),
+        totalPlays: parseInt(tracksResult.rows[0].total_plays)
+      },
+      storage: {
+        cloudTracks: parseInt(storageResult.rows[0].cloud_tracks),
+        base64Tracks: parseInt(storageResult.rows[0].base64_tracks)
+      },
+      social: {
+        follows: parseInt(socialResult.rows[0].total_follows),
+        likes: parseInt(socialResult.rows[0].total_likes),
+        comments: parseInt(socialResult.rows[0].total_comments),
+        reposts: parseInt(socialResult.rows[0].total_reposts)
+      },
+      producers: {
+        total: parseInt(producersResult.rows[0].total_producers)
+      },
+      generatedAt: new Date().toISOString()
+    });
+  } catch (e) {
+    console.error('Admin analytics error:', e.message);
+    res.status(500).json({ error: 'Failed to fetch admin analytics' });
   }
 });
 

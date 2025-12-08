@@ -86,11 +86,11 @@ export const AuthPage = ({ onBack, initialMode = "signup" }: AuthPageProps) => {
 
             {/* Title */}
             <h1 className="text-2xl md:text-3xl font-black text-white text-center mb-2">
-              {mode === "signup" ? "Create Account" : "Welcome Back"}
+              {mode === "signup" ? "Join the Waitlist" : "Welcome Back"}
             </h1>
             <p className="text-white/50 text-center mb-8">
               {mode === "signup"
-                ? "Start organizing your music collection"
+                ? "Get early access to Rhythm"
                 : "Sign in to access your library"}
             </p>
 
@@ -165,10 +165,10 @@ export const AuthPage = ({ onBack, initialMode = "signup" }: AuthPageProps) => {
                 {isLoading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    {mode === "signup" ? "Creating Account..." : "Signing In..."}
+                    {mode === "signup" ? "Joining Waitlist..." : "Signing In..."}
                   </>
                 ) : (
-                  mode === "signup" ? "Create Account" : "Sign In"
+                  mode === "signup" ? "Join Waitlist" : "Sign In"
                 )}
               </button>
             </form>

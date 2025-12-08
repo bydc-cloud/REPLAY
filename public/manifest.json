@@ -10,15 +10,15 @@
   "categories": ["music", "entertainment"],
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><circle cx='96' cy='96' r='90' fill='%230a0a0a' stroke='%23e8e8e8' stroke-width='4'/><path d='M140 96L70 140V52L140 96Z' fill='%23e8e8e8'/></svg>",
+      "src": "/android-chrome-192x192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><circle cx='256' cy='256' r='240' fill='%230a0a0a' stroke='%23e8e8e8' stroke-width='8'/><path d='M370 256L186 370V142L370 256Z' fill='%23e8e8e8'/></svg>",
+      "src": "/android-chrome-512x512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ],

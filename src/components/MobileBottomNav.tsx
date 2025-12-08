@@ -83,31 +83,31 @@ export const MobileBottomNav = ({ activeTab, onTabChange, isHidden = false }: Mo
 
               {/* Options */}
               <div className="p-2">
-                {/* Post to Discovery */}
+                {/* Post to Discovery - Primary action */}
                 <button
                   onClick={() => handleCreateOption('post')}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors"
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors border border-violet-500/30 bg-violet-500/5"
                 >
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
                     <Globe className="w-5 h-5 text-white" />
                   </div>
                   <div className="flex-1 text-left">
-                    <p className="text-white font-medium text-sm">Post to Discovery</p>
-                    <p className="text-white/40 text-xs">Share your music publicly</p>
+                    <p className="text-white font-medium text-sm">Share to Feed</p>
+                    <p className="text-violet-300/60 text-xs">Post music for everyone to discover</p>
                   </div>
                 </button>
 
                 {/* Import to Library */}
                 <button
                   onClick={() => handleCreateOption('import')}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors"
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors mt-1"
                 >
                   <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/10">
                     <FolderOpen className="w-5 h-5 text-white/80" />
                   </div>
                   <div className="flex-1 text-left">
                     <p className="text-white font-medium text-sm">Import to Library</p>
-                    <p className="text-white/40 text-xs">Add music to your collection</p>
+                    <p className="text-white/40 text-xs">Private - only you can see</p>
                   </div>
                 </button>
               </div>
@@ -152,21 +152,21 @@ export const MobileBottomNav = ({ activeTab, onTabChange, isHidden = false }: Mo
                 onClick={() => onTabChange(id)}
                 className={`relative flex flex-col items-center gap-0.5 px-3 pb-1 pt-2 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? "text-white"
+                    ? "text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-purple-400 to-fuchsia-400"
                     : "text-white/40 active:text-white/60"
                 }`}
               >
                 <Icon
                   size={22}
                   strokeWidth={isActive ? 2.5 : 1.5}
-                  className={isActive ? 'text-white' : ''}
+                  className={isActive ? 'text-purple-400' : ''}
                 />
-                <span className={`text-[10px] ${isActive ? 'font-semibold' : 'font-medium'}`}>
+                <span className={`text-[10px] ${isActive ? 'font-semibold text-purple-400' : 'font-medium'}`}>
                   {label}
                 </span>
                 {/* Active indicator dot */}
                 {isActive && (
-                  <div className="absolute bottom-0 w-1 h-1 rounded-full bg-violet-400" />
+                  <div className="absolute bottom-0 w-1.5 h-1.5 rounded-full bg-gradient-to-r from-violet-400 to-purple-500 shadow-lg shadow-purple-500/50" />
                 )}
               </button>
             );

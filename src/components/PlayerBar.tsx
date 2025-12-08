@@ -214,7 +214,7 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
         {/* Ultra Thin Progress Bar */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/5">
           <div
-            className="h-full bg-gradient-to-r from-[var(--replay-off-white)] to-[var(--replay-off-white)]/60"
+            className="h-full bg-gradient-to-r from-violet-400 via-purple-500 to-fuchsia-500 shadow-[0_0_4px_rgba(168,85,247,0.5)]"
             style={{
               width: `${progress}%`,
               transition: 'width 100ms linear'
@@ -385,7 +385,7 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
           />
           <div
-            className="h-full bg-gradient-to-r from-[var(--replay-off-white)] to-white/80"
+            className="h-full bg-gradient-to-r from-violet-400 via-purple-500 to-fuchsia-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]"
             style={{
               width: `${progress}%`,
               transition: 'width 100ms linear'
@@ -716,13 +716,13 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
                 <div className="absolute inset-0 bg-white/10 rounded-full overflow-hidden">
                   {/* Fill */}
                   <div
-                    className="h-full bg-gradient-to-r from-[var(--replay-off-white)] to-white/90 rounded-full transition-[width] duration-75 ease-out"
+                    className="h-full bg-gradient-to-r from-violet-400 to-purple-500 rounded-full transition-[width] duration-75 ease-out"
                     style={{ width: `${volumePercent}%` }}
                   />
                 </div>
                 {/* Thumb */}
                 <div
-                  className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-[var(--replay-off-white)] rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+                  className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-gradient-to-br from-violet-400 to-purple-500 rounded-full shadow-lg shadow-purple-500/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
                   style={{ left: `calc(${volumePercent}% - 6px)` }}
                 />
                 {/* Input slider (invisible but functional) */}

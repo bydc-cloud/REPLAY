@@ -1053,10 +1053,30 @@ export const MusicLibraryProvider = ({ children }: { children: ReactNode }) => {
     // --- DUPLICATE DETECTION ---
     // Create a set of existing track identifiers to detect duplicates
     // We use multiple matching strategies: title+artist combo AND filename
+    // IMPORTANT: Skip tracks that need reimport (no valid audio) - they SHOULD be reimported
     const existingTrackKeys = new Set<string>();
     const existingFilenames = new Set<string>();
+    const tracksNeedingReimportIds = new Set<string>();
+
+    // Helper function to check if a track needs reimport (broken/no audio)
+    const trackNeedsReimport = (track: Track): boolean => {
+      // Explicitly marked as needing reimport
+      if ((track as Track & { needsReimport?: boolean }).needsReimport) return true;
+      // No cloud file key and has audio issues
+      if (!track.fileKey && track.hasAudio === false) return true;
+      // No cloud file key and only has blob URL (which may be stale)
+      if (!track.fileKey && track.fileUrl?.startsWith('blob:')) return true;
+      return false;
+    };
 
     tracks.forEach(track => {
+      // Skip tracks that need reimport - we WANT to allow reimporting them
+      if (trackNeedsReimport(track)) {
+        tracksNeedingReimportIds.add(track.id);
+        console.log(`Track "${track.title}" needs reimport, allowing duplicate import`);
+        return; // Don't add to duplicate detection sets
+      }
+
       // Key by title + artist (case-insensitive, trimmed)
       const titleArtistKey = `${(track.title || '').toLowerCase().trim()}|${(track.artist || '').toLowerCase().trim()}`;
       if (titleArtistKey !== '|') {

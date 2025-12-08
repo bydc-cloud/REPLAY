@@ -960,7 +960,7 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
               onClick={() => setActiveTab(tab as typeof activeTab)}
               className={`px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all active:scale-95 ${
                 activeTab === tab
-                  ? 'bg-white text-black shadow-lg'
+                  ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-lg shadow-purple-500/25'
                   : 'bg-white/10 text-white/70 active:bg-white/20'
               }`}
             >

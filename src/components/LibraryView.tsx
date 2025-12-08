@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Music, Disc, Users, ListMusic, Plus, Upload, Loader2, Trash2, FolderOpen, Folder, ChevronLeft, Edit2, Check, X, Heart, FolderUp } from "lucide-react";
+import { useState, useRef, useMemo } from "react";
+import { Music, Disc, Users, ListMusic, Plus, Upload, Loader2, Trash2, FolderOpen, Folder, ChevronLeft, Edit2, Check, X, Heart, FolderUp, Search } from "lucide-react";
 import { AlbumCard } from "./AlbumCard";
 import { SongCard } from "./SongCard";
 import { useMusicLibrary, Track, ProjectFolder } from "../contexts/MusicLibraryContext";
@@ -173,6 +173,7 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [openFolderId, setOpenFolderId] = useState<string | null>(null);
   const [showImportMenu, setShowImportMenu] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -198,8 +199,49 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
 
   const { setQueue } = useAudioPlayer();
 
-  // Filter tracks based on showLikedOnly prop
-  const displayTracks = showLikedOnly ? likedTracks : tracks;
+  // Filter tracks based on showLikedOnly prop and search query
+  const baseDisplayTracks = showLikedOnly ? likedTracks : tracks;
+
+  // Apply search filter to all content types
+  const normalizedQuery = searchQuery.toLowerCase().trim();
+
+  const displayTracks = useMemo(() => {
+    if (!normalizedQuery) return baseDisplayTracks;
+    return baseDisplayTracks.filter(track =>
+      track.title.toLowerCase().includes(normalizedQuery) ||
+      track.artist.toLowerCase().includes(normalizedQuery) ||
+      (track.album && track.album.toLowerCase().includes(normalizedQuery))
+    );
+  }, [baseDisplayTracks, normalizedQuery]);
+
+  const filteredAlbums = useMemo(() => {
+    if (!normalizedQuery) return albums;
+    return albums.filter(album =>
+      album.name.toLowerCase().includes(normalizedQuery) ||
+      album.artist.toLowerCase().includes(normalizedQuery)
+    );
+  }, [albums, normalizedQuery]);
+
+  const filteredArtists = useMemo(() => {
+    if (!normalizedQuery) return artists;
+    return artists.filter(artist =>
+      artist.name.toLowerCase().includes(normalizedQuery)
+    );
+  }, [artists, normalizedQuery]);
+
+  const filteredPlaylists = useMemo(() => {
+    if (!normalizedQuery) return playlists;
+    return playlists.filter(playlist =>
+      playlist.name.toLowerCase().includes(normalizedQuery)
+    );
+  }, [playlists, normalizedQuery]);
+
+  const filteredFolders = useMemo(() => {
+    if (!normalizedQuery) return projectFolders;
+    return projectFolders.filter(folder =>
+      folder.name.toLowerCase().includes(normalizedQuery)
+    );
+  }, [projectFolders, normalizedQuery]);
 
   const tabs = [
     { id: "projects", label: "Projects", icon: FolderOpen },
@@ -388,6 +430,40 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
         </div>
       </div>
 
+      {/* Search Bar - Premium gradient style */}
+      <div className="mb-6">
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+            <Search className="w-5 h-5 text-[var(--replay-mid-grey)]" />
+          </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={`Search your ${showLikedOnly ? 'liked songs' : 'library'}...`}
+            className="w-full pl-12 pr-4 py-3 bg-[#1a1a1a] border border-white/10 rounded-xl text-[var(--replay-off-white)] placeholder-[var(--replay-mid-grey)] focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/30 transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute inset-y-0 right-0 pr-4 flex items-center text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+        {searchQuery && (
+          <p className="mt-2 text-sm text-[var(--replay-mid-grey)]">
+            Showing results for "<span className="text-violet-400">{searchQuery}</span>"
+            {activeTab === 'songs' && ` (${displayTracks.length} songs)`}
+            {activeTab === 'albums' && ` (${filteredAlbums.length} albums)`}
+            {activeTab === 'artists' && ` (${filteredArtists.length} artists)`}
+            {activeTab === 'playlists' && ` (${filteredPlaylists.length} playlists)`}
+            {activeTab === 'projects' && ` (${filteredFolders.length} projects)`}
+          </p>
+        )}
+      </div>
+
       {/* Import Progress - Modern animated UI */}
       {isImporting && (
         <div className="mb-6 p-5 bg-[#1a1a1a]/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl">
@@ -476,7 +552,7 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 rounded-full transition-all whitespace-nowrap ${
                 activeTab === tab.id
-                  ? "bg-[var(--replay-off-white)] text-[var(--replay-black)]"
+                  ? "bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-lg shadow-purple-500/25"
                   : "bg-[var(--replay-elevated)] text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)]"
               }`}
             >
@@ -546,7 +622,7 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
 
           {activeTab === "albums" && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {albums.map((album) => (
+              {filteredAlbums.map((album) => (
                 <AlbumCard
                   key={album.id}
                   title={album.name}
@@ -555,12 +631,17 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
                   onClick={() => handlePlayAlbum(album.name, album.artist)}
                 />
               ))}
+              {filteredAlbums.length === 0 && searchQuery && (
+                <div className="col-span-full text-center py-12 text-[var(--replay-mid-grey)]">
+                  No albums matching "{searchQuery}"
+                </div>
+              )}
             </div>
           )}
 
           {activeTab === "artists" && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {artists.map((artist) => (
+              {filteredArtists.map((artist) => (
                 <ArtistCard
                   key={artist.id}
                   name={artist.name}
@@ -570,6 +651,11 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
                   onClick={() => handlePlayArtist(artist.name)}
                 />
               ))}
+              {filteredArtists.length === 0 && searchQuery && (
+                <div className="col-span-full text-center py-12 text-[var(--replay-mid-grey)]">
+                  No artists matching "{searchQuery}"
+                </div>
+              )}
             </div>
           )}
 
@@ -615,15 +701,19 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
                 )}
               </div>
 
-              {playlists.length === 0 ? (
+              {filteredPlaylists.length === 0 ? (
                 <div className="text-center py-12">
                   <ListMusic className="w-16 h-16 mx-auto mb-4 text-[var(--replay-mid-grey)]" />
-                  <p className="text-[var(--replay-mid-grey)]">No playlists yet</p>
-                  <p className="text-sm text-[var(--replay-mid-grey)]/60">Create a playlist to organize your music</p>
+                  <p className="text-[var(--replay-mid-grey)]">
+                    {searchQuery ? `No playlists matching "${searchQuery}"` : 'No playlists yet'}
+                  </p>
+                  {!searchQuery && (
+                    <p className="text-sm text-[var(--replay-mid-grey)]/60">Create a playlist to organize your music</p>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {playlists.map((playlist) => (
+                  {filteredPlaylists.map((playlist) => (
                     <PlaylistCard
                       key={playlist.id}
                       name={playlist.name}
@@ -763,15 +853,19 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
                     )}
                   </div>
 
-                  {projectFolders.length === 0 ? (
+                  {filteredFolders.length === 0 ? (
                     <div className="text-center py-12">
                       <FolderOpen className="w-16 h-16 mx-auto mb-4 text-[var(--replay-mid-grey)]" />
-                      <p className="text-[var(--replay-mid-grey)]">No projects yet</p>
-                      <p className="text-sm text-[var(--replay-mid-grey)]/60">Create a project to organize your songs</p>
+                      <p className="text-[var(--replay-mid-grey)]">
+                        {searchQuery ? `No projects matching "${searchQuery}"` : 'No projects yet'}
+                      </p>
+                      {!searchQuery && (
+                        <p className="text-sm text-[var(--replay-mid-grey)]/60">Create a project to organize your songs</p>
+                      )}
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                      {projectFolders.map((folder) => (
+                      {filteredFolders.map((folder) => (
                         <ProjectFolderCard
                           key={folder.id}
                           folder={folder}

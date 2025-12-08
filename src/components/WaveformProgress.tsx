@@ -194,12 +194,14 @@ export const WaveformProgress = ({
                   backgroundColor: isPlayed
                     ? isPlaying
                       ? `hsl(${260 + (index / peaks.length) * 60}, 80%, 65%)`
-                      : 'rgba(232, 232, 232, 0.9)'
+                      : `hsl(${270 + (index / peaks.length) * 40}, 70%, 60%)`
                     : isHovered
-                    ? 'rgba(232, 232, 232, 0.5)'
-                    : 'rgba(232, 232, 232, 0.2)',
-                  boxShadow: isPlayed && isPlaying
-                    ? `0 0 ${4 + peak * 6}px hsla(${260 + (index / peaks.length) * 60}, 80%, 65%, 0.5)`
+                    ? 'rgba(168, 85, 247, 0.5)'
+                    : 'rgba(139, 92, 246, 0.25)',
+                  boxShadow: isPlayed
+                    ? isPlaying
+                      ? `0 0 ${4 + peak * 6}px hsla(${260 + (index / peaks.length) * 60}, 80%, 65%, 0.5)`
+                      : `0 0 ${2 + peak * 3}px hsla(${270 + (index / peaks.length) * 40}, 70%, 60%, 0.3)`
                     : 'none',
                 }}
               />
@@ -209,11 +211,11 @@ export const WaveformProgress = ({
 
         {/* Progress line indicator */}
         <div
-          className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg shadow-white/50 transition-none"
+          className="absolute top-0 bottom-0 w-0.5 bg-gradient-to-b from-violet-400 via-purple-500 to-fuchsia-500 shadow-lg shadow-purple-500/50 transition-none"
           style={{ left: `${progress}%` }}
         >
           {/* Playhead dot */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-gradient-to-br from-violet-400 to-purple-500 rounded-full shadow-lg shadow-purple-500/50 opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
 
         {/* Hover line */}

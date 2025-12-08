@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="overlay" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a855f7;stop-opacity:0.4" />
+      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:0.25" />
+    </linearGradient>
+    <linearGradient id="border" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a855f7;stop-opacity:0.5" />
+      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:0.3" />
+    </linearGradient>
+  </defs>
+  <!-- Dark background -->
+  <circle cx="16" cy="16" r="15" fill="#0a0a0a" />
+  <!-- Gradient overlay (glassmorphism effect) -->
+  <circle cx="16" cy="16" r="15" fill="url(#overlay)" />
+  <!-- Border -->
+  <circle cx="16" cy="16" r="14.5" fill="none" stroke="url(#border)" stroke-width="1" />
+  <!-- Disc icon (vinyl record) - white/light colored -->
+  <circle cx="16" cy="16" r="9" fill="none" stroke="#e8e8e8" stroke-width="1.5" opacity="0.85"/>
+  <circle cx="16" cy="16" r="5.5" fill="none" stroke="#e8e8e8" stroke-width="1.5" opacity="0.65"/>
+  <circle cx="16" cy="16" r="2" fill="#e8e8e8" opacity="0.9"/>
+</svg>

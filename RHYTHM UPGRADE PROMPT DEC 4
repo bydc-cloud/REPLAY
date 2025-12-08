@@ -259,7 +259,7 @@ CREATE INDEX idx_follows_following ON follows(following_id);
 CREATE INDEX idx_likes_track ON likes(track_id);
 CREATE INDEX idx_likes_user ON likes(user_id);
 CREATE INDEX idx_comments_track ON comments(track_id);
-CREATE INDEX idx_track_engagement_trending ON track_engagement(trending_score DESC);
+CREATE INDEX ifdx_track_engagement_trending ON track_engagement(trending_score DESC);
 CREATE INDEX idx_feed_interactions_user ON feed_interactions(user_id, created_at DESC);
 CREATE INDEX idx_tracks_visibility ON tracks(visibility) WHERE visibility = 'public';
 CREATE INDEX idx_tracks_genre ON tracks(genre) WHERE visibility = 'public';
