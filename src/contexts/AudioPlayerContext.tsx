@@ -74,6 +74,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
   const wasPlayingBeforeHiddenRef = useRef<boolean>(false);
   const currentLoadIdRef = useRef<number>(0); // Track current loading request to prevent race conditions
   const retryCountRef = useRef<Map<string, number>>(new Map()); // Track retry counts per track to prevent infinite loops
+  const isUnlockingAudioRef = useRef<boolean>(false); // Suppress error toasts during audio unlock
 
   // Initialize audio element
   useEffect(() => {
@@ -116,6 +117,13 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
     audio.addEventListener("error", (e) => {
       const audioError = (e.target as HTMLAudioElement)?.error;
+
+      // Skip error handling during audio unlock (expected errors on mobile)
+      if (isUnlockingAudioRef.current) {
+        console.log("Audio error during unlock (expected):", audioError?.code);
+        return;
+      }
+
       console.error("Audio error:", audioError);
       // Provide helpful error message based on error code
       if (audioError) {
@@ -160,6 +168,7 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
 
       // IMMEDIATELY mark as unlocked to prevent multiple calls
       audioUnlockedRef.current = true;
+      isUnlockingAudioRef.current = true; // Suppress error toasts during unlock
 
       console.log("Unlocking audio for mobile...");
 
@@ -211,6 +220,9 @@ export const AudioPlayerProvider = ({ children }: { children: ReactNode }) => {
         }
       } catch (e) {
         console.log("Audio unlock error (non-fatal):", e);
+      } finally {
+        // Re-enable error handling after unlock completes
+        isUnlockingAudioRef.current = false;
       }
     };
 
