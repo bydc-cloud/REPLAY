@@ -1,4 +1,4 @@
-import { Home, Search, Library, Heart, Disc, ListMusic, Plus, X, Folder, Settings, Info, Store, Check, Compass, MessageCircle, User, Bell, BarChart3 } from "lucide-react";
+import { Home, Search, Library, Heart, Disc, ListMusic, Plus, X, Folder, Settings, Info, Store, Check, Compass, MessageCircle, User, Bell, BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
 import { useState, useRef, useEffect } from "react";
 
@@ -8,13 +8,14 @@ interface NavItemProps {
   active?: boolean;
   onClick?: () => void;
   badge?: number;
+  collapsed?: boolean;
 }
 
-const NavItem = ({ icon, label, active, onClick, badge }: NavItemProps) => {
+const NavItem = ({ icon, label, active, onClick, badge, collapsed = false }: NavItemProps) => {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-4 px-6 py-3 transition-all duration-200 relative ${
+      className={`w-full flex items-center ${collapsed ? 'justify-center gap-0 px-4' : 'gap-4 px-6'} py-3 transition-all duration-200 relative ${
         active
           ? "text-[var(--replay-off-white)] bg-gradient-to-r from-purple-500/15 via-violet-500/10 to-transparent border-l-4 border-purple-400"
           : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] hover:bg-white/5"
@@ -28,7 +29,7 @@ const NavItem = ({ icon, label, active, onClick, badge }: NavItemProps) => {
           </span>
         )}
       </div>
-      <span className="font-medium">{label}</span>
+      {!collapsed && <span className="font-medium">{label}</span>}
     </button>
   );
 };
@@ -72,6 +73,7 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const [collapsed, setCollapsed] = useState(false);
 
   // Focus input when creating project
   useEffect(() => {
@@ -127,7 +129,7 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
       <aside
         className={`
           fixed md:static inset-y-0 left-0 z-50
-          w-[280px] md:w-[250px] h-screen
+          w-[280px] md:w-[250px] ${collapsed ? 'md:w-[96px]' : ''} h-screen
           bg-[var(--replay-elevated)]/95 backdrop-blur-xl border-r border-[var(--replay-border)]
           flex flex-col will-change-transform
           md:!translate-x-0 md:!opacity-100
@@ -145,16 +147,27 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500/30 to-pink-500/20 backdrop-blur-sm flex items-center justify-center border border-purple-500/30">
               <Disc className="w-5 h-5 text-[var(--replay-off-white)]" />
             </div>
-            <h1 className="text-2xl font-black tracking-tight text-[var(--replay-off-white)]">
-              Rhythm
-            </h1>
+            {!collapsed && (
+              <h1 className="text-2xl font-black tracking-tight text-[var(--replay-off-white)]">
+                Rhythm
+              </h1>
+            )}
           </div>
-          <button
-            onClick={onClose}
-            className="md:hidden text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] transition-colors p-1 rounded-lg hover:bg-white/10 active:scale-95"
-          >
-            <X size={24} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="hidden md:flex text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] transition-colors p-2 rounded-lg hover:bg-white/10 active:scale-95"
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+            </button>
+            <button
+              onClick={onClose}
+              className="md:hidden text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] transition-colors p-1 rounded-lg hover:bg-white/10 active:scale-95"
+            >
+              <X size={24} />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Content Area - with extra padding for mobile to ensure projects visible */}
@@ -166,69 +179,81 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
               label="Home"
               active={activeTab === "home"}
               onClick={() => handleNavClick("home")}
+              collapsed={collapsed}
             />
             <NavItem
               icon={<Compass size={20} />}
               label="Discover"
               active={activeTab === "feed"}
               onClick={() => handleNavClick("feed")}
+              collapsed={collapsed}
             />
             <NavItem
               icon={<Search size={20} />}
               label="Search"
               active={activeTab === "search"}
               onClick={() => handleNavClick("search")}
+              collapsed={collapsed}
             />
           </nav>
 
           {/* Your Music Section */}
           <div className="pt-4 mt-2">
-            <div className="px-6 pb-2">
-              <span className="text-[10px] uppercase tracking-widest text-[var(--replay-mid-grey)]/60 font-medium">
-                Your Music
-              </span>
-            </div>
+            {!collapsed && (
+              <div className="px-6 pb-2">
+                <span className="text-[10px] uppercase tracking-widest text-[var(--replay-mid-grey)]/60 font-medium">
+                  Your Music
+                </span>
+              </div>
+            )}
             <nav>
               <NavItem
                 icon={<Library size={20} />}
                 label="Library"
                 active={activeTab === "library"}
                 onClick={() => handleNavClick("library")}
+                collapsed={collapsed}
               />
               <NavItem
                 icon={<Heart size={20} />}
                 label="Liked Songs"
                 active={activeTab === "liked"}
                 onClick={() => handleNavClick("liked")}
+                collapsed={collapsed}
               />
               <NavItem
                 icon={<Disc size={20} />}
                 label="Albums"
                 active={activeTab === "albums"}
                 onClick={() => handleNavClick("albums")}
+                collapsed={collapsed}
               />
               <NavItem
                 icon={<ListMusic size={20} />}
                 label="Queue"
                 active={activeTab === "queue"}
                 onClick={() => handleNavClick("queue")}
+                collapsed={collapsed}
               />
             </nav>
           </div>
 
           {/* Social Section */}
           <div className="pt-4 mt-2">
-            <div className="px-6 pb-2">
-              <span className="text-[10px] uppercase tracking-widest text-[var(--replay-mid-grey)]/60 font-medium">
-                Social
-              </span>
-            </div>
+            {!collapsed && (
+              <div className="px-6 pb-2">
+                <span className="text-[10px] uppercase tracking-widest text-[var(--replay-mid-grey)]/60 font-medium">
+                  Social
+                </span>
+              </div>
+            )}
             <nav>
               <NavItem
                 icon={<User size={20} />}
                 label="My Profile"
                 active={activeTab === "profile"}
                 onClick={() => handleNavClick("profile")}
+                collapsed={collapsed}
               />
               <NavItem
                 icon={<MessageCircle size={20} />}
@@ -236,6 +261,7 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
                 active={activeTab === "messages"}
                 onClick={() => handleNavClick("messages")}
                 badge={messageCount}
+                collapsed={collapsed}
               />
               <NavItem
                 icon={<Bell size={20} />}
@@ -243,23 +269,27 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
                 active={activeTab === "notifications"}
                 onClick={() => handleNavClick("notifications")}
                 badge={notificationCount}
+                collapsed={collapsed}
               />
               <NavItem
                 icon={<Store size={20} />}
                 label="Marketplace"
                 active={activeTab === "marketplace"}
                 onClick={() => handleNavClick("marketplace")}
+                collapsed={collapsed}
               />
             </nav>
           </div>
 
           {/* More Section */}
           <div className="pt-4 mt-2">
-            <div className="px-6 pb-2">
-              <span className="text-[10px] uppercase tracking-widest text-[var(--replay-mid-grey)]/60 font-medium">
-                More
-              </span>
-            </div>
+            {!collapsed && (
+              <div className="px-6 pb-2">
+                <span className="text-[10px] uppercase tracking-widest text-[var(--replay-mid-grey)]/60 font-medium">
+                  More
+                </span>
+              </div>
+            )}
             <nav>
               <NavItem
                 icon={<BarChart3 size={20} />}
@@ -269,12 +299,14 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
                   onDashboardClick?.();
                   onClose?.();
                 }}
+                collapsed={collapsed}
               />
               <NavItem
                 icon={<Settings size={20} />}
                 label="Settings"
                 active={activeTab === "settings"}
                 onClick={() => handleNavClick("settings")}
+                collapsed={collapsed}
               />
               <NavItem
                 icon={<Info size={20} />}
@@ -284,26 +316,29 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
                   onAboutClick?.();
                   onClose?.();
                 }}
+                collapsed={collapsed}
               />
             </nav>
           </div>
 
           {/* Projects Section */}
           <div className="pt-6 border-t border-[var(--replay-border)] mt-6">
-            <div className="px-6 pb-3 flex items-center justify-between">
-              <span className="text-xs uppercase tracking-wider text-[var(--replay-mid-grey)]">
-                Projects
-              </span>
-              <button
-                onClick={() => setIsCreatingProject(true)}
-                className="text-[var(--replay-off-white)] hover:opacity-70 transition-opacity p-1 rounded-md hover:bg-white/10"
-              >
-                <Plus size={18} />
-              </button>
-            </div>
+            {!collapsed && (
+              <div className="px-6 pb-3 flex items-center justify-between">
+                <span className="text-xs uppercase tracking-wider text-[var(--replay-mid-grey)]">
+                  Projects
+                </span>
+                <button
+                  onClick={() => setIsCreatingProject(true)}
+                  className="text-[var(--replay-off-white)] hover:opacity-70 transition-opacity p-1 rounded-md hover:bg-white/10"
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
+            )}
 
             {/* Create Project Input */}
-            {isCreatingProject && (
+            {isCreatingProject && !collapsed && (
               <div className="px-6 pb-3">
                 <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-2">
                   <Folder size={16} className="text-[var(--replay-mid-grey)] flex-shrink-0" />
@@ -336,23 +371,25 @@ export const Sidebar = ({ activeTab = "home", onTabChange, isOpen = true, onClos
               </div>
             )}
 
-            <div className="space-y-1 pb-24 md:pb-6">
-              {projects.length === 0 && !isCreatingProject ? (
-                <div className="px-6 py-4 text-center">
-                  <p className="text-sm text-[var(--replay-mid-grey)]">No projects yet</p>
-                  <button
-                    onClick={() => setIsCreatingProject(true)}
-                    className="text-xs text-[var(--replay-off-white)]/70 mt-1 hover:text-[var(--replay-off-white)] transition-colors"
-                  >
-                    + Create your first project
-                  </button>
-                </div>
-              ) : (
-                projects.map((project) => (
-                  <ProjectItem key={project.name} name={project.name} songCount={project.songCount} />
-                ))
-              )}
-            </div>
+            {!collapsed && (
+              <div className="space-y-1 pb-24 md:pb-6">
+                {projects.length === 0 && !isCreatingProject ? (
+                  <div className="px-6 py-4 text-center">
+                    <p className="text-sm text-[var(--replay-mid-grey)]">No projects yet</p>
+                    <button
+                      onClick={() => setIsCreatingProject(true)}
+                      className="text-xs text-[var(--replay-off-white)]/70 mt-1 hover:text-[var(--replay-off-white)] transition-colors"
+                    >
+                      + Create your first project
+                    </button>
+                  </div>
+                ) : (
+                  projects.map((project) => (
+                    <ProjectItem key={project.name} name={project.name} songCount={project.songCount} />
+                  ))
+                )}
+              </div>
+            )}
           </div>
         </div>
 

@@ -63,7 +63,7 @@ export const PerformantVisualizer = ({
   // Optimized bar count based on device and variant
   const barCount = useMemo(() => {
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (variant === "bars") return isMobile ? 32 : 64;
+    if (variant === "bars") return isMobile ? 32 : 48;
     if (variant === "circle") return isMobile ? 48 : 96;
     if (variant === "dots") return isMobile ? 25 : 36;
     if (variant === "lines") return isMobile ? 16 : 24;
@@ -291,17 +291,15 @@ export const PerformantVisualizer = ({
 
         if (variant === "bars") {
           // Premium bars with optimized GPU-accelerated glow
-          const scale = Math.max(0.03, value * 1.15);
+          const scale = Math.max(0.08, value * 1.25);
           const barHue = dynamicHue;
           // Only transform + opacity for GPU compositing (no layout thrashing)
           bar.style.transform = `translateZ(0) scaleY(${scale})`;
           bar.style.opacity = isPlaying ? `${0.7 + value * 0.3}` : '0.25';
-          // Simplified 2-layer glow (much faster than 5-layer)
-          // Only apply glow at higher thresholds to reduce paint operations
-          if (isPlaying && value > 0.25) {
-            const g = value * value; // Quadratic for more natural intensity
-            bar.style.boxShadow = `0 0 ${8 + g * 12}px hsla(${barHue}, 100%, 60%, ${0.4 + g * 0.4}),
-             0 0 ${16 + g * 20}px hsla(${barHue}, 90%, 50%, ${0.15 + g * 0.2})`;
+          // Simplified single-layer glow to avoid flicker
+          if (isPlaying && value > 0.2) {
+            const g = value * value;
+            bar.style.boxShadow = `0 0 ${10 + g * 10}px hsla(${barHue}, 100%, 60%, ${0.35 + g * 0.35})`;
           } else {
             bar.style.boxShadow = 'none';
           }
