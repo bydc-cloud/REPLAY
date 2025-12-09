@@ -128,6 +128,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
   const [scrollY, setScrollY] = useState(0);
   const [activeSection, setActiveSection] = useState<string>('');
   const [heroVisualizerIndex, setHeroVisualizerIndex] = useState(0);
+  const navSolid = scrollY > 12;
   const parallaxItems = ([
     "bars",
     "wave",
@@ -138,13 +139,17 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       key={variant}
       className="h-full w-full flex items-center justify-center bg-gradient-to-br from-[#0b0b0f] via-[#0a0716] to-[#05040b]"
     >
-      <div className="w-full h-full rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-purple-800/20">
+      <div className="relative w-full h-full rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-purple-800/25 backdrop-blur-xl">
+        <div className="absolute inset-0 bg-gradient-to-br from-white/4 via-transparent to-purple-500/5" />
         <PerformantVisualizer
           isPlaying={true}
           variant={variant as any}
           size="full"
           audioElement={null}
         />
+        <div className="absolute top-4 left-4 px-3 py-1.5 rounded-full bg-black/45 backdrop-blur-md border border-white/10 text-[11px] tracking-[0.16em] uppercase text-white/80">
+          {variant}
+        </div>
       </div>
     </div>
   ));
@@ -558,7 +563,13 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         `}</style>
 
         {/* Header */}
-        <header className="relative z-10 flex items-center justify-between px-4 py-4 md:px-8 lg:px-12 md:py-6">
+        <header
+          className={`relative z-20 flex items-center justify-between px-4 py-4 md:px-8 lg:px-12 md:py-6 transition-all ${
+            navSolid
+              ? "backdrop-blur-xl bg-white/5 border-b border-white/10 shadow-lg shadow-black/30"
+              : ""
+          }`}
+        >
           <div className="flex items-center gap-2 md:gap-3">
             {showBackButton && onBackToApp && (
               <button
@@ -646,7 +657,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             <div className="flex flex-col sm:flex-row gap-4 md:gap-5 justify-center px-4 animate-hero-enter-delay-2">
               <LiquidButton
                 onClick={onGetStarted}
-                className="bg-gradient-to-r from-violet-500 via-fuchsia-500 to-indigo-500 text-white font-semibold px-10 md:px-12 py-4 md:py-5 rounded-full shadow-xl shadow-purple-700/25 border border-white/10 hover:scale-[1.03] active:scale-[0.98] transition-all"
+                className="relative overflow-hidden bg-gradient-to-r from-violet-500 via-fuchsia-500 to-indigo-500 text-white font-semibold px-10 md:px-12 py-4 md:py-5 rounded-full shadow-xl shadow-purple-700/25 border border-white/10 hover:scale-[1.03] active:scale-[0.98] transition-all before:absolute before:inset-0 before:bg-white/10 before:opacity-0 hover:before:opacity-100 before:transition-opacity"
               >
                 Get Started Free
                 <ArrowRight className="w-5 h-5" />
@@ -678,8 +689,18 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
           </div>
 
           {/* Hero Parallax lane using live visualizers */}
-          <div className="w-full max-w-6xl mx-auto mt-16 md:mt-20 pb-6 md:pb-10">
-            <ZoomParallax items={parallaxItems} className="relative h-[140vh] md:h-[160vh]" />
+          <div className="relative w-full max-w-6xl mx-auto mt-16 md:mt-20 pb-6 md:pb-10">
+            <div className="text-center mb-6 md:mb-8 text-white/60 text-sm md:text-base tracking-[0.18em] uppercase">Seven ways to see your sound</div>
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#050505] via-[#050505]/60 to-transparent z-10" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent z-10" />
+            <div
+              className="pointer-events-none absolute inset-0 z-[5]"
+              style={{
+                background: "radial-gradient(ellipse at center, rgba(0,0,0,0.36) 0%, rgba(0,0,0,0.0) 45%, rgba(0,0,0,0.32) 100%)",
+                filter: "blur(28px)"
+              }}
+            />
+            <ZoomParallax items={parallaxItems} className="relative h-[120vh] md:h-[135vh]" />
           </div>
 
           {/* Scroll indicator */}
