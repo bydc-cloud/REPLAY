@@ -94,6 +94,13 @@ function AppContent() {
     }
   }, [isAuthenticated, currentView, navigate]);
 
+  // Ensure producer profile routes render the app shell instead of blank
+  useEffect(() => {
+    if (isAuthenticated && route.type === 'producer') {
+      setCurrentView('app');
+    }
+  }, [isAuthenticated, route]);
+
   // Show loading state with modern music-themed animation
   if (isLoading) {
     return (

@@ -617,13 +617,15 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             {/* HERO VISUALIZER - Product showcase after headline */}
             <div className="w-full max-w-4xl mx-auto mb-10 md:mb-14 animate-scale-in group">
               {/* Outer glow ring */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-violet-600/20 via-purple-600/10 to-indigo-600/20 rounded-[2rem] blur-xl opacity-60 group-hover:opacity-80 transition-opacity" />
+              <div className="absolute -inset-1 bg-gradient-to-r from-violet-600/18 via-purple-600/12 to-indigo-600/18 rounded-[2rem] blur-[28px] opacity-65 group-hover:opacity-80 transition-opacity" />
 
-              <div className="relative aspect-[21/9] md:aspect-[2.5/1] rounded-[1.5rem] md:rounded-[2rem] overflow-hidden border border-white/10 bg-black/60 backdrop-blur-sm shadow-2xl shadow-violet-500/10">
+              <div className="relative aspect-[21/9] md:aspect-[2.5/1] rounded-[22px] md:rounded-[28px] overflow-hidden border border-white/12 bg-[#0a0a0a]/80 shadow-[0_30px_120px_-50px_rgba(0,0,0,0.85)]">
+                <div className="absolute inset-[1px] rounded-[20px] border border-white/8" />
+
                 {/* Premium glow background */}
                 <div className="absolute inset-0">
-                  <div className="absolute inset-0 bg-gradient-to-br from-violet-600/15 via-transparent to-indigo-600/15" />
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70%] h-[70%] bg-violet-500/20 rounded-full blur-[100px]" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-violet-600/12 via-transparent to-indigo-600/12" />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70%] h-[70%] bg-violet-500/16 rounded-full blur-[110px]" />
                 </div>
 
                 {/* Real Visualizer with transition */}
@@ -692,9 +694,9 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         </div>
       </div>
 
-      {/* Seamless Gradient Divider - Hero to Platform */}
-      <div className="relative h-32 md:h-48 -mt-16 md:-mt-24 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#050505] via-transparent to-transparent" />
+      {/* Seamless Gradient Divider - Hero to Platform (softened to remove harsh line) */}
+      <div className="relative h-10 md:h-14 -mt-10 md:-mt-12 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#050505]/10 to-[#050505]" />
       </div>
 
       {/* Platform Section */}
