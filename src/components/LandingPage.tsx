@@ -52,8 +52,6 @@ import {
   Map
 } from "lucide-react";
 import { PerformantVisualizer } from "./PerformantVisualizer";
-import { WebGLShader } from "./ui/web-gl-shader";
-import { LiquidButton } from "./ui/liquid-glass-button";
 
 // Custom hook for scroll-triggered animations
 const useScrollReveal = (threshold = 0.15) => {
@@ -422,11 +420,6 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         {/* Static background gradient - no parallax to prevent glitching */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] via-[#050505] to-[#000000]" />
 
-        {/* WebGL shader overlay for premium feel */}
-        <div className="absolute inset-0 opacity-35 mix-blend-screen pointer-events-none">
-          <WebGLShader className="absolute inset-0" />
-        </div>
-
         {/* Animated background elements - Simplified for performance */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ transform: 'translateZ(0)' }}>
           {/* Single primary gradient orb - reduced blur for performance */}
@@ -657,13 +650,14 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 md:gap-5 justify-center px-4 animate-hero-enter-delay-2">
-              <LiquidButton
+              <button
                 onClick={onGetStarted}
-                className="bg-white text-black font-semibold px-10 md:px-12 py-4 md:py-5 rounded-full shadow-lg shadow-white/10 hover:scale-[1.03] active:scale-[0.98] transition-all"
+                className="group relative flex items-center justify-center gap-2 px-10 md:px-12 py-4 md:py-5 bg-white text-black font-semibold rounded-full transition-all transform hover:scale-[1.03] active:scale-[0.98] overflow-hidden shadow-lg shadow-white/10"
               >
+                <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-black/5 to-transparent" />
                 Get Started Free
-                <ArrowRight className="w-5 h-5" />
-              </LiquidButton>
+                <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
+              </button>
 
               <button
                 onClick={() => scrollToSection('features')}
