@@ -4,6 +4,7 @@ import { PremiumCoverArt } from "./PremiumCoverArt";
 import { useSettings } from "../contexts/SettingsContext";
 import { useMusicLibrary } from "../contexts/MusicLibraryContext";
 import { useAuth } from "../contexts/PostgresAuthContext";
+import { EqualizerPanel } from "./EqualizerPanel";
 
 type VisualizerVariant = "none" | "bars" | "wave" | "pulse" | "circle" | "dots" | "lines" | "lyrics";
 
@@ -506,6 +507,28 @@ export const SettingsView = ({ selectedVisualizer, onVisualizerChange }: Setting
                 : "Enable Developer Mode to unlock advanced audio analysis tools, waveform visualization, pitch/speed controls, and producer-grade features."}
             </p>
           </div>
+        </div>
+      </section>
+
+      {/* Equalizer (Developer Mode) */}
+      <section className="mb-8">
+        <div className="bg-[var(--replay-elevated)]/80 backdrop-blur-xl border border-[var(--replay-border)] rounded-3xl p-6 md:p-8 shadow-2xl">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <Sparkles className="text-[var(--replay-off-white)]" size={22} />
+              <div>
+                <h3 className="text-xl font-black text-[var(--replay-off-white)]">10-Band EQ</h3>
+                <p className="text-sm text-[var(--replay-mid-grey)]">Fine-tune your sound. Developer Mode required.</p>
+              </div>
+            </div>
+          </div>
+          {developerMode ? (
+            <EqualizerPanel isExpanded={true} onToggleExpand={() => {}} />
+          ) : (
+            <div className="p-4 bg-[var(--replay-dark-grey)]/70 border border-[var(--replay-border)] rounded-2xl text-sm text-[var(--replay-mid-grey)]">
+              Enable Developer Mode above to access the full 10-band EQ and presets.
+            </div>
+          )}
         </div>
       </section>
 

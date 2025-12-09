@@ -1,9 +1,8 @@
-import { Heart, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, Volume2, VolumeX, ListMusic, Minimize2, Sliders, Music, MoreHorizontal, ListPlus, User, Disc, Share2, ChevronDown } from "lucide-react";
+import { Heart, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, Volume2, VolumeX, ListMusic, Minimize2, Sliders, MoreHorizontal, ListPlus, User, Disc, Share2, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { FullScreenPlayer } from "./FullScreenPlayer";
 import { VisualizerModal } from "./VisualizerModal";
 import { ProducerModePanel } from "./ProducerModePanel";
-import { EqualizerPanel } from "./EqualizerPanel";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { PremiumCoverArt } from "./PremiumCoverArt";
 import { WaveformProgress } from "./WaveformProgress";
@@ -23,12 +22,11 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
   const [visualizerModalOpen, setVisualizerModalOpen] = useState(false);
   const [visualizerInitialMode, setVisualizerInitialMode] = useState<"bars" | "wave" | "pulse" | "circle" | "dots" | "lines" | "lyrics" | undefined>(undefined);
   const [producerPanelExpanded, setProducerPanelExpanded] = useState(false);
-  const [equalizerExpanded, setEqualizerExpanded] = useState(false);
   const [showTrackMenu, setShowTrackMenu] = useState(false);
   const [showPlaylistMenu, setShowPlaylistMenu] = useState(false);
   const trackMenuRef = useRef<HTMLDivElement>(null);
   const { visualizerVariant, developerMode } = useSettings();
-  const { connectToAudioElement, eqEnabled } = useAudioEffects();
+  const { playbackSpeed } = useAudioEffects();
 
   const {
     currentTrack,
@@ -54,7 +52,6 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
 
   const { toggleLike, tracks, playlists, addToPlaylist } = useMusicLibrary();
   const { showToast } = useToast();
-  const { playbackSpeed } = useAudioEffects();
 
   // Get current track with full data including analysis
   const trackWithData = currentTrack ? tracks.find(t => t.id === currentTrack.id) : null;
@@ -348,22 +345,9 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
         </div>
       </div>
 
-      {/* Equalizer Panel - Above Producer Mode */}
-      {currentTrack && (
-        <div
-          className="hidden md:block fixed left-0 right-0 z-40"
-          style={{ bottom: developerMode && producerPanelExpanded ? '280px' : (developerMode ? '116px' : '80px') }}
-        >
-          <EqualizerPanel
-            isExpanded={equalizerExpanded}
-            onToggleExpand={() => setEqualizerExpanded(!equalizerExpanded)}
-          />
-        </div>
-      )}
-
       {/* Producer Mode Panel - Above Desktop Player */}
       {developerMode && currentTrack && (
-        <div className="hidden md:block fixed bottom-20 left-0 right-0 z-40">
+        <div className="hidden md:block fixed bottom-24 left-0 right-0 z-40">
           <ProducerModePanel
             audioElement={audioElement}
             isExpanded={producerPanelExpanded}
@@ -665,18 +649,6 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
 
           {/* Right: Volume & Queue */}
           <div className="flex items-center gap-4 w-[320px] justify-end">
-            {/* EQ Button */}
-            <button
-              onClick={() => setEqualizerExpanded(!equalizerExpanded)}
-              className={`transition-all p-2 rounded-full hover:bg-white/5 ${
-                equalizerExpanded || eqEnabled
-                  ? "text-purple-400 bg-purple-500/20"
-                  : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)]"
-              }`}
-              title="Equalizer & Effects"
-            >
-              <Music size={18} />
-            </button>
             {developerMode && (
               <button
                 onClick={() => setProducerPanelExpanded(!producerPanelExpanded)}
