@@ -174,7 +174,7 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
   const [openFolderId, setOpenFolderId] = useState<string | null>(null);
   const [showImportMenu, setShowImportMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [songViewMode, setSongViewMode] = useState<"grid" | "list">("grid");
+  const [songViewMode, setSongViewMode] = useState<"grid" | "list">("list");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
