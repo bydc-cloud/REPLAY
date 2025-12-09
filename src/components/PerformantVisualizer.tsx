@@ -526,27 +526,36 @@ export const PerformantVisualizer = ({
         // Trail
         const trail = orbTrailRef.current;
         trail.push({ x, y, r, alpha: 0.75 + avgEnergy * 0.22 });
-        if (trail.length > 26) trail.shift();
+        if (trail.length > 32) trail.shift();
 
-        // Draw ribbon-like trail
-        ctx.save();
-        ctx.globalCompositeOperation = "lighter";
-        ctx.lineCap = "round";
-        for (let i = 1; i < trail.length; i++) {
-          const prev = trail[i - 1];
-          const seg = trail[i];
-          const fade = i / trail.length;
-          const widthTrail = ((prev.r + seg.r) * 0.5) * (0.6 + (1 - fade) * 0.5);
-          const segHue = (hue + fade * 60) % 360;
-          ctx.strokeStyle = `hsla(${segHue}, 90%, ${55 + (1 - fade) * 20}%, ${(seg.alpha * 0.6) * (1 - fade)})`;
-          ctx.lineWidth = Math.max(2, widthTrail);
-          ctx.shadowBlur = widthTrail * 0.6;
-          ctx.shadowColor = `hsla(${(segHue + 20) % 360}, 90%, 60%, ${(seg.alpha * 0.5) * (1 - fade)})`;
+        // Draw smooth ribbon trail using curved strokes (no stacked circles)
+        const drawTrail = (widthFactor: number, alphaFactor: number, hueShift: number) => {
+          if (trail.length < 2) return;
           ctx.beginPath();
-          ctx.moveTo(prev.x, prev.y);
-          ctx.lineTo(seg.x, seg.y);
+          for (let i = 0; i < trail.length - 1; i++) {
+            const p = trail[i];
+            const n = trail[i + 1];
+            const mx = (p.x + n.x) / 2;
+            const my = (p.y + n.y) / 2;
+            if (i === 0) ctx.moveTo(p.x, p.y);
+            ctx.quadraticCurveTo(p.x, p.y, mx, my);
+          }
+          const last = trail[trail.length - 1];
+          ctx.lineTo(last.x, last.y);
+          const alpha = Math.max(0.1, (trail[0].alpha || 0.8) * alphaFactor);
+          const strokeHue = (hue + hueShift) % 360;
+          ctx.strokeStyle = `hsla(${strokeHue}, 90%, 60%, ${alpha})`;
+          ctx.lineWidth = Math.max(2, r * widthFactor);
+          ctx.shadowBlur = ctx.lineWidth * 1.3;
+          ctx.shadowColor = `hsla(${(strokeHue + 25) % 360}, 90%, 55%, ${alpha * 0.9})`;
+          ctx.lineCap = "round";
+          ctx.globalCompositeOperation = "lighter";
           ctx.stroke();
-        }
+        };
+
+        ctx.save();
+        drawTrail(0.55, 0.35, 0);
+        drawTrail(0.3, 0.65, 30);
         ctx.restore();
 
         // Main orb
