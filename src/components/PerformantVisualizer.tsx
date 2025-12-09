@@ -424,7 +424,7 @@ export const PerformantVisualizer = ({
       const midEnergy = samples.slice(Math.floor(samples.length * 0.2), Math.floor(samples.length * 0.6)).reduce((a, b) => a + b, 0) / Math.max(1, Math.floor(samples.length * 0.4));
       const highEnergy = samples.slice(Math.floor(samples.length * 0.6)).reduce((a, b) => a + b, 0) / Math.max(1, samples.length - Math.floor(samples.length * 0.6));
 
-      const hueBase = (timeRef.current * 40 + avgEnergy * 120) % 360;
+      const hueBase = (timeRef.current * 60 + avgEnergy * 180) % 360;
 
       if (variant === "wave") {
         // Smooth samples for wave line
@@ -433,21 +433,33 @@ export const PerformantVisualizer = ({
           smooth[i] = smooth[i] * 0.78 + samples[i] * 0.22;
         }
 
-        ctx.lineWidth = Math.max(1.5, height * 0.0025);
+        // Background wash to avoid harsh black
+        const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+        bgGrad.addColorStop(0, `hsla(${(hueBase + 20) % 360}, 60%, 18%, 0.22)`);
+        bgGrad.addColorStop(1, `hsla(${(hueBase + 120) % 360}, 65%, 16%, 0.22)`);
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.lineWidth = Math.max(1.6, height * 0.003);
         ctx.lineCap = "round";
+        ctx.globalCompositeOperation = "lighter";
 
         const drawWave = (offset: number, opacity: number, freqMul: number, ampMul: number, colorHueShift: number) => {
           ctx.beginPath();
           const hue = (hueBase + colorHueShift) % 360;
-          ctx.strokeStyle = `hsla(${hue}, 90%, ${50 + avgEnergy * 20}%, ${opacity})`;
+          const strokeGrad = ctx.createLinearGradient(0, 0, width, 0);
+          strokeGrad.addColorStop(0, `hsla(${(hue + 15) % 360}, 95%, ${55 + avgEnergy * 20}%, ${opacity})`);
+          strokeGrad.addColorStop(0.5, `hsla(${(hue + 60) % 360}, 90%, ${60 + avgEnergy * 25}%, ${opacity})`);
+          strokeGrad.addColorStop(1, `hsla(${(hue + 120) % 360}, 85%, ${50 + avgEnergy * 20}%, ${opacity * 0.85})`);
+          ctx.strokeStyle = strokeGrad;
 
           for (let i = 0; i < smooth.length; i++) {
             const t = i / (smooth.length - 1);
             const x = t * width;
-            const sine = Math.sin(timeRef.current * freqMul + t * Math.PI * 4);
+            const sine = Math.sin(timeRef.current * freqMul + t * Math.PI * 5.2);
             const y =
               height * 0.5 +
-              (sine * 0.15 + (smooth[i] - 0.5) * 0.8) * (height * 0.25 * ampMul) +
+              (sine * 0.18 + (smooth[i] - 0.5) * 0.9) * (height * 0.28 * ampMul) +
               offset;
             if (i === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
@@ -455,14 +467,23 @@ export const PerformantVisualizer = ({
           ctx.stroke();
         };
 
-        drawWave(0, 0.8, 1.4 + bassEnergy * 1.2, 1.2 + avgEnergy * 0.8, 0);
-        drawWave(height * 0.02, 0.35, 1.9 + highEnergy * 1.4, 0.7 + midEnergy * 0.6, 40);
-        drawWave(-height * 0.02, 0.25, 2.6 + highEnergy * 1.5, 0.5 + highEnergy * 0.5, 80);
+        drawWave(0, 0.95, 1.35 + bassEnergy * 1.4, 1.25 + avgEnergy * 0.9, 0);
+        drawWave(height * 0.028, 0.55, 1.85 + midEnergy * 1.2, 0.85 + midEnergy * 0.7, 70);
+        drawWave(-height * 0.03, 0.35, 2.45 + highEnergy * 1.6, 0.6 + highEnergy * 0.6, 130);
+
+        ctx.globalCompositeOperation = "source-over";
       } else if (variant === "dots") {
         const grid = Math.ceil(Math.sqrt(barCount));
         const cellW = width / grid;
         const cellH = height / grid;
         const maxRadius = Math.min(cellW, cellH) * 0.45;
+        const cxAll = width / 2;
+        const cyAll = height / 2;
+        const rotate = (timeRef.current * 0.25 + avgEnergy * 0.6);
+        ctx.save();
+        ctx.translate(cxAll, cyAll);
+        ctx.rotate(rotate * 0.05);
+        ctx.translate(-cxAll, -cyAll);
         for (let y = 0; y < grid; y++) {
           for (let x = 0; x < grid; x++) {
             const idx = y * grid + x;
@@ -471,18 +492,20 @@ export const PerformantVisualizer = ({
             const cx = x * cellW + cellW / 2;
             const cy = y * cellH + cellH / 2;
             const ripple = Math.sin(timeRef.current * 3 - (x + y) * 0.35) * 0.12;
-            const radius = Math.max(maxRadius * 0.25, maxRadius * (0.35 + val * 0.9 + ripple + bassEnergy * 0.4));
-            const hue = (hueBase + idx * 4 + (x + y) * 2) % 360;
-            const alpha = isPlaying ? 0.35 + val * 0.6 : 0.15;
+            const radius = Math.max(maxRadius * 0.22, maxRadius * (0.32 + val * 1.0 + ripple + bassEnergy * 0.5));
+            const hue = (hueBase + idx * 6 + (x + y) * 3) % 360;
+            const alpha = isPlaying ? 0.38 + val * 0.62 : 0.18;
             const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
             gradient.addColorStop(0, `hsla(${hue}, 95%, 70%, ${alpha})`);
-            gradient.addColorStop(1, `hsla(${(hue + 25) % 360}, 85%, 50%, ${alpha * 0.7})`);
+            gradient.addColorStop(0.55, `hsla(${(hue + 35) % 360}, 90%, 60%, ${alpha * 0.8})`);
+            gradient.addColorStop(1, `hsla(${(hue + 70) % 360}, 85%, 48%, ${alpha * 0.6})`);
             ctx.fillStyle = gradient;
             ctx.beginPath();
             ctx.arc(cx, cy, radius, 0, Math.PI * 2);
             ctx.fill();
           }
         }
+        ctx.restore();
       }
 
       canvasRafRef.current = requestAnimationFrame(draw);
