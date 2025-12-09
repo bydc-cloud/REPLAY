@@ -39,6 +39,7 @@ export const PerformantVisualizer = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>();
+  const canvasRafRef = useRef<number>();
   const barsRef = useRef<HTMLDivElement[]>([]);
   const lastUpdateRef = useRef<number>(0);
   const timeRef = useRef<number>(0);
@@ -69,6 +70,8 @@ export const PerformantVisualizer = ({
     return 32;
   }, [variant]);
 
+  const isCanvasVariant = variant === "wave" || variant === "dots";
+
   // Initialize bars with refs
   useEffect(() => {
     setIsReady(true);
@@ -78,6 +81,7 @@ export const PerformantVisualizer = ({
     peakRef.current = new Array(barCount).fill(0);
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (canvasRafRef.current) cancelAnimationFrame(canvasRafRef.current);
     };
   }, [barCount]);
 
@@ -169,6 +173,8 @@ export const PerformantVisualizer = ({
 
   // High-performance update loop - runs even when paused to show dark state
   useEffect(() => {
+    if (isCanvasVariant) return; // canvas variants handled separately
+
     if (!isReady) return;
 
     const update = (timestamp: number) => {
@@ -296,22 +302,6 @@ export const PerformantVisualizer = ({
           } else {
             bar.style.boxShadow = 'none';
           }
-        } else if (variant === "wave") {
-          // Silky smooth flowing wave - optimized for 60fps
-          const wavePhase = position * Math.PI * 4 + timeRef.current * 2.5; // Slightly slower for smoother motion
-          const waveHeight = isPlaying ? Math.sin(wavePhase) * 25 * (0.4 + avgEnergy * 0.6) : 0;
-          const scale = Math.max(0.15, value * 1.1);
-          const waveHue = (dynamicHue + position * 60) % 360;
-          // GPU-accelerated transform only
-          bar.style.transform = `translateZ(0) translateY(${waveHeight}px) scaleY(${scale})`;
-          bar.style.opacity = isPlaying ? `${0.8 + value * 0.2}` : '0.25';
-          // Simplified single-layer glow
-          if (isPlaying && value > 0.3) {
-            const g = value * value;
-            bar.style.boxShadow = `0 0 ${10 + g * 15}px hsla(${waveHue}, 100%, 55%, ${0.35 + g * 0.35})`;
-          } else {
-            bar.style.boxShadow = 'none';
-          }
         } else if (variant === "pulse") {
           // Smooth pulsing rings - optimized for buttery motion
           const breathe = isPlaying ? Math.sin(timeRef.current * 2 + i * 0.5) * 0.08 : 0;
@@ -348,24 +338,6 @@ export const PerformantVisualizer = ({
           } else {
             bar.style.boxShadow = 'none';
           }
-        } else if (variant === "dots") {
-          // Smooth reactive grid with gentle ripples
-          const gridX = i % Math.ceil(Math.sqrt(barCount));
-          const gridY = Math.floor(i / Math.ceil(Math.sqrt(barCount)));
-          const distFromCenter = Math.sqrt(Math.pow(gridX - Math.sqrt(barCount)/2, 2) + Math.pow(gridY - Math.sqrt(barCount)/2, 2));
-          const ripple = isPlaying ? Math.sin(timeRef.current * 3 - distFromCenter * 0.4) * 0.12 : 0;
-          const scale = 0.5 + value * 1.5 + ripple + bassEnergy * 0.3;
-          const dotHue = (dynamicHue + i * 8 + distFromCenter * 12) % 360;
-          // GPU-accelerated transform
-          bar.style.transform = `translateZ(0) scale(${Math.max(0.35, scale)})`;
-          bar.style.opacity = isPlaying ? `${0.75 + value * 0.25}` : '0.2';
-          // Single-layer glow
-          if (isPlaying && value > 0.3) {
-            const g = value * value;
-            bar.style.boxShadow = `0 0 ${8 + g * 12}px hsla(${dotHue}, 100%, 60%, ${0.4 + g * 0.4})`;
-          } else {
-            bar.style.boxShadow = 'none';
-          }
         } else if (variant === "lines") {
           // Silky smooth streaming lines (you like this one!)
           const stream = isPlaying ? Math.sin(timeRef.current * 2.5 + i * 0.6) * 0.08 : 0;
@@ -392,7 +364,129 @@ export const PerformantVisualizer = ({
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [frequencyData, barCount, variant, isReady, size, isPlaying, demoMode, isMP3Theme]);
+  }, [frequencyData, barCount, variant, isReady, size, isPlaying, demoMode, isMP3Theme, isCanvasVariant]);
+
+  // Canvas-based variants (wave, dots) for higher FPS and lower DOM cost
+  useEffect(() => {
+    if (!isCanvasVariant || !isReady) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+    };
+    resize();
+
+    const waveSmoothRef = useRef<number[]>(new Array(barCount).fill(0));
+
+    const draw = (timestamp: number) => {
+      const delta = Math.min(timestamp - lastUpdateRef.current, 50);
+      lastUpdateRef.current = timestamp;
+      if (isPlaying) {
+        timeRef.current += delta / 1000;
+        demoTimeRef.current += delta / 1000;
+      }
+
+      const activeFrequencyData = demoMode && isPlaying
+        ? generateDemoData(demoTimeRef.current)
+        : frequencyData;
+
+      const width = canvas.width / dpr;
+      const height = canvas.height / dpr;
+      ctx.clearRect(0, 0, width, height);
+
+      const step = activeFrequencyData && activeFrequencyData.length > 0 ? Math.max(1, Math.floor(activeFrequencyData.length / barCount)) : 1;
+      const samples: number[] = [];
+      for (let i = 0; i < barCount; i++) {
+        const idx = Math.min(i * step, activeFrequencyData ? activeFrequencyData.length - 1 : 0);
+        const val = activeFrequencyData && activeFrequencyData.length > 0 ? activeFrequencyData[idx] / 255 : 0;
+        samples.push(val);
+      }
+
+      // Compute band energies
+      const avgEnergy = samples.reduce((a, b) => a + b, 0) / Math.max(1, samples.length);
+      const bassEnergy = samples.slice(0, Math.max(4, Math.floor(samples.length * 0.15))).reduce((a, b) => a + b, 0) / Math.max(1, Math.max(4, Math.floor(samples.length * 0.15)));
+      const midEnergy = samples.slice(Math.floor(samples.length * 0.2), Math.floor(samples.length * 0.6)).reduce((a, b) => a + b, 0) / Math.max(1, Math.floor(samples.length * 0.4));
+      const highEnergy = samples.slice(Math.floor(samples.length * 0.6)).reduce((a, b) => a + b, 0) / Math.max(1, samples.length - Math.floor(samples.length * 0.6));
+
+      const hueBase = (timeRef.current * 40 + avgEnergy * 120) % 360;
+
+      if (variant === "wave") {
+        // Smooth samples for wave line
+        const smooth = waveSmoothRef.current;
+        for (let i = 0; i < samples.length; i++) {
+          smooth[i] = smooth[i] * 0.75 + samples[i] * 0.25;
+        }
+
+        ctx.lineWidth = Math.max(1.5, height * 0.0025);
+        ctx.lineCap = "round";
+
+        const drawWave = (offset: number, opacity: number, freqMul: number, ampMul: number, colorHueShift: number) => {
+          ctx.beginPath();
+          const hue = (hueBase + colorHueShift) % 360;
+          ctx.strokeStyle = `hsla(${hue}, 90%, ${50 + avgEnergy * 20}%, ${opacity})`;
+
+          for (let i = 0; i < smooth.length; i++) {
+            const t = i / (smooth.length - 1);
+            const x = t * width;
+            const sine = Math.sin(timeRef.current * freqMul + t * Math.PI * 4);
+            const y =
+              height * 0.5 +
+              (sine * 0.15 + (smooth[i] - 0.5) * 0.8) * (height * 0.25 * ampMul) +
+              offset;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        };
+
+        drawWave(0, 0.8, 1.4 + bassEnergy * 1.2, 1.2 + avgEnergy * 0.8, 0);
+        drawWave(height * 0.02, 0.35, 1.9 + highEnergy * 1.4, 0.7 + midEnergy * 0.6, 40);
+        drawWave(-height * 0.02, 0.25, 2.6 + highEnergy * 1.5, 0.5 + highEnergy * 0.5, 80);
+      } else if (variant === "dots") {
+        const grid = Math.ceil(Math.sqrt(barCount));
+        const cellW = width / grid;
+        const cellH = height / grid;
+        const maxRadius = Math.min(cellW, cellH) * 0.45;
+        for (let y = 0; y < grid; y++) {
+          for (let x = 0; x < grid; x++) {
+            const idx = y * grid + x;
+            if (idx >= samples.length) break;
+            const val = samples[idx];
+            const cx = x * cellW + cellW / 2;
+            const cy = y * cellH + cellH / 2;
+            const ripple = Math.sin(timeRef.current * 3 - (x + y) * 0.35) * 0.12;
+            const radius = Math.max(maxRadius * 0.25, maxRadius * (0.35 + val * 0.9 + ripple + bassEnergy * 0.4));
+            const hue = (hueBase + idx * 4 + (x + y) * 2) % 360;
+            const alpha = isPlaying ? 0.35 + val * 0.6 : 0.15;
+            const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+            gradient.addColorStop(0, `hsla(${hue}, 95%, 70%, ${alpha})`);
+            gradient.addColorStop(1, `hsla(${(hue + 25) % 360}, 85%, 50%, ${alpha * 0.7})`);
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+
+      canvasRafRef.current = requestAnimationFrame(draw);
+    };
+
+    canvasRafRef.current = requestAnimationFrame(draw);
+
+    return () => {
+      if (canvasRafRef.current) cancelAnimationFrame(canvasRafRef.current);
+    };
+  }, [isCanvasVariant, isReady, variant, frequencyData, barCount, isPlaying, demoMode]);
 
   // Enhanced Bars Visualizer - VIBRANT rainbow style - Full width edge-to-edge
   if (variant === "bars") {
@@ -424,25 +518,8 @@ export const PerformantVisualizer = ({
   // Enhanced Wave Visualizer - Flowing rainbow - Full width edge-to-edge
   if (variant === "wave") {
     return (
-      <div ref={containerRef} className={`${containerClass} flex items-center justify-between gap-[1px] px-0 relative overflow-hidden`}>
-        {Array.from({ length: barCount }).map((_, i) => {
-          const hue = (i / barCount) * 300;
-          return (
-            <div
-              key={i}
-              ref={el => { if (el) barsRef.current[i] = el; }}
-              className="flex-1 h-20 md:h-28 rounded-sm origin-center"
-              style={{
-                background: `linear-gradient(to top,
-                  hsl(${hue}, 80%, 45%),
-                  hsl(${(hue + 40) % 360}, 85%, 60%))`,
-                transform: 'translateY(0) scaleY(0.1)',
-                willChange: 'transform, opacity, background',
-                transition: 'none',
-              }}
-            />
-          );
-        })}
+      <div ref={containerRef} className={`${containerClass} relative overflow-hidden rounded-lg`}>
+        <canvas ref={canvasRef} className="w-full h-full block" />
       </div>
     );
   }
@@ -511,29 +588,9 @@ export const PerformantVisualizer = ({
 
   // Enhanced Dots Visualizer - Reactive rainbow grid
   if (variant === "dots") {
-    const gridSize = Math.sqrt(barCount);
     return (
-      <div ref={containerRef} className={`${containerClass} relative flex items-center justify-center`}>
-        <div className={`grid gap-2 md:gap-3`} style={{ gridTemplateColumns: `repeat(${Math.ceil(gridSize)}, 1fr)` }}>
-          {Array.from({ length: barCount }).map((_, i) => {
-            const hue = (i / barCount) * 320;
-            return (
-              <div
-                key={i}
-                ref={el => { if (el) barsRef.current[i] = el; }}
-                className="w-3 h-3 md:w-4 md:h-4 rounded-full"
-                style={{
-                  background: `radial-gradient(circle,
-                    hsl(${hue}, 90%, 70%),
-                    hsl(${(hue + 40) % 360}, 85%, 50%))`,
-                  transform: 'scale(0.4)',
-                  willChange: 'transform, opacity, background, box-shadow',
-                  transition: 'none',
-                }}
-              />
-            );
-          })}
-        </div>
+      <div ref={containerRef} className={`${containerClass} relative overflow-hidden rounded-lg`}>
+        <canvas ref={canvasRef} className="w-full h-full block" />
       </div>
     );
   }
