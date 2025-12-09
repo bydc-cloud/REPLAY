@@ -96,10 +96,10 @@ function AppContent() {
 
   // Ensure producer profile routes render the app shell instead of blank
   useEffect(() => {
-    if (isAuthenticated && route.type === 'producer') {
+    if (route.type === 'producer') {
       setCurrentView('app');
     }
-  }, [isAuthenticated, route]);
+  }, [route]);
 
   // Show loading state with modern music-themed animation
   if (isLoading) {
