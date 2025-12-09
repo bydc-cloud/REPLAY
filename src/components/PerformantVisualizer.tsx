@@ -308,21 +308,24 @@ export const PerformantVisualizer = ({
         } else if (variant === "pulse") {
           // Smooth pulsing rings - optimized for buttery motion
           const breathe = isPlaying ? Math.sin(timeRef.current * 2 + i * 0.5) * 0.08 : 0;
-          const scale = 0.78 + value * 0.65 + breathe + bassEnergy * 0.3;
-          const ringHue = (dynamicHue + i * 65) % 360;
-          const borderWidth = 2 + i * 0.35;
-          const ringLightness = isPlaying ? 48 + value * 18 : 32;
+          const scale = 0.8 + value * 0.75 + breathe + bassEnergy * 0.35;
+          const ringHue = (dynamicHue + i * 70) % 360;
+          const borderWidth = 2.5 + i * 0.45;
+          const ringLightness = isPlaying ? 46 + value * 20 : 30;
           // GPU-accelerated transform
           bar.style.transform = `translateZ(0) scale(${scale})`;
           bar.style.borderWidth = `${borderWidth}px`;
-          bar.style.borderColor = `hsla(${ringHue}, 85%, ${ringLightness}%, ${isPlaying ? 0.58 + value * 0.3 : 0.25})`;
-          bar.style.background = `radial-gradient(circle at 35% 35%, hsla(${(ringHue + 20) % 360}, 85%, 60%, ${0.18 + value * 0.25}), transparent 55%)`;
+          bar.style.borderStyle = "solid";
+          bar.style.borderColor = `hsla(${ringHue}, 80%, ${ringLightness}%, ${isPlaying ? 0.55 + value * 0.35 : 0.2})`;
+          bar.style.background = `radial-gradient(circle at 40% 40%, hsla(${(ringHue + 30) % 360}, 80%, 55%, ${0.16 + value * 0.22}), transparent 60%)`;
+          bar.style.opacity = isPlaying ? `${0.75 + value * 0.2}` : '0.35';
           // Enhanced multi-layer glow with softer core (no harsh white)
           if (isPlaying && value > 0.25) {
             const g = value * value;
-            bar.style.boxShadow = `0 0 ${10 + g * 18}px hsla(${ringHue}, 90%, 58%, ${0.38 + g * 0.4}),
-             0 0 ${20 + g * 22}px hsla(${(ringHue + 40) % 360}, 85%, 52%, ${0.16 + g * 0.22}),
-             inset 0 0 ${8 + g * 14}px hsla(${(ringHue + 12) % 360}, 90%, 70%, ${0.1 + g * 0.16})`;
+            bar.style.boxShadow = `0 0 ${12 + g * 18}px hsla(${ringHue}, 85%, 60%, ${0.38 + g * 0.42}),
+             0 0 ${24 + g * 24}px hsla(${(ringHue + 45) % 360}, 80%, 52%, ${0.18 + g * 0.24}),
+             inset 0 0 ${10 + g * 16}px hsla(${(ringHue + 15) % 360}, 88%, 68%, ${0.1 + g * 0.17}),
+             0 0 ${32 + g * 20}px hsla(${(ringHue + 90) % 360}, 75%, 55%, ${0.12 + g * 0.18})`;
           } else {
             bar.style.boxShadow = 'none';
           }
@@ -471,7 +474,7 @@ export const PerformantVisualizer = ({
         const maxRadius = Math.min(cellW, cellH) * 0.45;
         const cxAll = width / 2;
         const cyAll = height / 2;
-        const rotate = (timeRef.current * 0.25 + avgEnergy * 0.6);
+        const rotate = (timeRef.current * 0.3 + avgEnergy * 0.8);
         ctx.save();
         ctx.translate(cxAll, cyAll);
         ctx.rotate(rotate * 0.05);
@@ -483,14 +486,16 @@ export const PerformantVisualizer = ({
             const val = samples[idx];
             const cx = x * cellW + cellW / 2;
             const cy = y * cellH + cellH / 2;
-            const ripple = Math.sin(timeRef.current * 3 - (x + y) * 0.35) * 0.12;
-            const radius = Math.max(maxRadius * 0.22, maxRadius * (0.32 + val * 1.0 + ripple + bassEnergy * 0.5));
-            const hue = (hueBase + idx * 6 + (x + y) * 3) % 360;
-            const alpha = isPlaying ? 0.38 + val * 0.62 : 0.18;
+            const ripple = Math.sin(timeRef.current * 3.4 - (x + y) * 0.38) * 0.14;
+            const twinkle = Math.sin(timeRef.current * 5 + idx * 0.8) * 0.08;
+            const radius = Math.max(maxRadius * 0.2, maxRadius * (0.3 + val * 1.05 + ripple + bassEnergy * 0.55 + twinkle));
+            const hue = (hueBase + idx * 7 + (x + y) * 3.5) % 360;
+            const alpha = isPlaying ? 0.4 + val * 0.6 : 0.2;
             const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
             gradient.addColorStop(0, `hsla(${hue}, 95%, 70%, ${alpha})`);
-            gradient.addColorStop(0.55, `hsla(${(hue + 35) % 360}, 90%, 60%, ${alpha * 0.8})`);
-            gradient.addColorStop(1, `hsla(${(hue + 70) % 360}, 85%, 48%, ${alpha * 0.6})`);
+            gradient.addColorStop(0.45, `hsla(${(hue + 35) % 360}, 92%, 64%, ${alpha * 0.85})`);
+            gradient.addColorStop(0.8, `hsla(${(hue + 70) % 360}, 85%, 52%, ${alpha * 0.65})`);
+            gradient.addColorStop(1, `hsla(${(hue + 110) % 360}, 80%, 45%, ${alpha * 0.5})`);
             ctx.fillStyle = gradient;
             ctx.beginPath();
             ctx.arc(cx, cy, radius, 0, Math.PI * 2);
@@ -500,9 +505,9 @@ export const PerformantVisualizer = ({
         ctx.restore();
       } else if (variant === "circle") {
         // Background wash
-        const bgGrad = ctx.createLinearGradient(0, 0, width, height);
-        bgGrad.addColorStop(0, `hsla(${(hueBase + 40) % 360}, 65%, 16%, 0.22)`);
-        bgGrad.addColorStop(1, `hsla(${(hueBase + 140) % 360}, 60%, 14%, 0.22)`);
+        const bgGrad = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, Math.max(width, height) * 0.65);
+        bgGrad.addColorStop(0, `hsla(${(hueBase + 60) % 360}, 70%, 18%, 0.35)`);
+        bgGrad.addColorStop(1, `hsla(${(hueBase + 140) % 360}, 60%, 12%, 0.18)`);
         ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, width, height);
 
@@ -519,8 +524,8 @@ export const PerformantVisualizer = ({
 
         // Trail
         const trail = orbTrailRef.current;
-        trail.push({ x, y, r, alpha: 0.7 + avgEnergy * 0.25 });
-        if (trail.length > 18) trail.shift();
+        trail.push({ x, y, r, alpha: 0.75 + avgEnergy * 0.22 });
+        if (trail.length > 22) trail.shift();
 
         for (let i = 0; i < trail.length; i++) {
           const seg = trail[i];
@@ -528,7 +533,7 @@ export const PerformantVisualizer = ({
           const grad = ctx.createRadialGradient(seg.x, seg.y, 0, seg.x, seg.y, seg.r * (0.9 + fade * 0.3));
           grad.addColorStop(0, `hsla(${(hue + fade * 40) % 360}, 95%, 70%, ${(seg.alpha) * (1 - fade)})`);
           grad.addColorStop(0.5, `hsla(${(hue + 40 + fade * 30) % 360}, 90%, 60%, ${(seg.alpha * 0.8) * (1 - fade)})`);
-          grad.addColorStop(1, `hsla(${(hue + 90) % 360}, 85%, 50%, ${(seg.alpha * 0.5) * (1 - fade)})`);
+          grad.addColorStop(1, `hsla(${(hue + 120) % 360}, 78%, 48%, ${(seg.alpha * 0.45) * (1 - fade)})`);
           ctx.fillStyle = grad;
           ctx.beginPath();
           ctx.arc(seg.x, seg.y, seg.r * (0.9 + fade * 0.2), 0, Math.PI * 2);
@@ -537,10 +542,10 @@ export const PerformantVisualizer = ({
 
         // Main orb
         const orbGrad = ctx.createRadialGradient(x, y, 0, x, y, r * 1.05);
-        orbGrad.addColorStop(0, `hsla(${hue}, 100%, 72%, ${0.9})`);
-        orbGrad.addColorStop(0.45, `hsla(${(hue + 35) % 360}, 95%, 65%, ${0.82})`);
-        orbGrad.addColorStop(0.8, `hsla(${(hue + 80) % 360}, 85%, 50%, ${0.55})`);
-        orbGrad.addColorStop(1, `hsla(${(hue + 120) % 360}, 75%, 45%, ${0.35})`);
+        orbGrad.addColorStop(0, `hsla(${hue}, 100%, 70%, ${0.85})`);
+        orbGrad.addColorStop(0.4, `hsla(${(hue + 35) % 360}, 95%, 62%, ${0.8})`);
+        orbGrad.addColorStop(0.78, `hsla(${(hue + 90) % 360}, 85%, 48%, ${0.5})`);
+        orbGrad.addColorStop(1, `hsla(${(hue + 130) % 360}, 70%, 42%, ${0.32})`);
         ctx.fillStyle = orbGrad;
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
