@@ -310,16 +310,19 @@ export const PerformantVisualizer = ({
           const breathe = isPlaying ? Math.sin(timeRef.current * 2 + i * 0.5) * 0.08 : 0;
           const scale = 0.78 + value * 0.65 + breathe + bassEnergy * 0.3;
           const ringHue = (dynamicHue + i * 65) % 360;
+          const borderWidth = 2 + i * 0.35;
+          const ringLightness = isPlaying ? 48 + value * 18 : 32;
           // GPU-accelerated transform
           bar.style.transform = `translateZ(0) scale(${scale})`;
-          bar.style.borderColor = `hsla(${ringHue}, ${saturation}%, ${isPlaying ? 58 + value * 28 : 28}%, ${isPlaying ? 0.55 + value * 0.4 : 0.2})`;
-          bar.style.background = `radial-gradient(circle at 35% 35%, hsla(${(ringHue + 25) % 360}, 90%, 75%, ${0.25 + value * 0.3}), transparent 55%)`;
-          // Enhanced multi-layer glow with subtle inner sheen
+          bar.style.borderWidth = `${borderWidth}px`;
+          bar.style.borderColor = `hsla(${ringHue}, 85%, ${ringLightness}%, ${isPlaying ? 0.58 + value * 0.3 : 0.25})`;
+          bar.style.background = `radial-gradient(circle at 35% 35%, hsla(${(ringHue + 20) % 360}, 85%, 60%, ${0.18 + value * 0.25}), transparent 55%)`;
+          // Enhanced multi-layer glow with softer core (no harsh white)
           if (isPlaying && value > 0.25) {
             const g = value * value;
-            bar.style.boxShadow = `0 0 ${10 + g * 18}px hsla(${ringHue}, 100%, 60%, ${0.4 + g * 0.4}),
-             0 0 ${20 + g * 22}px hsla(${(ringHue + 40) % 360}, 90%, 55%, ${0.18 + g * 0.22}),
-             inset 0 0 ${8 + g * 12}px hsla(${(ringHue + 10) % 360}, 95%, 75%, ${0.12 + g * 0.15})`;
+            bar.style.boxShadow = `0 0 ${10 + g * 18}px hsla(${ringHue}, 90%, 58%, ${0.38 + g * 0.4}),
+             0 0 ${20 + g * 22}px hsla(${(ringHue + 40) % 360}, 85%, 52%, ${0.16 + g * 0.22}),
+             inset 0 0 ${8 + g * 14}px hsla(${(ringHue + 12) % 360}, 90%, 70%, ${0.1 + g * 0.16})`;
           } else {
             bar.style.boxShadow = 'none';
           }
@@ -649,14 +652,14 @@ export const PerformantVisualizer = ({
 
   // Enhanced Lines Visualizer - Streaming spectrum
   return (
-    <div ref={containerRef} className={`${containerClass} flex flex-col items-center justify-center gap-1 md:gap-1.5 relative`}>
+    <div ref={containerRef} className={`${containerClass} flex flex-col items-center justify-center gap-1.5 md:gap-2 relative`}>
       {Array.from({ length: barCount }).map((_, i) => {
         const hue = (i / barCount) * 280;
         return (
           <div
             key={i}
             ref={el => { if (el) barsRef.current[i] = el; }}
-            className="h-1.5 md:h-2 w-full rounded-sm origin-left"
+            className="h-[6px] md:h-[8px] w-full rounded-sm origin-left"
             style={{
               background: `linear-gradient(to right,
                 hsla(${hue}, 85%, 45%, 0.8),
