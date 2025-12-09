@@ -435,7 +435,8 @@ export const PerformantVisualizer = ({
         ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, width, height);
 
-        ctx.lineWidth = Math.max(1.6, height * 0.003);
+        // Thicker, bolder strokes for a more music-wave feel
+        ctx.lineWidth = Math.max(2.1, height * 0.0045);
         ctx.lineCap = "round";
         ctx.globalCompositeOperation = "lighter";
 
@@ -451,10 +452,10 @@ export const PerformantVisualizer = ({
           for (let i = 0; i < smooth.length; i++) {
             const t = i / (smooth.length - 1);
             const x = t * width;
-            const sine = Math.sin(timeRef.current * freqMul + t * Math.PI * 5.2);
+            const sine = Math.sin(timeRef.current * freqMul + t * Math.PI * 5.4);
             const y =
               height * 0.5 +
-              (sine * 0.18 + (smooth[i] - 0.5) * 0.9) * (height * 0.28 * ampMul) +
+              (sine * 0.22 + (smooth[i] - 0.5) * 1.0) * (height * 0.32 * ampMul) +
               offset;
             if (i === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
@@ -462,9 +463,9 @@ export const PerformantVisualizer = ({
           ctx.stroke();
         };
 
-        drawWave(0, 0.95, 1.35 + bassEnergy * 1.4, 1.25 + avgEnergy * 0.9, 0);
-        drawWave(height * 0.028, 0.55, 1.85 + midEnergy * 1.2, 0.85 + midEnergy * 0.7, 70);
-        drawWave(-height * 0.03, 0.35, 2.45 + highEnergy * 1.6, 0.6 + highEnergy * 0.6, 130);
+        drawWave(0, 0.95, 1.3 + bassEnergy * 1.35, 1.35 + avgEnergy * 0.95, 0);
+        drawWave(height * 0.03, 0.6, 1.95 + midEnergy * 1.25, 0.95 + midEnergy * 0.75, 70);
+        drawWave(-height * 0.034, 0.4, 2.55 + highEnergy * 1.7, 0.7 + highEnergy * 0.65, 130);
 
         ctx.globalCompositeOperation = "source-over";
       } else if (variant === "dots") {
