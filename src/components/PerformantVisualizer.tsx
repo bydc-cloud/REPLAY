@@ -526,20 +526,28 @@ export const PerformantVisualizer = ({
         // Trail
         const trail = orbTrailRef.current;
         trail.push({ x, y, r, alpha: 0.75 + avgEnergy * 0.22 });
-        if (trail.length > 22) trail.shift();
+        if (trail.length > 26) trail.shift();
 
-        for (let i = 0; i < trail.length; i++) {
+        // Draw ribbon-like trail
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.lineCap = "round";
+        for (let i = 1; i < trail.length; i++) {
+          const prev = trail[i - 1];
           const seg = trail[i];
           const fade = i / trail.length;
-          const grad = ctx.createRadialGradient(seg.x, seg.y, 0, seg.x, seg.y, seg.r * (0.9 + fade * 0.3));
-          grad.addColorStop(0, `hsla(${(hue + fade * 40) % 360}, 95%, 70%, ${(seg.alpha) * (1 - fade)})`);
-          grad.addColorStop(0.5, `hsla(${(hue + 40 + fade * 30) % 360}, 90%, 60%, ${(seg.alpha * 0.8) * (1 - fade)})`);
-          grad.addColorStop(1, `hsla(${(hue + 120) % 360}, 78%, 48%, ${(seg.alpha * 0.45) * (1 - fade)})`);
-          ctx.fillStyle = grad;
+          const widthTrail = ((prev.r + seg.r) * 0.5) * (0.6 + (1 - fade) * 0.5);
+          const segHue = (hue + fade * 60) % 360;
+          ctx.strokeStyle = `hsla(${segHue}, 90%, ${55 + (1 - fade) * 20}%, ${(seg.alpha * 0.6) * (1 - fade)})`;
+          ctx.lineWidth = Math.max(2, widthTrail);
+          ctx.shadowBlur = widthTrail * 0.6;
+          ctx.shadowColor = `hsla(${(segHue + 20) % 360}, 90%, 60%, ${(seg.alpha * 0.5) * (1 - fade)})`;
           ctx.beginPath();
-          ctx.arc(seg.x, seg.y, seg.r * (0.9 + fade * 0.2), 0, Math.PI * 2);
-          ctx.fill();
+          ctx.moveTo(prev.x, prev.y);
+          ctx.lineTo(seg.x, seg.y);
+          ctx.stroke();
         }
+        ctx.restore();
 
         // Main orb
         const orbGrad = ctx.createRadialGradient(x, y, 0, x, y, r * 1.05);
