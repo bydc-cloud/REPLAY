@@ -18,6 +18,8 @@ interface LyricsVisualizerProps {
 const SYNC_OFFSET = 0.3;
 const WORD_TOLERANCE = 0.15; // seconds, tolerance for mapping words to segments
 const SMOOTHING_ALPHA = 0.35; // low-pass filter for playback time to avoid flicker
+const MIN_WORD_DURATION = 0.18; // seconds, minimum time a word stays active for highlighting
+const SMALL_GAP_HOLD = 0.22; // seconds, keep previous/next word active across tiny gaps
 
 export const LyricsVisualizer = ({
   currentTime,
@@ -35,7 +37,9 @@ export const LyricsVisualizer = ({
   const [currentWordIndex, setCurrentWordIndex] = useState<number | null>(null);
   const [activeWordProgress, setActiveWordProgress] = useState(0);
   const [autoTranscribeAttempted, setAutoTranscribeAttempted] = useState<string | null>(null);
+  const [lineSlideKey, setLineSlideKey] = useState(0);
   const smoothedTimeRef = useRef<number>(0);
+  const adjustedTimeRef = useRef<number>(0);
 
   // Get track from context
   const track = trackId ? tracks.find(t => t.id === trackId) : null;
@@ -82,7 +86,9 @@ export const LyricsVisualizer = ({
   const getAdjustedTime = useCallback(() => {
     const smoothed = smoothedTimeRef.current + (currentTime - smoothedTimeRef.current) * SMOOTHING_ALPHA;
     smoothedTimeRef.current = smoothed;
-    return smoothed + SYNC_OFFSET;
+    const adjusted = smoothed + SYNC_OFFSET;
+    adjustedTimeRef.current = adjusted;
+    return adjusted;
   }, [currentTime]);
 
   // Load lyrics when track changes - with polling for processing tracks
@@ -158,7 +164,7 @@ export const LyricsVisualizer = ({
     }
   }, [trackId, canTranscribe, hasLyrics, isTranscribing, hasFailed, autoTranscribeAttempted, lyrics?.status, transcribeTrack]);
 
-  // Update current line based on playback time with sync offset
+  // Update current line and word based on playback time with sync offset
   useEffect(() => {
     if (lines.length === 0) return;
 
@@ -174,14 +180,21 @@ export const LyricsVisualizer = ({
       if (exactIndex !== -1) {
         activeWordIdx = exactIndex;
       } else {
-        // Fallback to nearest word (prevents gaps)
+        // Fallback to nearest/holding word to avoid skips on fast phrases
         const nextIdx = words.findIndex((word) => word.start > adjustedTime);
-        if (nextIdx > 0) {
-          activeWordIdx = nextIdx - 1;
-        } else if (nextIdx === 0) {
-          activeWordIdx = 0;
+        const prevIdx = nextIdx === -1 ? words.length - 1 : Math.max(0, nextIdx - 1);
+        const prevWord = words[prevIdx];
+        const nextWord = nextIdx === -1 ? null : words[nextIdx];
+        const gapFromPrevEnd = prevWord ? adjustedTime - prevWord.end : Infinity;
+        const gapToNextStart = nextWord ? nextWord.start - adjustedTime : Infinity;
+
+        if (prevWord && gapFromPrevEnd <= SMALL_GAP_HOLD) {
+          activeWordIdx = prevIdx;
+        } else if (nextWord && gapToNextStart <= SMALL_GAP_HOLD) {
+          activeWordIdx = nextIdx;
         } else {
-          activeWordIdx = words.length - 1;
+          // Default to closest previous word to keep continuity
+          activeWordIdx = prevIdx;
         }
       }
     }
@@ -213,6 +226,7 @@ export const LyricsVisualizer = ({
 
     if (lineIndex !== currentLineIndex) {
       setCurrentLineIndex(lineIndex);
+      setLineSlideKey((k) => k + 1);
     }
 
     if (activeWordIdx !== null && activeWordIdx !== currentWordIndex) {
@@ -221,7 +235,11 @@ export const LyricsVisualizer = ({
 
     if (activeWordIdx !== null && words[activeWordIdx]) {
       const word = words[activeWordIdx];
-      const progress = Math.min(1, Math.max(0, (adjustedTime - word.start) / Math.max(0.001, word.end - word.start)));
+      const effectiveDuration = Math.max(MIN_WORD_DURATION, word.end - word.start);
+      const adjustedStart = word.start - WORD_TOLERANCE * 0.35;
+      const adjustedEnd = word.end + WORD_TOLERANCE * 0.35;
+      const clampedTime = Math.min(adjustedEnd, Math.max(adjustedStart, adjustedTime));
+      const progress = Math.min(1, Math.max(0, (clampedTime - adjustedStart) / Math.max(0.001, effectiveDuration)));
       setActiveWordProgress(progress);
     } else {
       setActiveWordProgress(0);
@@ -357,11 +375,14 @@ export const LyricsVisualizer = ({
         ) : (
           // Centered lyrics display - only show current line and neighbors
           <div className="flex flex-col items-center justify-center min-h-full">
-            <div className="w-full max-w-4xl mx-auto text-center space-y-4">
+            <div
+              key={lineSlideKey}
+              className="w-full max-w-4xl mx-auto text-center space-y-4 transition-transform duration-250 ease-out"
+            >
               {/* Previous line - subtle */}
               {currentLineIndex > 0 && (
                 <p
-                  className="text-lg sm:text-xl md:text-2xl font-medium text-white/30 transition-all duration-300"
+                  className="text-lg sm:text-xl md:text-2xl font-medium text-white/55 transition-all duration-300 transform -translate-y-1"
                   onClick={() => handleLineClick(lines[currentLineIndex - 1])}
                 >
                   {lines[currentLineIndex - 1].text}
@@ -369,7 +390,7 @@ export const LyricsVisualizer = ({
               )}
 
               {/* Current line - prominent and centered */}
-              <div>
+              <div className="animate-[lyricLineIn_0.35s_ease-out]">
                 {lines[currentLineIndex]?.words && lines[currentLineIndex].words.length > 0 ? (
                   <div
                     className="font-bold text-2xl sm:text-3xl md:text-4xl lg:text-5xl leading-tight flex flex-wrap justify-center gap-y-2"
@@ -385,17 +406,26 @@ export const LyricsVisualizer = ({
                   >
                     {lines[currentLineIndex].words.map((word, idx) => {
                       const isActiveWord = currentWordIndex !== null && word.index === currentWordIndex;
+                      const isPast = currentWordIndex !== null && word.index < currentWordIndex;
+                      const isFuture = currentWordIndex !== null && word.index > currentWordIndex;
+                      const color = isActiveWord
+                        ? 'white'
+                        : isPast
+                          ? 'rgba(255,255,255,0.7)'
+                          : 'rgba(255,255,255,0.4)';
                       return (
                         <span
                           key={`${word.index}-${idx}`}
                           className="relative mx-1"
                           style={{
-                            color: isActiveWord ? 'white' : 'rgba(255,255,255,0.55)',
+                            color,
                             transform: isActiveWord ? 'scale(1.08) translateY(-2px)' : 'scale(1)',
                             transition: 'transform 0.12s ease-out, color 0.12s ease-out',
                             textShadow: isActiveWord
                               ? `0 0 24px rgba(147, 51, 234, ${0.35 + bassEnergy * 0.25})`
-                              : undefined,
+                              : isPast
+                                ? '0 0 12px rgba(255,255,255,0.08)'
+                                : undefined,
                           }}
                         >
                           {word.word}
@@ -404,8 +434,8 @@ export const LyricsVisualizer = ({
                             <span
                               className="absolute left-0 right-0 -bottom-2 h-[3px] rounded-full"
                               style={{
-                                background: 'linear-gradient(90deg, rgba(168,85,247,0.9), rgba(79,70,229,0.8))',
-                                width: `${Math.max(0.12, activeWordProgress) * 100}%`,
+                                background: 'linear-gradient(90deg, rgba(168,85,247,0.95), rgba(79,70,229,0.9))',
+                                width: `${Math.max(0.18, activeWordProgress) * 100}%`,
                                 transition: 'width 0.1s ease-out',
                                 boxShadow: '0 0 12px rgba(168,85,247,0.6)',
                               }}
@@ -437,7 +467,7 @@ export const LyricsVisualizer = ({
               {/* Next line - subtle hint */}
               {currentLineIndex < lines.length - 1 && (
                 <p
-                  className="text-lg sm:text-xl md:text-2xl font-medium text-white/25 transition-all duration-300"
+                  className="text-lg sm:text-xl md:text-2xl font-medium text-white/40 transition-all duration-300 transform translate-y-1"
                   onClick={() => handleLineClick(lines[currentLineIndex + 1])}
                 >
                   {lines[currentLineIndex + 1].text}
@@ -464,6 +494,10 @@ export const LyricsVisualizer = ({
         }
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
+        }
+        @keyframes lyricLineIn {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>
