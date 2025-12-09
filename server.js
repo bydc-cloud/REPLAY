@@ -2268,7 +2268,8 @@ app.get('/api/users/search', auth, async (req, res) => {
         u.id,
         u.username,
         pp.display_name,
-        pp.avatar_url
+        pp.avatar_url,
+        CASE WHEN u.username ILIKE $2 THEN 0 ELSE 1 END AS priority
       FROM users u
       LEFT JOIN producer_profiles pp ON pp.user_id = u.id
       WHERE u.id != $3
@@ -2278,7 +2279,7 @@ app.get('/api/users/search', auth, async (req, res) => {
           OR u.email ILIKE $1
         )
       ORDER BY
-        CASE WHEN u.username ILIKE $2 THEN 0 ELSE 1 END,
+        priority,
         u.username
       LIMIT 20
     `, [`%${q}%`, `${q}%`, req.user.id]);
@@ -3269,8 +3270,9 @@ app.get('/api/analytics/top-items', auth, async (req, res) => {
         COALESCE(SUM(t.seller_earnings), 0) as earnings,
         b.cover_url
       FROM beats b
+      JOIN producer_profiles pp ON pp.id = b.producer_id
       LEFT JOIN transactions t ON t.item_id = b.id AND t.item_type = 'beat' AND t.status = 'completed'
-      WHERE b.user_id = $1
+      WHERE pp.user_id = $1
       GROUP BY b.id
       ORDER BY earnings DESC, plays DESC
       LIMIT $2
