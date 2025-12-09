@@ -306,27 +306,25 @@ export const PerformantVisualizer = ({
             bar.style.boxShadow = 'none';
           }
         } else if (variant === "pulse") {
-          // Smooth pulsing rings - optimized for buttery motion
-          const breathe = isPlaying ? Math.sin(timeRef.current * 2 + i * 0.5) * 0.08 : 0;
-          const displayVal = barDisplayRef.current[i] = barDisplayRef.current[i] * 0.82 + value * 0.18;
-          const scale = 0.8 + displayVal * 0.75 + breathe + bassEnergy * 0.35;
-          const ringHue = (dynamicHue + i * 70) % 360;
-          const borderWidth = 2.5 + i * 0.45;
-          const ringLightness = isPlaying ? 46 + displayVal * 20 : 30;
+          // Smooth pulsing rings - reduce flashes by higher smoothing and softer glows
+          const breathe = isPlaying ? Math.sin(timeRef.current * 1.6 + i * 0.35) * 0.04 : 0;
+          const displayVal = barDisplayRef.current[i] = barDisplayRef.current[i] * 0.9 + value * 0.1;
+          const eased = Math.min(1, Math.max(0, displayVal));
+          const scale = Math.min(1.6, 0.9 + eased * 0.65 + breathe + bassEnergy * 0.25);
+          const ringHue = (dynamicHue + i * 60) % 360;
+          const borderWidth = 2 + i * 0.35;
+          const ringLightness = isPlaying ? 42 + eased * 16 : 30;
           // GPU-accelerated transform
           bar.style.transform = `translateZ(0) scale(${scale})`;
           bar.style.borderWidth = `${borderWidth}px`;
           bar.style.borderStyle = "solid";
-          bar.style.borderColor = `hsla(${ringHue}, 80%, ${ringLightness}%, ${isPlaying ? 0.55 + displayVal * 0.35 : 0.2})`;
-          bar.style.background = `radial-gradient(circle at 40% 40%, hsla(${(ringHue + 30) % 360}, 80%, 55%, ${0.16 + displayVal * 0.22}), transparent 60%)`;
-          bar.style.opacity = isPlaying ? `${0.75 + displayVal * 0.2}` : '0.35';
-          // Enhanced multi-layer glow with softer core (no harsh white)
-          if (isPlaying && displayVal > 0.25) {
-            const g = displayVal * displayVal;
-            bar.style.boxShadow = `0 0 ${12 + g * 18}px hsla(${ringHue}, 85%, 60%, ${0.38 + g * 0.42}),
-             0 0 ${24 + g * 24}px hsla(${(ringHue + 45) % 360}, 80%, 52%, ${0.18 + g * 0.24}),
-             inset 0 0 ${10 + g * 16}px hsla(${(ringHue + 15) % 360}, 88%, 68%, ${0.1 + g * 0.17}),
-             0 0 ${32 + g * 20}px hsla(${(ringHue + 90) % 360}, 75%, 55%, ${0.12 + g * 0.18})`;
+          bar.style.borderColor = `hsla(${ringHue}, 78%, ${ringLightness}%, ${isPlaying ? 0.5 + eased * 0.25 : 0.22})`;
+          bar.style.background = `radial-gradient(circle at 40% 40%, hsla(${(ringHue + 25) % 360}, 75%, 60%, ${0.14 + eased * 0.16}), transparent 60%)`;
+          bar.style.opacity = isPlaying ? `${0.7 + eased * 0.18}` : '0.32';
+          // Softer single-layer glow to avoid flicker
+          if (isPlaying && eased > 0.2) {
+            const g = eased * eased;
+            bar.style.boxShadow = `0 0 ${10 + g * 14}px hsla(${ringHue}, 80%, 58%, ${0.28 + g * 0.32})`;
           } else {
             bar.style.boxShadow = 'none';
           }

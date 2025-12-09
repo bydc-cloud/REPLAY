@@ -83,6 +83,8 @@ function AppContent() {
     }
   }, [isAuthenticated, currentView]);
 
+  const producerRouteId = route.type === 'producer' ? route.id : undefined;
+
   // Redirect logged-in users to Discovery (feed) as default landing page
   useEffect(() => {
     if (isAuthenticated && currentView === "app") {
@@ -100,6 +102,11 @@ function AppContent() {
       setCurrentView('app');
     }
   }, [route]);
+
+  // Allow producer profile to be viewed even before auth (read-only) instead of blank screen
+  if (!isAuthenticated && route.type === 'producer') {
+    return <ProducerProfileView userId={producerRouteId} onBack={() => navigate('landing')} />;
+  }
 
   // Show loading state with modern music-themed animation
   if (isLoading) {
