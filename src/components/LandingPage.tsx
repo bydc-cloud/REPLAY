@@ -689,18 +689,18 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
           </div>
 
           {/* Hero Parallax lane using live visualizers */}
-          <div className="relative w-full max-w-6xl mx-auto mt-16 md:mt-20 pb-6 md:pb-10">
-            <div className="text-center mb-6 md:mb-8 text-white/60 text-sm md:text-base tracking-[0.18em] uppercase">Seven ways to see your sound</div>
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#050505] via-[#050505]/60 to-transparent z-10" />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent z-10" />
+          <div className="relative w-full max-w-6xl mx-auto mt-14 md:mt-16 pb-4 md:pb-8">
+            <div className="text-center mb-6 md:mb-7 text-white/70 text-xs md:text-sm tracking-[0.22em] uppercase">Seven ways to see your sound</div>
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#050505] via-[#050505]/60 to-transparent z-10" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent z-10" />
             <div
               className="pointer-events-none absolute inset-0 z-[5]"
               style={{
-                background: "radial-gradient(ellipse at center, rgba(0,0,0,0.36) 0%, rgba(0,0,0,0.0) 45%, rgba(0,0,0,0.32) 100%)",
-                filter: "blur(28px)"
+                background: "radial-gradient(ellipse at center, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.05) 48%, rgba(0,0,0,0.34) 100%)",
+                filter: "blur(24px)"
               }}
             />
-            <ZoomParallax items={parallaxItems} className="relative h-[120vh] md:h-[135vh]" />
+            <ZoomParallax items={parallaxItems} className="relative h-[95vh] md:h-[110vh]" />
           </div>
 
           {/* Scroll indicator */}
