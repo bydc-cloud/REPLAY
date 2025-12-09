@@ -412,7 +412,7 @@ export const LyricsVisualizer = ({
                         ? 'white'
                         : isPast
                           ? 'rgba(255,255,255,0.7)'
-                          : 'rgba(255,255,255,0.4)';
+                        : 'rgba(255,255,255,0.4)';
                       return (
                         <span
                           key={`${word.index}-${idx}`}
@@ -443,6 +443,14 @@ export const LyricsVisualizer = ({
                           )}
                         </span>
                       );
+                    }).filter((_, idx) => {
+                      // Only show window around active word for clarity
+                      if (currentWordIndex === null) return true;
+                      const activeIdxInLine = lines[currentLineIndex].words.findIndex(w => w.index === currentWordIndex);
+                      if (activeIdxInLine === -1) return true;
+                      const windowBefore = 3;
+                      const windowAfter = 6;
+                      return idx >= Math.max(0, activeIdxInLine - windowBefore) && idx <= activeIdxInLine + windowAfter;
                     })}
                   </div>
                 ) : (

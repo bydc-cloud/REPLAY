@@ -48,6 +48,7 @@ export const PerformantVisualizer = ({
   const hueRotationRef = useRef<number>(0);
   const velocityRef = useRef<number[]>([]); // For momentum-based smoothing
   const peakRef = useRef<number[]>([]); // Track peaks for more dynamic visuals
+  const waveSmoothRef = useRef<number[]>([]);
 
   // Container size classes
   const containerClass = size === "full" || size === "xl"
@@ -79,6 +80,7 @@ export const PerformantVisualizer = ({
     targetDataRef.current = new Array(barCount).fill(0);
     velocityRef.current = new Array(barCount).fill(0);
     peakRef.current = new Array(barCount).fill(0);
+    waveSmoothRef.current = new Array(barCount).fill(0);
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       if (canvasRafRef.current) cancelAnimationFrame(canvasRafRef.current);
@@ -379,13 +381,14 @@ export const PerformantVisualizer = ({
     const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
+      canvas.width = Math.max(1, rect.width * dpr);
+      canvas.height = Math.max(1, rect.height * dpr);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
     };
     resize();
-
-    const waveSmoothRef = useRef<number[]>(new Array(barCount).fill(0));
+    const handleResize = () => resize();
+    window.addEventListener("resize", handleResize);
 
     const draw = (timestamp: number) => {
       const delta = Math.min(timestamp - lastUpdateRef.current, 50);
@@ -401,6 +404,10 @@ export const PerformantVisualizer = ({
 
       const width = canvas.width / dpr;
       const height = canvas.height / dpr;
+      if (width === 0 || height === 0) {
+        canvasRafRef.current = requestAnimationFrame(draw);
+        return;
+      }
       ctx.clearRect(0, 0, width, height);
 
       const step = activeFrequencyData && activeFrequencyData.length > 0 ? Math.max(1, Math.floor(activeFrequencyData.length / barCount)) : 1;
@@ -423,7 +430,7 @@ export const PerformantVisualizer = ({
         // Smooth samples for wave line
         const smooth = waveSmoothRef.current;
         for (let i = 0; i < samples.length; i++) {
-          smooth[i] = smooth[i] * 0.75 + samples[i] * 0.25;
+          smooth[i] = smooth[i] * 0.78 + samples[i] * 0.22;
         }
 
         ctx.lineWidth = Math.max(1.5, height * 0.0025);
