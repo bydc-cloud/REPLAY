@@ -12,7 +12,7 @@ export type RoutePattern =
   | { type: 'settings' }
   | { type: 'marketplace' }
   | { type: 'messages' }
-  | { type: 'producer-dashboard' }
+  | { type: 'dev-dashboard' }
   | { type: 'profile' }
   | { type: 'track'; id: string }
   | { type: 'playlist'; id: string }
@@ -39,7 +39,7 @@ function parseRoute(hash: string): RoutePattern {
   // Simple routes
   const simpleRoutes = [
     'feed', 'search', 'library', 'liked', 'albums',
-    'queue', 'settings', 'marketplace', 'messages', 'producer-dashboard', 'profile'
+    'queue', 'settings', 'marketplace', 'messages', 'dev-dashboard', 'profile'
   ] as const;
 
   for (const route of simpleRoutes) {
@@ -95,8 +95,8 @@ function routeToTab(route: RoutePattern): string {
       return 'marketplace';
     case 'messages':
       return 'messages';
-    case 'producer-dashboard':
-      return 'producer-dashboard';
+    case 'dev-dashboard':
+      return 'dev-dashboard';
     case 'profile':
       return 'profile';
     case 'producer':
