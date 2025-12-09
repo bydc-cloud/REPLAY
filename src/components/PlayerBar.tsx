@@ -373,27 +373,29 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
       )}
 
       {/* Desktop: Full Player Bar */}
-      <div className="hidden md:flex fixed bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#0a0a0a]/98 via-[#1a1a1a]/98 to-[#0a0a0a]/98 backdrop-blur-2xl border-t border-white/5 z-50">
-        {/* Progress Bar - Ultra Thin Top */}
-        <div className="absolute top-0 left-0 right-0 h-[3px] bg-white/5 group cursor-pointer hover:h-[5px] transition-[height] duration-150">
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={progress}
-            onChange={handleProgressChange}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-          />
-          <div
-            className="h-full bg-gradient-to-r from-violet-400 via-purple-500 to-fuchsia-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]"
-            style={{
-              width: `${progress}%`,
-              transition: 'width 100ms linear'
-            }}
-          />
+      <div className="hidden md:flex fixed bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#0a0a0a]/98 via-[#1a1a1a]/98 to-[#0a0a0a]/98 backdrop-blur-2xl border-t border-white/5 z-50 flex-col">
+        {/* Progress Bar - dedicated row to avoid overlay */}
+        <div className="relative w-full px-6 pt-2 pb-1">
+          <div className="relative h-[4px] rounded-full bg-white/6 overflow-hidden group cursor-pointer hover:h-[6px] transition-[height] duration-150">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={progress}
+              onChange={handleProgressChange}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            />
+            <div
+              className="h-full bg-gradient-to-r from-violet-400 via-purple-500 to-fuchsia-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]"
+              style={{
+                width: `${progress}%`,
+                transition: 'width 100ms linear'
+              }}
+            />
+          </div>
         </div>
 
-        <div className="flex h-full items-center justify-between px-6 max-w-[1800px] mx-auto w-full">
+        <div className="flex flex-1 items-center justify-between px-6 max-w-[1800px] mx-auto w-full">
           {/* Left: Current Song Info */}
           <div className="flex items-center gap-4 w-[320px]">
             <button
