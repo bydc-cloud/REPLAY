@@ -49,6 +49,7 @@ export const PerformantVisualizer = ({
   const velocityRef = useRef<number[]>([]); // For momentum-based smoothing
   const peakRef = useRef<number[]>([]); // Track peaks for more dynamic visuals
   const waveSmoothRef = useRef<number[]>([]);
+  const orbTrailRef = useRef<Array<{ x: number; y: number; r: number; alpha: number }>>([]);
 
   // Container size classes
   const containerClass = size === "full" || size === "xl"
@@ -71,7 +72,7 @@ export const PerformantVisualizer = ({
     return 32;
   }, [variant]);
 
-  const isCanvasVariant = variant === "wave" || variant === "dots";
+  const isCanvasVariant = variant === "wave" || variant === "dots" || variant === "circle";
 
   // Initialize bars with refs
   useEffect(() => {
@@ -307,51 +308,39 @@ export const PerformantVisualizer = ({
         } else if (variant === "pulse") {
           // Smooth pulsing rings - optimized for buttery motion
           const breathe = isPlaying ? Math.sin(timeRef.current * 2 + i * 0.5) * 0.08 : 0;
-          const scale = 0.85 + value * 0.5 + breathe + bassEnergy * 0.25;
-          const ringHue = (dynamicHue + i * 50) % 360;
+          const scale = 0.78 + value * 0.65 + breathe + bassEnergy * 0.3;
+          const ringHue = (dynamicHue + i * 65) % 360;
           // GPU-accelerated transform
           bar.style.transform = `translateZ(0) scale(${scale})`;
-          bar.style.borderColor = `hsla(${ringHue}, ${saturation}%, ${isPlaying ? 55 + value * 25 : 25}%, ${isPlaying ? 0.6 + value * 0.4 : 0.2})`;
-          // Simplified 2-layer glow
-          if (isPlaying && value > 0.3) {
-            const g = value * value;
-            bar.style.boxShadow = `0 0 ${12 + g * 18}px hsla(${ringHue}, 100%, 60%, ${0.35 + g * 0.35}),
-             inset 0 0 ${8 + g * 10}px hsla(${ringHue}, 100%, 70%, ${0.1 + g * 0.15})`;
-          } else {
-            bar.style.boxShadow = 'none';
-          }
-        } else if (variant === "circle") {
-          // Silky smooth orbital particles
-          const baseAngle = position * Math.PI * 2;
-          const dynamicAngle = baseAngle + (isPlaying ? timeRef.current * 0.4 : 0); // Slower, smoother rotation
-          const baseRadius = 35 + (size === "sm" || size === "md" ? 15 : 45);
-          const dynamicRadius = baseRadius + (isPlaying ? value * 40 + bassEnergy * 15 : 0);
-          const x = Math.cos(dynamicAngle) * dynamicRadius;
-          const y = Math.sin(dynamicAngle) * dynamicRadius;
-          const particleScale = 0.6 + value * 1.0;
-          const orbitHue = (dynamicHue + position * 100) % 360;
-          // GPU-accelerated transform
-          bar.style.transform = `translateZ(0) translate(${x}px, ${y}px) scale(${particleScale})`;
-          bar.style.opacity = isPlaying ? `${0.75 + value * 0.25}` : '0.2';
-          // Single-layer glow for smooth performance
+          bar.style.borderColor = `hsla(${ringHue}, ${saturation}%, ${isPlaying ? 58 + value * 28 : 28}%, ${isPlaying ? 0.55 + value * 0.4 : 0.2})`;
+          bar.style.background = `radial-gradient(circle at 35% 35%, hsla(${(ringHue + 25) % 360}, 90%, 75%, ${0.25 + value * 0.3}), transparent 55%)`;
+          // Enhanced multi-layer glow with subtle inner sheen
           if (isPlaying && value > 0.25) {
             const g = value * value;
-            bar.style.boxShadow = `0 0 ${10 + g * 15}px hsla(${orbitHue}, 100%, 60%, ${0.4 + g * 0.4})`;
+            bar.style.boxShadow = `0 0 ${10 + g * 18}px hsla(${ringHue}, 100%, 60%, ${0.4 + g * 0.4}),
+             0 0 ${20 + g * 22}px hsla(${(ringHue + 40) % 360}, 90%, 55%, ${0.18 + g * 0.22}),
+             inset 0 0 ${8 + g * 12}px hsla(${(ringHue + 10) % 360}, 95%, 75%, ${0.12 + g * 0.15})`;
           } else {
             bar.style.boxShadow = 'none';
           }
         } else if (variant === "lines") {
           // Silky smooth streaming lines (you like this one!)
-          const stream = isPlaying ? Math.sin(timeRef.current * 2.5 + i * 0.6) * 0.08 : 0;
-          const scale = Math.max(0.1, value * 1.05 + stream + highEnergy * 0.15);
-          const lineHue = (dynamicHue + i * 12) % 360;
+          const stream = isPlaying ? Math.sin(timeRef.current * 2.8 + i * 0.55) * 0.1 : 0;
+          const scale = Math.max(0.12, value * 1.08 + stream + highEnergy * 0.18);
+          const lineHue = (dynamicHue + i * 16) % 360;
+          const translate = isPlaying ? Math.sin(timeRef.current * 1.4 + i * 0.25) * 4 : 0;
           // GPU-accelerated transform
-          bar.style.transform = `translateZ(0) scaleX(${scale})`;
-          bar.style.opacity = isPlaying ? `${0.8 + value * 0.2}` : '0.2';
-          // Single-layer glow for smooth streaming
-          if (isPlaying && value > 0.25) {
+          bar.style.transform = `translateZ(0) translateY(${translate}px) scaleX(${scale})`;
+          bar.style.opacity = isPlaying ? `${0.78 + value * 0.25}` : '0.22';
+          bar.style.background = `linear-gradient(to right,
+            hsla(${lineHue}, 90%, 55%, 0.85),
+            hsla(${(lineHue + 40) % 360}, 95%, 65%, 0.95),
+            hsla(${(lineHue + 80) % 360}, 88%, 60%, 0.85))`;
+          // Multi-layer glow for depth
+          if (isPlaying && value > 0.22) {
             const g = value * value;
-            bar.style.boxShadow = `0 0 ${8 + g * 12}px hsla(${lineHue}, 100%, 60%, ${0.35 + g * 0.4})`;
+            bar.style.boxShadow = `0 0 ${7 + g * 11}px hsla(${lineHue}, 100%, 60%, ${0.32 + g * 0.35}),
+             0 0 ${14 + g * 16}px hsla(${(lineHue + 50) % 360}, 90%, 55%, ${0.16 + g * 0.2})`;
           } else {
             bar.style.boxShadow = 'none';
           }
@@ -506,6 +495,62 @@ export const PerformantVisualizer = ({
           }
         }
         ctx.restore();
+      } else if (variant === "circle") {
+        // Background wash
+        const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+        bgGrad.addColorStop(0, `hsla(${(hueBase + 40) % 360}, 65%, 16%, 0.22)`);
+        bgGrad.addColorStop(1, `hsla(${(hueBase + 140) % 360}, 60%, 14%, 0.22)`);
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, width, height);
+
+        const t = timeRef.current;
+        const path = (Math.sin(t * 0.4 + avgEnergy * 2) + 1) / 2; // 0..1 progress left->right
+        const depth = (Math.cos(t * 0.7 + bassEnergy * 3) + 1) / 2; // 0..1 depth
+
+        const x = width * (0.08 + 0.84 * path);
+        const yCenter = height * 0.55;
+        const y = yCenter + Math.sin(t * 1.1 + midEnergy * 2) * height * 0.08;
+        const baseRadius = Math.min(width, height) * 0.08;
+        const r = baseRadius * (0.8 + depth * 0.6 + avgEnergy * 0.4);
+        const hue = (hueBase + depth * 60) % 360;
+
+        // Trail
+        const trail = orbTrailRef.current;
+        trail.push({ x, y, r, alpha: 0.7 + avgEnergy * 0.25 });
+        if (trail.length > 18) trail.shift();
+
+        for (let i = 0; i < trail.length; i++) {
+          const seg = trail[i];
+          const fade = i / trail.length;
+          const grad = ctx.createRadialGradient(seg.x, seg.y, 0, seg.x, seg.y, seg.r * (0.9 + fade * 0.3));
+          grad.addColorStop(0, `hsla(${(hue + fade * 40) % 360}, 95%, 70%, ${(seg.alpha) * (1 - fade)})`);
+          grad.addColorStop(0.5, `hsla(${(hue + 40 + fade * 30) % 360}, 90%, 60%, ${(seg.alpha * 0.8) * (1 - fade)})`);
+          grad.addColorStop(1, `hsla(${(hue + 90) % 360}, 85%, 50%, ${(seg.alpha * 0.5) * (1 - fade)})`);
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(seg.x, seg.y, seg.r * (0.9 + fade * 0.2), 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Main orb
+        const orbGrad = ctx.createRadialGradient(x, y, 0, x, y, r * 1.05);
+        orbGrad.addColorStop(0, `hsla(${hue}, 100%, 72%, ${0.9})`);
+        orbGrad.addColorStop(0.45, `hsla(${(hue + 35) % 360}, 95%, 65%, ${0.82})`);
+        orbGrad.addColorStop(0.8, `hsla(${(hue + 80) % 360}, 85%, 50%, ${0.55})`);
+        orbGrad.addColorStop(1, `hsla(${(hue + 120) % 360}, 75%, 45%, ${0.35})`);
+        ctx.fillStyle = orbGrad;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Highlight
+        const glow = ctx.createRadialGradient(x - r * 0.25, y - r * 0.25, 0, x - r * 0.25, y - r * 0.25, r * 0.9);
+        glow.addColorStop(0, `hsla(${(hue + 20) % 360}, 100%, 85%, 0.6)`);
+        glow.addColorStop(1, `hsla(${(hue + 20) % 360}, 100%, 85%, 0)`);
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(x - r * 0.25, y - r * 0.25, r * 0.9, 0, Math.PI * 2);
+        ctx.fill();
       }
 
       canvasRafRef.current = requestAnimationFrame(draw);
@@ -587,31 +632,8 @@ export const PerformantVisualizer = ({
   // Enhanced Circle Visualizer - Orbital rainbow particles
   if (variant === "circle") {
     return (
-      <div ref={containerRef} className={`${containerClass} relative flex items-center justify-center`}>
-        {/* Glowing central core */}
-        <div className="absolute w-5 h-5 md:w-6 md:h-6 bg-gradient-to-br from-purple-400/50 to-cyan-400/50 rounded-full blur-sm" />
-        <div className="absolute w-3 h-3 md:w-4 md:h-4 bg-white/50 rounded-full" />
-        <div className="absolute w-full h-full flex items-center justify-center">
-          {Array.from({ length: barCount }).map((_, i) => {
-            const hue = (i / barCount) * 360;
-            return (
-              <div
-                key={i}
-                ref={el => { if (el) barsRef.current[i] = el; }}
-                className="absolute w-2 h-2 md:w-2.5 md:h-2.5 rounded-full origin-center"
-                style={{
-                  background: `radial-gradient(circle, hsl(${hue}, 90%, 65%), hsl(${(hue + 30) % 360}, 85%, 50%))`,
-                  transform: 'translate(0, 0) scale(0.4)',
-                  willChange: 'transform, opacity, background, box-shadow',
-                  transition: 'none',
-                }}
-              />
-            );
-          })}
-        </div>
-        {/* Subtle outer rings */}
-        <div className="absolute w-[85%] h-[85%] rounded-full border border-white/10" />
-        <div className="absolute w-[95%] h-[95%] rounded-full border border-white/5" />
+      <div ref={containerRef} className={`${containerClass} relative overflow-hidden rounded-lg`}>
+        <canvas ref={canvasRef} className="w-full h-full block" />
       </div>
     );
   }
