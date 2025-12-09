@@ -49,6 +49,7 @@ export const PerformantVisualizer = ({
   const velocityRef = useRef<number[]>([]); // For momentum-based smoothing
   const peakRef = useRef<number[]>([]); // Track peaks for more dynamic visuals
   const waveSmoothRef = useRef<number[]>([]);
+  const barDisplayRef = useRef<number[]>([]);
   const orbTrailRef = useRef<Array<{ x: number; y: number; r: number; alpha: number }>>([]);
 
   // Container size classes
@@ -82,6 +83,7 @@ export const PerformantVisualizer = ({
     velocityRef.current = new Array(barCount).fill(0);
     peakRef.current = new Array(barCount).fill(0);
     waveSmoothRef.current = new Array(barCount).fill(0);
+    barDisplayRef.current = new Array(barCount).fill(0);
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       if (canvasRafRef.current) cancelAnimationFrame(canvasRafRef.current);
@@ -290,36 +292,37 @@ export const PerformantVisualizer = ({
         const lightness = isPlaying ? (45 + value * 20 + avgEnergy * 8) : 20;
 
         if (variant === "bars") {
-          // Premium bars with optimized GPU-accelerated glow
-          const scale = Math.max(0.08, value * 1.25);
-          const barHue = dynamicHue;
+          // Premium bars with extra smoothing to avoid flicker
+          const displayVal = barDisplayRef.current[i] = barDisplayRef.current[i] * 0.82 + value * 0.18;
+          const scale = Math.max(0.1, displayVal * 1.3);
+          const barHue = (dynamicHue * 0.6 + frequencyHue * 0.4) % 360;
           // Only transform + opacity for GPU compositing (no layout thrashing)
           bar.style.transform = `translateZ(0) scaleY(${scale})`;
-          bar.style.opacity = isPlaying ? `${0.7 + value * 0.3}` : '0.25';
-          // Simplified single-layer glow to avoid flicker
-          if (isPlaying && value > 0.2) {
-            const g = value * value;
-            bar.style.boxShadow = `0 0 ${10 + g * 10}px hsla(${barHue}, 100%, 60%, ${0.35 + g * 0.35})`;
+          bar.style.opacity = isPlaying ? `${0.65 + displayVal * 0.35}` : '0.25';
+          if (isPlaying && displayVal > 0.18) {
+            const g = displayVal * displayVal;
+            bar.style.boxShadow = `0 0 ${10 + g * 10}px hsla(${barHue}, 100%, 60%, ${0.32 + g * 0.32})`;
           } else {
             bar.style.boxShadow = 'none';
           }
         } else if (variant === "pulse") {
           // Smooth pulsing rings - optimized for buttery motion
           const breathe = isPlaying ? Math.sin(timeRef.current * 2 + i * 0.5) * 0.08 : 0;
-          const scale = 0.8 + value * 0.75 + breathe + bassEnergy * 0.35;
+          const displayVal = barDisplayRef.current[i] = barDisplayRef.current[i] * 0.82 + value * 0.18;
+          const scale = 0.8 + displayVal * 0.75 + breathe + bassEnergy * 0.35;
           const ringHue = (dynamicHue + i * 70) % 360;
           const borderWidth = 2.5 + i * 0.45;
-          const ringLightness = isPlaying ? 46 + value * 20 : 30;
+          const ringLightness = isPlaying ? 46 + displayVal * 20 : 30;
           // GPU-accelerated transform
           bar.style.transform = `translateZ(0) scale(${scale})`;
           bar.style.borderWidth = `${borderWidth}px`;
           bar.style.borderStyle = "solid";
-          bar.style.borderColor = `hsla(${ringHue}, 80%, ${ringLightness}%, ${isPlaying ? 0.55 + value * 0.35 : 0.2})`;
-          bar.style.background = `radial-gradient(circle at 40% 40%, hsla(${(ringHue + 30) % 360}, 80%, 55%, ${0.16 + value * 0.22}), transparent 60%)`;
-          bar.style.opacity = isPlaying ? `${0.75 + value * 0.2}` : '0.35';
+          bar.style.borderColor = `hsla(${ringHue}, 80%, ${ringLightness}%, ${isPlaying ? 0.55 + displayVal * 0.35 : 0.2})`;
+          bar.style.background = `radial-gradient(circle at 40% 40%, hsla(${(ringHue + 30) % 360}, 80%, 55%, ${0.16 + displayVal * 0.22}), transparent 60%)`;
+          bar.style.opacity = isPlaying ? `${0.75 + displayVal * 0.2}` : '0.35';
           // Enhanced multi-layer glow with softer core (no harsh white)
-          if (isPlaying && value > 0.25) {
-            const g = value * value;
+          if (isPlaying && displayVal > 0.25) {
+            const g = displayVal * displayVal;
             bar.style.boxShadow = `0 0 ${12 + g * 18}px hsla(${ringHue}, 85%, 60%, ${0.38 + g * 0.42}),
              0 0 ${24 + g * 24}px hsla(${(ringHue + 45) % 360}, 80%, 52%, ${0.18 + g * 0.24}),
              inset 0 0 ${10 + g * 16}px hsla(${(ringHue + 15) % 360}, 88%, 68%, ${0.1 + g * 0.17}),
