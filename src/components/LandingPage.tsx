@@ -642,40 +642,6 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
               <span className="text-white/70 font-medium">Keep 85% of every sale.</span>
             </p>
 
-            {/* HERO VISUALIZER - Product showcase after headline */}
-            <div className="w-full max-w-4xl mx-auto mb-10 md:mb-14 animate-scale-in group">
-              {/* Outer glow ring */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-violet-600/20 via-purple-600/10 to-indigo-600/20 rounded-[2rem] blur-xl opacity-60 group-hover:opacity-80 transition-opacity" />
-
-              <div className="relative aspect-[21/9] md:aspect-[2.5/1] rounded-[1.5rem] md:rounded-[2rem] overflow-hidden border border-white/10 bg-black/60 backdrop-blur-sm shadow-2xl shadow-violet-500/10">
-                {/* Premium glow background */}
-                <div className="absolute inset-0">
-                  <div className="absolute inset-0 bg-gradient-to-br from-violet-600/15 via-transparent to-indigo-600/15" />
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70%] h-[70%] bg-violet-500/20 rounded-full blur-[100px]" />
-                </div>
-
-                {/* Real Visualizer with transition */}
-                <div className="absolute inset-0 transition-opacity duration-500">
-                  <PerformantVisualizer
-                    isPlaying={true}
-                    variant={VISUALIZER_VARIANTS[heroVisualizerIndex]}
-                    size="full"
-                    audioElement={null}
-                  />
-                </div>
-
-                {/* Subtle vignette for depth */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 pointer-events-none" />
-
-                {/* Visualizer type indicator */}
-                <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10">
-                  <span className="text-xs font-medium text-white/60 uppercase tracking-wider">
-                    {VISUALIZER_VARIANTS[heroVisualizerIndex]}
-                  </span>
-                </div>
-              </div>
-            </div>
-
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 md:gap-5 justify-center px-4 animate-hero-enter-delay-2">
               <LiquidButton
@@ -711,6 +677,11 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             </div>
           </div>
 
+          {/* Hero Parallax lane using live visualizers */}
+          <div className="w-full max-w-6xl mx-auto mt-16 md:mt-20 pb-6 md:pb-10">
+            <ZoomParallax items={parallaxItems} className="relative h-[140vh] md:h-[160vh]" />
+          </div>
+
           {/* Scroll indicator */}
           <div className="absolute bottom-6 md:bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-scroll-bounce">
             <span className="text-[10px] text-white/25 uppercase tracking-[0.2em]">Scroll</span>
@@ -718,12 +689,6 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
           </div>
         </div>
       </div>
-
-      {/* Hero Parallax lane using live visualizers */}
-      <section className="relative -mt-12 md:-mt-16">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#090909] to-[#050505]" />
-        <ZoomParallax items={parallaxItems} className="relative h-[140vh] md:h-[160vh]" />
-      </section>
 
       {/* Seamless Gradient Divider - Hero to Platform */}
       <div className="relative h-32 md:h-48 -mt-10 md:-mt-14 pointer-events-none">
