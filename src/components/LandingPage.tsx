@@ -54,7 +54,6 @@ import {
 import { PerformantVisualizer } from "./PerformantVisualizer";
 import { WebGLShader } from "./ui/web-gl-shader";
 import { LiquidButton } from "./ui/liquid-glass-button";
-import { ZoomParallax } from "./ui/zoom-parallax";
 
 // Custom hook for scroll-triggered animations
 const useScrollReveal = (threshold = 0.15) => {
@@ -128,31 +127,6 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
   const [scrollY, setScrollY] = useState(0);
   const [activeSection, setActiveSection] = useState<string>('');
   const [heroVisualizerIndex, setHeroVisualizerIndex] = useState(0);
-  const navSolid = scrollY > 12;
-  const parallaxItems = ([
-    "bars",
-    "wave",
-    "pulse",
-    "circle"
-  ] as Array<"bars" | "wave" | "pulse" | "circle">).map((variant) => (
-    <div
-      key={variant}
-      className="h-full w-full flex items-center justify-center bg-gradient-to-br from-[#0b0b0f] via-[#0a0716] to-[#05040b]"
-    >
-      <div className="relative w-full h-full rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-purple-800/25 backdrop-blur-xl">
-        <div className="absolute inset-0 bg-gradient-to-br from-white/4 via-transparent to-purple-500/5" />
-        <PerformantVisualizer
-          isPlaying={true}
-          variant={variant as any}
-          size="full"
-          audioElement={null}
-        />
-        <div className="absolute top-4 left-4 px-3 py-1.5 rounded-full bg-black/45 backdrop-blur-md border border-white/10 text-[11px] tracking-[0.16em] uppercase text-white/80">
-          {variant}
-        </div>
-      </div>
-    </div>
-  ));
 
   // Scroll reveal refs for Apple-style animations
   const visualizerSectionReveal = useScrollReveal(0.1);
@@ -563,13 +537,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         `}</style>
 
         {/* Header */}
-        <header
-          className={`relative z-20 flex items-center justify-between px-4 py-4 md:px-8 lg:px-12 md:py-6 transition-all ${
-            navSolid
-              ? "backdrop-blur-xl bg-white/5 border-b border-white/10 shadow-lg shadow-black/30"
-              : ""
-          }`}
-        >
+        <header className="relative z-10 flex items-center justify-between px-4 py-4 md:px-8 lg:px-12 md:py-6">
           <div className="flex items-center gap-2 md:gap-3">
             {showBackButton && onBackToApp && (
               <button
@@ -653,11 +621,45 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
               <span className="text-white/70 font-medium">Keep 85% of every sale.</span>
             </p>
 
+            {/* HERO VISUALIZER - Product showcase after headline */}
+            <div className="w-full max-w-4xl mx-auto mb-10 md:mb-14 animate-scale-in group">
+              {/* Outer glow ring */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-violet-600/20 via-purple-600/10 to-indigo-600/20 rounded-[2rem] blur-xl opacity-60 group-hover:opacity-80 transition-opacity" />
+
+              <div className="relative aspect-[21/9] md:aspect-[2.5/1] rounded-[1.5rem] md:rounded-[2rem] overflow-hidden border border-white/10 bg-black/60 backdrop-blur-sm shadow-2xl shadow-violet-500/10">
+                {/* Premium glow background */}
+                <div className="absolute inset-0">
+                  <div className="absolute inset-0 bg-gradient-to-br from-violet-600/15 via-transparent to-indigo-600/15" />
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70%] h-[70%] bg-violet-500/20 rounded-full blur-[100px]" />
+                </div>
+
+                {/* Real Visualizer with transition */}
+                <div className="absolute inset-0 transition-opacity duration-500">
+                  <PerformantVisualizer
+                    isPlaying={true}
+                    variant={VISUALIZER_VARIANTS[heroVisualizerIndex]}
+                    size="full"
+                    audioElement={null}
+                  />
+                </div>
+
+                {/* Subtle vignette for depth */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 pointer-events-none" />
+
+                {/* Visualizer type indicator */}
+                <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10">
+                  <span className="text-xs font-medium text-white/60 uppercase tracking-wider">
+                    {VISUALIZER_VARIANTS[heroVisualizerIndex]}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 md:gap-5 justify-center px-4 animate-hero-enter-delay-2">
               <LiquidButton
                 onClick={onGetStarted}
-                className="relative overflow-hidden bg-gradient-to-r from-violet-500 via-fuchsia-500 to-indigo-500 text-white font-semibold px-10 md:px-12 py-4 md:py-5 rounded-full shadow-xl shadow-purple-700/25 border border-white/10 hover:scale-[1.03] active:scale-[0.98] transition-all before:absolute before:inset-0 before:bg-white/10 before:opacity-0 hover:before:opacity-100 before:transition-opacity"
+                className="bg-white text-black font-semibold px-10 md:px-12 py-4 md:py-5 rounded-full shadow-lg shadow-white/10 hover:scale-[1.03] active:scale-[0.98] transition-all"
               >
                 Get Started Free
                 <ArrowRight className="w-5 h-5" />
@@ -688,21 +690,6 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             </div>
           </div>
 
-          {/* Hero Parallax lane using live visualizers */}
-          <div className="relative w-full max-w-6xl mx-auto mt-14 md:mt-16 pb-4 md:pb-8">
-            <div className="text-center mb-6 md:mb-7 text-white/70 text-xs md:text-sm tracking-[0.22em] uppercase">Seven ways to see your sound</div>
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#050505] via-[#050505]/60 to-transparent z-10" />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent z-10" />
-            <div
-              className="pointer-events-none absolute inset-0 z-[5]"
-              style={{
-                background: "radial-gradient(ellipse at center, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.05) 48%, rgba(0,0,0,0.34) 100%)",
-                filter: "blur(24px)"
-              }}
-            />
-            <ZoomParallax items={parallaxItems} className="relative h-[95vh] md:h-[110vh]" />
-          </div>
-
           {/* Scroll indicator */}
           <div className="absolute bottom-6 md:bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-scroll-bounce">
             <span className="text-[10px] text-white/25 uppercase tracking-[0.2em]">Scroll</span>
@@ -712,7 +699,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
       </div>
 
       {/* Seamless Gradient Divider - Hero to Platform */}
-      <div className="relative h-32 md:h-48 -mt-10 md:-mt-14 pointer-events-none">
+      <div className="relative h-32 md:h-48 -mt-16 md:-mt-24 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-b from-[#050505] via-transparent to-transparent" />
       </div>
 
