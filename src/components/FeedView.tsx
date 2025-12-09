@@ -933,10 +933,11 @@ export function FeedView() {
                           }}
                         >
                           {/* Semi-transparent backdrop - allows UI to show through */}
-                          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                          <div className="absolute inset-0 bg-black/50 md:bg-black/40 backdrop-blur-sm" />
 
                           {/* Centered lyrics container */}
-                          <div className="relative flex-1 flex items-center justify-center px-6 py-24">
+                          <div className="relative flex-1 flex items-center justify-center px-6 py-24 md:px-16 md:py-28">
+                            <div className="w-full max-w-4xl mx-auto">
                             <LyricsVisualizer
                               currentTime={currentTime}
                               duration={duration}
@@ -946,6 +947,7 @@ export function FeedView() {
                               trackArtist={track.artist}
                               audioLevels={audioLevels}
                             />
+                            </div>
                           </div>
                         </div>
                       )}

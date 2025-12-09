@@ -347,7 +347,7 @@ export const PlayerBar = ({ onQueueClick, onMiniPlayerToggle }: PlayerBarProps =
 
       {/* Producer Mode Panel - Above Desktop Player */}
       {developerMode && currentTrack && (
-        <div className="hidden md:block fixed bottom-24 left-0 right-0 z-40">
+        <div className="hidden md:block fixed bottom-24 left-0 right-0 z-40 md:left-[250px] md:right-0 md:w-[calc(100%-250px)]">
           <ProducerModePanel
             audioElement={audioElement}
             isExpanded={producerPanelExpanded}
