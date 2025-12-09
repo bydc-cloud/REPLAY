@@ -52,7 +52,8 @@ import {
   Map
 } from "lucide-react";
 import { PerformantVisualizer } from "./PerformantVisualizer";
-import { ContainerScroll } from "./ui/container-scroll-animation";
+import { WebGLShader } from "./ui/web-gl-shader";
+import { LiquidButton } from "./ui/liquid-glass-button";
 
 // Custom hook for scroll-triggered animations
 const useScrollReveal = (threshold = 0.15) => {
@@ -421,6 +422,11 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         {/* Static background gradient - no parallax to prevent glitching */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] via-[#050505] to-[#000000]" />
 
+        {/* WebGL shader overlay for premium feel */}
+        <div className="absolute inset-0 opacity-35 mix-blend-screen pointer-events-none">
+          <WebGLShader className="absolute inset-0" />
+        </div>
+
         {/* Animated background elements - Simplified for performance */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ transform: 'translateZ(0)' }}>
           {/* Single primary gradient orb - reduced blur for performance */}
@@ -651,15 +657,13 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 md:gap-5 justify-center px-4 animate-hero-enter-delay-2">
-              <button
+              <LiquidButton
                 onClick={onGetStarted}
-                className="group relative flex items-center justify-center gap-2 px-10 md:px-12 py-4 md:py-5 bg-white text-black font-semibold rounded-full transition-all transform hover:scale-[1.03] active:scale-[0.98] overflow-hidden shadow-lg shadow-white/10"
+                className="bg-white text-black font-semibold px-10 md:px-12 py-4 md:py-5 rounded-full shadow-lg shadow-white/10 hover:scale-[1.03] active:scale-[0.98] transition-all"
               >
-                {/* Shine effect */}
-                <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-black/5 to-transparent" />
-                <span className="relative z-10">Get Started Free</span>
-                <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform" />
-              </button>
+                Get Started Free
+                <ArrowRight className="w-5 h-5" />
+              </LiquidButton>
 
               <button
                 onClick={() => scrollToSection('features')}
@@ -734,32 +738,6 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             </div>
           </div>
         </div>
-      </section>
-
-      {/* Scroll Animation Preview for Visualizers */}
-      <section className="relative px-4 md:px-8 lg:px-12">
-        <ContainerScroll
-          titleComponent={
-            <div className="text-center space-y-2">
-              <p className="text-sm uppercase tracking-[0.2em] text-white/60">Visualizers</p>
-              <h2 className="text-3xl md:text-5xl font-black text-white leading-tight">
-                Scroll through a premium preview
-              </h2>
-              <p className="text-white/60 text-sm md:text-base max-w-2xl mx-auto">
-                Bars, waves, pulses, circles, dots, lines, and lyrics — all GPU-accelerated and tuned to your music.
-              </p>
-            </div>
-          }
-        >
-          <div className="relative h-full w-full rounded-2xl overflow-hidden bg-black">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 via-indigo-500/10 to-black" />
-            <div className="absolute inset-0 flex items-center justify-center px-4 md:px-8">
-              <div className="w-full h-[260px] md:h-[320px] bg-black/40 border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
-                <PerformantVisualizer isPlaying={true} variant="bars" size="full" audioElement={null} />
-              </div>
-            </div>
-          </div>
-        </ContainerScroll>
       </section>
 
       {/* Seamless Gradient Divider - Platform to Discovery */}
