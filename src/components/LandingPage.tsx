@@ -128,6 +128,26 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
   const [scrollY, setScrollY] = useState(0);
   const [activeSection, setActiveSection] = useState<string>('');
   const [heroVisualizerIndex, setHeroVisualizerIndex] = useState(0);
+  const parallaxItems = ([
+    "bars",
+    "wave",
+    "pulse",
+    "circle"
+  ] as Array<"bars" | "wave" | "pulse" | "circle">).map((variant) => (
+    <div
+      key={variant}
+      className="h-full w-full flex items-center justify-center bg-gradient-to-br from-[#0b0b0f] via-[#0a0716] to-[#05040b]"
+    >
+      <div className="w-full h-full rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-purple-800/20">
+        <PerformantVisualizer
+          isPlaying={true}
+          variant={variant as any}
+          size="full"
+          audioElement={null}
+        />
+      </div>
+    </div>
+  ));
 
   // Scroll reveal refs for Apple-style animations
   const visualizerSectionReveal = useScrollReveal(0.1);
@@ -660,7 +680,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             <div className="flex flex-col sm:flex-row gap-4 md:gap-5 justify-center px-4 animate-hero-enter-delay-2">
               <LiquidButton
                 onClick={onGetStarted}
-                className="bg-white text-black font-semibold px-10 md:px-12 py-4 md:py-5 rounded-full shadow-lg shadow-white/10 hover:scale-[1.03] active:scale-[0.98] transition-all"
+                className="bg-gradient-to-r from-violet-500 via-fuchsia-500 to-indigo-500 text-white font-semibold px-10 md:px-12 py-4 md:py-5 rounded-full shadow-xl shadow-purple-700/25 border border-white/10 hover:scale-[1.03] active:scale-[0.98] transition-all"
               >
                 Get Started Free
                 <ArrowRight className="w-5 h-5" />
@@ -699,35 +719,14 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         </div>
       </div>
 
-      {/* Parallax Gallery - premium visualizer + album impressions */}
-      <section className="relative -mt-12 md:-mt-16 pb-8 md:pb-16">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0a0a0a] to-[#050505]" />
-        <div className="max-w-6xl mx-auto px-4 md:px-8 lg:px-12 relative">
-          <div className="text-center mb-10 md:mb-14">
-            <p className="text-sm uppercase tracking-[0.2em] text-white/60">Experience</p>
-            <h2 className="text-3xl md:text-5xl font-black text-white leading-tight mb-3">
-              Glide through Rhythm
-            </h2>
-            <p className="text-white/60 text-sm md:text-base max-w-2xl mx-auto">
-              Parallax-scrolling snapshots of our visualizers and album art to showcase the motion and depth our players deliver.
-            </p>
-          </div>
-        </div>
-        <ZoomParallax
-          images={[
-            { src: "https://images.unsplash.com/photo-1483412033650-1015ddeb83d1?auto=format&fit=crop&w=1600&q=80", alt: "Analog synth vibes" },
-            { src: "https://images.unsplash.com/photo-1487215078519-e21cc028cb29?auto=format&fit=crop&w=1600&q=80", alt: "Studio session energy" },
-            { src: "https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1600&q=80", alt: "Neon club ambience" },
-            { src: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1600&q=80", alt: "Visualizer color wash" },
-            { src: "https://images.unsplash.com/photo-1464375117522-1311d6a5b81f?auto=format&fit=crop&w=1600&q=80", alt: "Headphones detail" },
-            { src: "https://images.unsplash.com/photo-1499415479124-43c32433a620?auto=format&fit=crop&w=1600&q=80", alt: "Waveform art" },
-            { src: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80", alt: "Night drive listening" }
-          ]}
-        />
+      {/* Hero Parallax lane using live visualizers */}
+      <section className="relative -mt-12 md:-mt-16">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#090909] to-[#050505]" />
+        <ZoomParallax items={parallaxItems} className="relative h-[140vh] md:h-[160vh]" />
       </section>
 
       {/* Seamless Gradient Divider - Hero to Platform */}
-      <div className="relative h-32 md:h-48 -mt-8 md:-mt-12 pointer-events-none">
+      <div className="relative h-32 md:h-48 -mt-10 md:-mt-14 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-b from-[#050505] via-transparent to-transparent" />
       </div>
 

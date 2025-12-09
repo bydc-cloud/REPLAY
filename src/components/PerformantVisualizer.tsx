@@ -506,77 +506,79 @@ export const PerformantVisualizer = ({
         }
         ctx.restore();
       } else if (variant === "circle") {
-        // Background wash
-        const bgGrad = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, Math.max(width, height) * 0.65);
-        bgGrad.addColorStop(0, `hsla(${(hueBase + 60) % 360}, 70%, 18%, 0.35)`);
-        bgGrad.addColorStop(1, `hsla(${(hueBase + 140) % 360}, 60%, 12%, 0.18)`);
+        const bgGrad = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, Math.max(width, height) * 0.7);
+        bgGrad.addColorStop(0, `hsla(${(hueBase + 20) % 360}, 65%, 16%, 0.4)`);
+        bgGrad.addColorStop(1, `hsla(${(hueBase + 120) % 360}, 55%, 10%, 0.2)`);
         ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, width, height);
 
-        const t = timeRef.current;
-        const path = (Math.sin(t * 0.4 + avgEnergy * 2) + 1) / 2; // 0..1 progress left->right
-        const depth = (Math.cos(t * 0.7 + bassEnergy * 3) + 1) / 2; // 0..1 depth
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const maxR = Math.min(width, height) * 0.42;
+        const innerR = maxR * 0.35;
+        const ringGap = maxR * 0.14;
+        const segments = 72;
 
-        const x = width * (0.08 + 0.84 * path);
-        const yCenter = height * 0.55;
-        const y = yCenter + Math.sin(t * 1.1 + midEnergy * 2) * height * 0.08;
-        const baseRadius = Math.min(width, height) * 0.08;
-        const r = baseRadius * (0.8 + depth * 0.6 + avgEnergy * 0.4);
-        const hue = (hueBase + depth * 60) % 360;
-
-        // Trail
-        const trail = orbTrailRef.current;
-        trail.push({ x, y, r, alpha: 0.75 + avgEnergy * 0.22 });
-        if (trail.length > 32) trail.shift();
-
-        // Draw smooth ribbon trail using curved strokes (no stacked circles)
-        const drawTrail = (widthFactor: number, alphaFactor: number, hueShift: number) => {
-          if (trail.length < 2) return;
-          ctx.beginPath();
-          for (let i = 0; i < trail.length - 1; i++) {
-            const p = trail[i];
-            const n = trail[i + 1];
-            const mx = (p.x + n.x) / 2;
-            const my = (p.y + n.y) / 2;
-            if (i === 0) ctx.moveTo(p.x, p.y);
-            ctx.quadraticCurveTo(p.x, p.y, mx, my);
-          }
-          const last = trail[trail.length - 1];
-          ctx.lineTo(last.x, last.y);
-          const alpha = Math.max(0.1, (trail[0].alpha || 0.8) * alphaFactor);
-          const strokeHue = (hue + hueShift) % 360;
-          ctx.strokeStyle = `hsla(${strokeHue}, 90%, 60%, ${alpha})`;
-          ctx.lineWidth = Math.max(2, r * widthFactor);
-          ctx.shadowBlur = ctx.lineWidth * 1.3;
-          ctx.shadowColor = `hsla(${(strokeHue + 25) % 360}, 90%, 55%, ${alpha * 0.9})`;
-          ctx.lineCap = "round";
+        const drawRing = (baseR: number, thickness: number, hueShift: number, energy: number, wobble: number) => {
+          ctx.save();
+          ctx.translate(centerX, centerY);
           ctx.globalCompositeOperation = "lighter";
-          ctx.stroke();
+          for (let i = 0; i < segments; i++) {
+            const t = i / segments;
+            const angle = t * Math.PI * 2;
+            const sample = samples[i % samples.length];
+            const amp = (sample * 0.75 + energy * 0.6) * (1 + Math.sin(timeRef.current * 1.2 + i * 0.3) * wobble);
+            const radius = baseR + amp * thickness;
+            const nextRadius = baseR + Math.max(0.05, samples[(i + 1) % samples.length]) * thickness;
+            const hue = (hueBase + hueShift + t * 80) % 360;
+            const alpha = 0.35 + amp * 0.6;
+
+            const x1 = Math.cos(angle) * radius;
+            const y1 = Math.sin(angle) * radius;
+            const x2 = Math.cos(angle + (Math.PI * 2) / segments) * nextRadius;
+            const y2 = Math.sin(angle + (Math.PI * 2) / segments) * nextRadius;
+
+            const grad = ctx.createLinearGradient(x1, y1, x2, y2);
+            grad.addColorStop(0, `hsla(${hue}, 95%, ${55 + energy * 30}%, ${alpha})`);
+            grad.addColorStop(1, `hsla(${(hue + 30) % 360}, 90%, ${60 + energy * 25}%, ${alpha * 0.8})`);
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = Math.max(2.5, thickness * 0.6);
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+          }
+          ctx.restore();
         };
 
+        drawRing(innerR, ringGap * 0.9, 0, bassEnergy, 0.25);
+        drawRing(innerR + ringGap, ringGap * 1.1, 50, midEnergy, 0.18);
+        drawRing(innerR + ringGap * 2, ringGap * 1.3, 110, highEnergy, 0.12);
+
+        const sparkCount = 28;
         ctx.save();
-        drawTrail(0.55, 0.35, 0);
-        drawTrail(0.3, 0.65, 30);
+        ctx.translate(centerX, centerY);
+        for (let i = 0; i < sparkCount; i++) {
+          const t = timeRef.current * (0.5 + i * 0.03);
+          const radius = innerR * 0.6 + (i % 7) * (ringGap * 0.22);
+          const angle = t + (i * Math.PI * 2) / sparkCount;
+          const size = 2.5 + Math.sin(t * 1.3 + i) * 1.2;
+          const hue = (hueBase + i * 9) % 360;
+          ctx.fillStyle = `hsla(${hue}, 95%, 70%, ${0.35 + highEnergy * 0.4})`;
+          ctx.beginPath();
+          ctx.arc(Math.cos(angle) * radius, Math.sin(angle) * radius, size, 0, Math.PI * 2);
+          ctx.fill();
+        }
         ctx.restore();
 
-        // Main orb
-        const orbGrad = ctx.createRadialGradient(x, y, 0, x, y, r * 1.05);
-        orbGrad.addColorStop(0, `hsla(${hue}, 100%, 70%, ${0.85})`);
-        orbGrad.addColorStop(0.4, `hsla(${(hue + 35) % 360}, 95%, 62%, ${0.8})`);
-        orbGrad.addColorStop(0.78, `hsla(${(hue + 90) % 360}, 85%, 48%, ${0.5})`);
-        orbGrad.addColorStop(1, `hsla(${(hue + 130) % 360}, 70%, 42%, ${0.32})`);
-        ctx.fillStyle = orbGrad;
+        const coreR = innerR * 0.7 + avgEnergy * innerR * 0.25;
+        const coreGrad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, coreR * 1.4);
+        coreGrad.addColorStop(0, `hsla(${(hueBase + 20) % 360}, 100%, 82%, 0.6)`);
+        coreGrad.addColorStop(0.4, `hsla(${(hueBase + 50) % 360}, 95%, 70%, 0.4)`);
+        coreGrad.addColorStop(1, `hsla(${(hueBase + 90) % 360}, 80%, 45%, 0.0)`);
+        ctx.fillStyle = coreGrad;
         ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Highlight
-        const glow = ctx.createRadialGradient(x - r * 0.25, y - r * 0.25, 0, x - r * 0.25, y - r * 0.25, r * 0.9);
-        glow.addColorStop(0, `hsla(${(hue + 20) % 360}, 100%, 85%, 0.6)`);
-        glow.addColorStop(1, `hsla(${(hue + 20) % 360}, 100%, 85%, 0)`);
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(x - r * 0.25, y - r * 0.25, r * 0.9, 0, Math.PI * 2);
+        ctx.arc(centerX, centerY, coreR * 1.4, 0, Math.PI * 2);
         ctx.fill();
       }
 
