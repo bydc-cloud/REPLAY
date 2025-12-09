@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useMusicLibrary, TrackLyrics, LyricsSegment } from "../contexts/MusicLibraryContext";
 
@@ -16,6 +16,8 @@ interface LyricsVisualizerProps {
 // Timing offset to sync lyrics slightly ahead (in seconds)
 // Whisper timestamps can be slightly late, this compensates
 const SYNC_OFFSET = 0.3;
+const WORD_TOLERANCE = 0.15; // seconds, tolerance for mapping words to segments
+const SMOOTHING_ALPHA = 0.35; // low-pass filter for playback time to avoid flicker
 
 export const LyricsVisualizer = ({
   currentTime,
@@ -30,7 +32,10 @@ export const LyricsVisualizer = ({
   const { tracks, transcribeTrack, getLyrics } = useMusicLibrary();
   const [lyrics, setLyrics] = useState<TrackLyrics | null>(null);
   const [currentLineIndex, setCurrentLineIndex] = useState(0);
+  const [currentWordIndex, setCurrentWordIndex] = useState<number | null>(null);
+  const [activeWordProgress, setActiveWordProgress] = useState(0);
   const [autoTranscribeAttempted, setAutoTranscribeAttempted] = useState<string | null>(null);
+  const smoothedTimeRef = useRef<number>(0);
 
   // Get track from context
   const track = trackId ? tracks.find(t => t.id === trackId) : null;
@@ -42,16 +47,29 @@ export const LyricsVisualizer = ({
   }, [audioLevels]);
 
   // Convert lyrics segments to line format
-  const lines = useMemo(() => {
+  const { lines, words, wordToLine } = useMemo(() => {
     if (!lyrics || !lyrics.segments || lyrics.segments.length === 0) {
-      return [];
+      return { lines: [], words: [], wordToLine: new Map<number, number>() };
     }
 
-    return lyrics.segments.map((segment: LyricsSegment) => ({
-      text: segment.text,
-      startTime: segment.start,
-      endTime: segment.end,
-    }));
+    const allWords = (lyrics.words || []).map((word, index) => ({ ...word, index }));
+    const map = new Map<number, number>();
+
+    const mappedLines = lyrics.segments.map((segment: LyricsSegment, lineIndex: number) => {
+      const segmentWords = allWords.filter((word) =>
+        word.start >= segment.start - WORD_TOLERANCE &&
+        word.end <= segment.end + WORD_TOLERANCE
+      );
+      segmentWords.forEach((word) => map.set(word.index, lineIndex));
+      return {
+        text: segment.text,
+        startTime: segment.start,
+        endTime: segment.end,
+        words: segmentWords,
+      };
+    });
+
+    return { lines: mappedLines, words: allWords, wordToLine: map };
   }, [lyrics]);
 
   // Define state variables early so they can be used in effects
@@ -59,6 +77,13 @@ export const LyricsVisualizer = ({
   const hasFailed = track?.lyrics?.status === 'failed';
   const hasLyrics = lines.length > 0;
   const canTranscribe = track?.hasAudio || (trackId && !trackId.startsWith('local-'));
+
+  // Smoothed playback time with sync offset
+  const getAdjustedTime = useCallback(() => {
+    const smoothed = smoothedTimeRef.current + (currentTime - smoothedTimeRef.current) * SMOOTHING_ALPHA;
+    smoothedTimeRef.current = smoothed;
+    return smoothed + SYNC_OFFSET;
+  }, [currentTime]);
 
   // Load lyrics when track changes - with polling for processing tracks
   useEffect(() => {
@@ -137,34 +162,71 @@ export const LyricsVisualizer = ({
   useEffect(() => {
     if (lines.length === 0) return;
 
-    // Apply sync offset to show lyrics slightly ahead
-    const adjustedTime = currentTime + SYNC_OFFSET;
+    const adjustedTime = getAdjustedTime();
 
-    // Find the line that matches current time
-    let lineIndex = lines.findIndex(
-      (line) => adjustedTime >= line.startTime && adjustedTime < line.endTime
-    );
+    // Prefer word-level sync if available
+    let activeWordIdx: number | null = null;
+    if (words.length > 0) {
+      const exactIndex = words.findIndex(
+        (word) => adjustedTime >= word.start - WORD_TOLERANCE && adjustedTime <= word.end + WORD_TOLERANCE
+      );
 
-    // If no exact match, find the next upcoming line or last past line
-    if (lineIndex === -1) {
-      // Check if we're past all lines
-      if (adjustedTime >= lines[lines.length - 1].endTime) {
-        lineIndex = lines.length - 1;
+      if (exactIndex !== -1) {
+        activeWordIdx = exactIndex;
       } else {
-        // Find the next upcoming line
-        const upcomingIndex = lines.findIndex(line => line.startTime > adjustedTime);
-        if (upcomingIndex > 0) {
-          lineIndex = upcomingIndex - 1;
-        } else if (upcomingIndex === 0) {
-          lineIndex = 0;
+        // Fallback to nearest word (prevents gaps)
+        const nextIdx = words.findIndex((word) => word.start > adjustedTime);
+        if (nextIdx > 0) {
+          activeWordIdx = nextIdx - 1;
+        } else if (nextIdx === 0) {
+          activeWordIdx = 0;
+        } else {
+          activeWordIdx = words.length - 1;
         }
       }
     }
 
-    if (lineIndex !== -1 && lineIndex !== currentLineIndex) {
+    // Derive line index
+    let lineIndex = currentLineIndex;
+    if (activeWordIdx !== null && wordToLine.has(activeWordIdx)) {
+      lineIndex = wordToLine.get(activeWordIdx) || 0;
+    } else {
+      // Line-level detection
+      const matchIndex = lines.findIndex(
+        (line) => adjustedTime >= line.startTime && adjustedTime < line.endTime
+      );
+      if (matchIndex !== -1) {
+        lineIndex = matchIndex;
+      } else {
+        if (adjustedTime >= lines[lines.length - 1].endTime) {
+          lineIndex = lines.length - 1;
+        } else {
+          const upcomingIndex = lines.findIndex(line => line.startTime > adjustedTime);
+          if (upcomingIndex > 0) {
+            lineIndex = upcomingIndex - 1;
+          } else if (upcomingIndex === 0) {
+            lineIndex = 0;
+          }
+        }
+      }
+    }
+
+    if (lineIndex !== currentLineIndex) {
       setCurrentLineIndex(lineIndex);
     }
-  }, [currentTime, lines, currentLineIndex]);
+
+    if (activeWordIdx !== null && activeWordIdx !== currentWordIndex) {
+      setCurrentWordIndex(activeWordIdx);
+    }
+
+    if (activeWordIdx !== null && words[activeWordIdx]) {
+      const word = words[activeWordIdx];
+      const progress = Math.min(1, Math.max(0, (adjustedTime - word.start) / Math.max(0.001, word.end - word.start)));
+      setActiveWordProgress(progress);
+    } else {
+      setActiveWordProgress(0);
+    }
+  }, [currentTime, lines, currentLineIndex, words, wordToLine, getAdjustedTime, currentWordIndex]);
 
   // Note: We no longer auto-scroll since we're showing a centered 3-line view
   // The previous/current/next lines are always visible in the center
@@ -308,21 +370,68 @@ export const LyricsVisualizer = ({
 
               {/* Current line - prominent and centered */}
               <div>
-                <p
-                  className="font-bold text-2xl sm:text-3xl md:text-4xl lg:text-5xl leading-tight"
-                  style={{
-                    color: 'white',
-                    textShadow: isPlaying
-                      ? `0 0 40px rgba(147, 51, 234, ${0.4 + bassEnergy * 0.3}),
-                         0 0 80px rgba(79, 70, 229, ${0.2 + bassEnergy * 0.15}),
-                         0 4px 8px rgba(0, 0, 0, 0.5)`
-                      : "0 0 30px rgba(147, 51, 234, 0.3), 0 2px 4px rgba(0, 0, 0, 0.3)",
-                    transition: 'text-shadow 0.15s ease-out',
-                    letterSpacing: '0.02em',
-                  }}
-                >
-                  {lines[currentLineIndex]?.text || '...'}
-                </p>
+                {lines[currentLineIndex]?.words && lines[currentLineIndex].words.length > 0 ? (
+                  <div
+                    className="font-bold text-2xl sm:text-3xl md:text-4xl lg:text-5xl leading-tight flex flex-wrap justify-center gap-y-2"
+                    style={{
+                      textShadow: isPlaying
+                        ? `0 0 40px rgba(147, 51, 234, ${0.35 + bassEnergy * 0.25}),
+                           0 0 70px rgba(79, 70, 229, ${0.18 + bassEnergy * 0.12}),
+                           0 3px 6px rgba(0, 0, 0, 0.45)`
+                        : "0 0 30px rgba(147, 51, 234, 0.3), 0 2px 4px rgba(0, 0, 0, 0.3)",
+                      transition: 'text-shadow 0.15s ease-out',
+                      letterSpacing: '0.02em',
+                    }}
+                  >
+                    {lines[currentLineIndex].words.map((word, idx) => {
+                      const isActiveWord = currentWordIndex !== null && word.index === currentWordIndex;
+                      return (
+                        <span
+                          key={`${word.index}-${idx}`}
+                          className="relative mx-1"
+                          style={{
+                            color: isActiveWord ? 'white' : 'rgba(255,255,255,0.55)',
+                            transform: isActiveWord ? 'scale(1.08) translateY(-2px)' : 'scale(1)',
+                            transition: 'transform 0.12s ease-out, color 0.12s ease-out',
+                            textShadow: isActiveWord
+                              ? `0 0 24px rgba(147, 51, 234, ${0.35 + bassEnergy * 0.25})`
+                              : undefined,
+                          }}
+                        >
+                          {word.word}
+                          {idx < lines[currentLineIndex].words.length - 1 ? ' ' : ''}
+                          {isActiveWord && (
+                            <span
+                              className="absolute left-0 right-0 -bottom-2 h-[3px] rounded-full"
+                              style={{
+                                background: 'linear-gradient(90deg, rgba(168,85,247,0.9), rgba(79,70,229,0.8))',
+                                width: `${Math.max(0.12, activeWordProgress) * 100}%`,
+                                transition: 'width 0.1s ease-out',
+                                boxShadow: '0 0 12px rgba(168,85,247,0.6)',
+                              }}
+                            />
+                          )}
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p
+                    className="font-bold text-2xl sm:text-3xl md:text-4xl lg:text-5xl leading-tight"
+                    style={{
+                      color: 'white',
+                      textShadow: isPlaying
+                        ? `0 0 40px rgba(147, 51, 234, ${0.4 + bassEnergy * 0.3}),
+                           0 0 80px rgba(79, 70, 229, ${0.2 + bassEnergy * 0.15}),
+                           0 4px 8px rgba(0, 0, 0, 0.5)`
+                        : "0 0 30px rgba(147, 51, 234, 0.3), 0 2px 4px rgba(0, 0, 0, 0.3)",
+                      transition: 'text-shadow 0.15s ease-out',
+                      letterSpacing: '0.02em',
+                    }}
+                  >
+                    {lines[currentLineIndex]?.text || '...'}
+                  </p>
+                )}
               </div>
 
               {/* Next line - subtle hint */}
