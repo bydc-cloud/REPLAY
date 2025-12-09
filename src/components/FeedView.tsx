@@ -237,6 +237,21 @@ export function FeedView() {
   const [showLyrics, setShowLyrics] = useState(false);
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
   const [showPostModal, setShowPostModal] = useState(false);
+  // Segmented tabs for top control
+  const tabOptions = isAuthenticated
+    ? [
+        { id: 'following', label: 'Following' },
+        { id: 'foryou', label: 'Discover' },
+        { id: 'beats', label: 'Beats' },
+      ]
+    : [
+        { id: 'foryou', label: 'Discover' },
+        { id: 'beats', label: 'Beats' },
+      ];
+  const tabCount = tabOptions.length;
+  const activeTabIndex = Math.max(0, tabOptions.findIndex(t => t.id === activeTab));
+  const sliderWidth = `${100 / tabCount}%`;
+  const sliderLeft = `${(100 / tabCount) * activeTabIndex}%`;
 
   // Listen for external events to open post modal (from MobileBottomNav)
   useEffect(() => {
@@ -757,44 +772,25 @@ export function FeedView() {
 
   return (
     <div className="fixed inset-0 bg-black">
-      {/* Top Tabs - Premium pill design - higher on mobile */}
+      {/* Top Tabs - Premium pill design with sliding indicator */}
       <div className="fixed top-[72px] md:top-0 left-0 right-0 z-30 px-4 pt-1 pb-2 pointer-events-none">
         <div className="flex items-center justify-center pointer-events-auto">
-          <div className="flex items-center gap-0.5 p-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/[0.08] shadow-lg">
-            {isAuthenticated && (
+          <div className="relative flex items-center w-full max-w-xs md:max-w-sm p-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/[0.08] shadow-lg overflow-hidden">
+            <div
+              className="absolute inset-y-0 rounded-full bg-gradient-to-r from-violet-500 to-purple-600 shadow-md shadow-purple-500/30 transition-all duration-250"
+              style={{ width: sliderWidth, left: sliderLeft }}
+            />
+            {tabOptions.map((tab) => (
               <button
-                onClick={() => setActiveTab('following')}
-                className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold tracking-wide transition-all ${
-                  activeTab === 'following'
-                    ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md shadow-purple-500/30'
-                    : 'text-white/60 hover:text-white'
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as FeedTab)}
+                className={`relative flex-1 px-3.5 py-1.5 rounded-full text-[11px] font-semibold tracking-wide transition-colors ${
+                  activeTab === tab.id ? 'text-white' : 'text-white/70 hover:text-white'
                 }`}
               >
-                Following
+                {tab.label}
               </button>
-            )}
-
-            <button
-              onClick={() => setActiveTab('foryou')}
-              className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold tracking-wide transition-all ${
-                activeTab === 'foryou'
-                  ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md shadow-purple-500/30'
-                  : 'text-white/60 hover:text-white'
-              }`}
-            >
-              Discover
-            </button>
-
-            <button
-              onClick={() => setActiveTab('beats')}
-              className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold tracking-wide transition-all ${
-                activeTab === 'beats'
-                  ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md shadow-purple-500/30'
-                  : 'text-white/60 hover:text-white'
-              }`}
-            >
-              Beats
-            </button>
+            ))}
           </div>
         </div>
       </div>
@@ -916,7 +912,6 @@ export function FeedView() {
                         <div
                           className="absolute inset-0 z-15 flex flex-col pointer-events-none"
                           onTouchStart={(e) => {
-                            // Store touch start for potential swipe detection
                             const touch = e.touches[0];
                             (e.currentTarget as any).touchStartY = touch.clientY;
                           }}
@@ -925,28 +920,26 @@ export function FeedView() {
                             if (touchStartY !== undefined) {
                               const touchEndY = e.changedTouches[0].clientY;
                               const deltaY = touchStartY - touchEndY;
-                              // If significant swipe, close lyrics and let swipe happen
                               if (Math.abs(deltaY) > 100) {
                                 setShowLyrics(false);
                               }
                             }
                           }}
                         >
-                          {/* Semi-transparent backdrop - allows UI to show through */}
-                          <div className="absolute inset-0 bg-black/50 md:bg-black/40 backdrop-blur-sm" />
-
-                          {/* Centered lyrics container */}
-                          <div className="relative flex-1 flex items-center justify-center px-6 py-24 md:px-16 md:py-28">
-                            <div className="w-full max-w-4xl mx-auto">
-                            <LyricsVisualizer
-                              currentTime={currentTime}
-                              duration={duration}
-                              isPlaying={isCurrentlyPlaying}
-                              trackId={track.id}
-                              trackTitle={track.title}
-                              trackArtist={track.artist}
-                              audioLevels={audioLevels}
-                            />
+                          <div className="absolute inset-0 bg-black/55 md:bg-black/35 backdrop-blur-sm" />
+                          <div className="relative flex-1 flex items-center justify-center px-4 py-20 md:px-12 md:py-24">
+                            <div className="pointer-events-none w-full max-w-4xl md:max-w-3xl mx-auto bg-black/35 md:bg-black/30 border border-white/10 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur-lg">
+                              <div className="px-4 py-6 md:px-8 md:py-10">
+                                <LyricsVisualizer
+                                  currentTime={currentTime}
+                                  duration={duration}
+                                  isPlaying={isCurrentlyPlaying}
+                                  trackId={track.id}
+                                  trackTitle={track.title}
+                                  trackArtist={track.artist}
+                                  audioLevels={audioLevels}
+                                />
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1694,7 +1687,7 @@ export function FeedView() {
 
       {/* Comments Modal */}
       {showComments && selectedTrack && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-[60] md:left-0 md:right-0">
           {/* Backdrop with fade-in animation */}
           <div
             className="absolute inset-0 bg-black/70 animate-fade-in"
@@ -1705,7 +1698,7 @@ export function FeedView() {
           />
 
           {/* Comments Sheet - mobile optimized with bottom nav clearance and slide-up animation */}
-          <div className="absolute bottom-[72px] md:bottom-0 left-0 right-0 bg-zinc-900 rounded-t-2xl max-h-[65vh] sm:max-h-[70vh] flex flex-col animate-slide-up">
+          <div className="absolute bottom-[72px] md:bottom-0 left-0 right-0 md:left-[250px] md:w-[calc(100%-250px)] bg-zinc-900 rounded-t-2xl max-h-[65vh] sm:max-h-[70vh] flex flex-col animate-slide-up">
             {/* Drag Handle */}
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 rounded-full bg-white/20" />

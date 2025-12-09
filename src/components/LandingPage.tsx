@@ -52,6 +52,7 @@ import {
   Map
 } from "lucide-react";
 import { PerformantVisualizer } from "./PerformantVisualizer";
+import { ContainerScroll } from "./ui/container-scroll-animation";
 
 // Custom hook for scroll-triggered animations
 const useScrollReveal = (threshold = 0.15) => {
@@ -733,6 +734,32 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Scroll Animation Preview for Visualizers */}
+      <section className="relative px-4 md:px-8 lg:px-12">
+        <ContainerScroll
+          titleComponent={
+            <div className="text-center space-y-2">
+              <p className="text-sm uppercase tracking-[0.2em] text-white/60">Visualizers</p>
+              <h2 className="text-3xl md:text-5xl font-black text-white leading-tight">
+                Scroll through a premium preview
+              </h2>
+              <p className="text-white/60 text-sm md:text-base max-w-2xl mx-auto">
+                Bars, waves, pulses, circles, dots, lines, and lyrics — all GPU-accelerated and tuned to your music.
+              </p>
+            </div>
+          }
+        >
+          <div className="relative h-full w-full rounded-2xl overflow-hidden bg-black">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 via-indigo-500/10 to-black" />
+            <div className="absolute inset-0 flex items-center justify-center px-4 md:px-8">
+              <div className="w-full h-[260px] md:h-[320px] bg-black/40 border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+                <PerformantVisualizer isPlaying={true} variant="bars" size="full" audioElement={null} />
+              </div>
+            </div>
+          </div>
+        </ContainerScroll>
       </section>
 
       {/* Seamless Gradient Divider - Platform to Discovery */}
