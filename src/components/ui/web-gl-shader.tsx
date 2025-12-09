@@ -75,9 +75,9 @@ export function WebGLShader({ className = "", opacity = 1 }: WebGLShaderProps) {
       refs.uniforms = {
         resolution: { value: [window.innerWidth, window.innerHeight] },
         time: { value: 0.0 },
-        xScale: { value: 1.0 },
-        yScale: { value: 0.5 },
-        distortion: { value: 0.05 }
+        xScale: { value: 1.35 }, // slightly faster x movement for wave-like feel
+        yScale: { value: 0.65 }, // taller peaks for music-like motion
+        distortion: { value: 0.08 } // subtle stereo split distortion
       };
 
       const position = [

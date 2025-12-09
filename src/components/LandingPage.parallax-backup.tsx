@@ -54,7 +54,6 @@ import {
 import { PerformantVisualizer } from "./PerformantVisualizer";
 import { WebGLShader } from "./ui/web-gl-shader";
 import { LiquidButton } from "./ui/liquid-glass-button";
-import { ZoomParallax } from "./ui/zoom-parallax";
 
 // Custom hook for scroll-triggered animations
 const useScrollReveal = (threshold = 0.15) => {
@@ -699,35 +698,8 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
         </div>
       </div>
 
-      {/* Parallax Gallery - premium visualizer + album impressions */}
-      <section className="relative -mt-12 md:-mt-16 pb-8 md:pb-16">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0a0a0a] to-[#050505]" />
-        <div className="max-w-6xl mx-auto px-4 md:px-8 lg:px-12 relative">
-          <div className="text-center mb-10 md:mb-14">
-            <p className="text-sm uppercase tracking-[0.2em] text-white/60">Experience</p>
-            <h2 className="text-3xl md:text-5xl font-black text-white leading-tight mb-3">
-              Glide through Rhythm
-            </h2>
-            <p className="text-white/60 text-sm md:text-base max-w-2xl mx-auto">
-              Parallax-scrolling snapshots of our visualizers and album art to showcase the motion and depth our players deliver.
-            </p>
-          </div>
-        </div>
-        <ZoomParallax
-          images={[
-            { src: "https://images.unsplash.com/photo-1483412033650-1015ddeb83d1?auto=format&fit=crop&w=1600&q=80", alt: "Analog synth vibes" },
-            { src: "https://images.unsplash.com/photo-1487215078519-e21cc028cb29?auto=format&fit=crop&w=1600&q=80", alt: "Studio session energy" },
-            { src: "https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=1600&q=80", alt: "Neon club ambience" },
-            { src: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1600&q=80", alt: "Visualizer color wash" },
-            { src: "https://images.unsplash.com/photo-1464375117522-1311d6a5b81f?auto=format&fit=crop&w=1600&q=80", alt: "Headphones detail" },
-            { src: "https://images.unsplash.com/photo-1499415479124-43c32433a620?auto=format&fit=crop&w=1600&q=80", alt: "Waveform art" },
-            { src: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80", alt: "Night drive listening" }
-          ]}
-        />
-      </section>
-
       {/* Seamless Gradient Divider - Hero to Platform */}
-      <div className="relative h-32 md:h-48 -mt-8 md:-mt-12 pointer-events-none">
+      <div className="relative h-32 md:h-48 -mt-16 md:-mt-24 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-b from-[#050505] via-transparent to-transparent" />
       </div>
 
