@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from "react";
-import { Music, Disc, Users, ListMusic, Plus, Upload, Loader2, Trash2, FolderOpen, Folder, ChevronLeft, Edit2, Check, X, Heart, FolderUp, Search } from "lucide-react";
+import { Music, Disc, Users, ListMusic, Plus, Upload, Loader2, Trash2, FolderOpen, Folder, ChevronLeft, Edit2, Check, X, Heart, FolderUp, Search, LayoutGrid, List } from "lucide-react";
 import { AlbumCard } from "./AlbumCard";
 import { SongCard } from "./SongCard";
 import { useMusicLibrary, Track, ProjectFolder } from "../contexts/MusicLibraryContext";
@@ -174,6 +174,7 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
   const [openFolderId, setOpenFolderId] = useState<string | null>(null);
   const [showImportMenu, setShowImportMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [songViewMode, setSongViewMode] = useState<"grid" | "list">("grid");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -250,6 +251,13 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
     { id: "artists", label: "Artists", icon: Users },
     { id: "playlists", label: "Playlists", icon: ListMusic },
   ];
+
+  const formatDuration = (seconds: number) => {
+    if (!seconds || Number.isNaN(seconds)) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
 
   const handleImportClick = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
@@ -432,24 +440,54 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
 
       {/* Search Bar - Premium gradient style */}
       <div className="mb-6">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <Search className="w-5 h-5 text-[var(--replay-mid-grey)]" />
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search className="w-5 h-5 text-[var(--replay-mid-grey)]" />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={`Search your ${showLikedOnly ? 'liked songs' : 'library'}...`}
+              className="w-full pl-12 pr-4 py-3 bg-[#1a1a1a] border border-white/10 rounded-xl text-[var(--replay-off-white)] placeholder-[var(--replay-mid-grey)] focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/30 transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute inset-y-0 right-0 pr-4 flex items-center text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={`Search your ${showLikedOnly ? 'liked songs' : 'library'}...`}
-            className="w-full pl-12 pr-4 py-3 bg-[#1a1a1a] border border-white/10 rounded-xl text-[var(--replay-off-white)] placeholder-[var(--replay-mid-grey)] focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/30 transition-all"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 pr-4 flex items-center text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)] transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+
+          {/* Song view toggle (grid/list) */}
+          {(showLikedOnly || activeTab === "songs") && (
+            <div className="flex items-center gap-2 bg-[#1a1a1a] border border-white/10 rounded-xl px-2 py-1 self-start">
+              <button
+                onClick={() => setSongViewMode("grid")}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm ${
+                  songViewMode === "grid"
+                    ? "bg-white/10 text-[var(--replay-off-white)]"
+                    : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)]"
+                }`}
+              >
+                <LayoutGrid size={16} />
+                <span className="hidden md:inline">Grid</span>
+              </button>
+              <button
+                onClick={() => setSongViewMode("list")}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm ${
+                  songViewMode === "list"
+                    ? "bg-white/10 text-[var(--replay-off-white)]"
+                    : "text-[var(--replay-mid-grey)] hover:text-[var(--replay-off-white)]"
+                }`}
+              >
+                <List size={16} />
+                <span className="hidden md:inline">List</span>
+              </button>
+            </div>
           )}
         </div>
         {searchQuery && (
@@ -607,17 +645,43 @@ export const LibraryView = ({ showLikedOnly = false }: LibraryViewProps) => {
       {displayTracks.length > 0 && (
         <div>
           {(showLikedOnly || activeTab === "songs") && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {displayTracks.map((track, index) => (
-                <SongCard
-                  key={track.id}
-                  title={track.title}
-                  artist={track.artist}
-                  imageUrl={track.artworkUrl || track.artworkData}
-                  onClick={() => handlePlayTrack(index)}
-                />
-              ))}
-            </div>
+            songViewMode === "grid" ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {displayTracks.map((track, index) => (
+                  <SongCard
+                    key={track.id}
+                    title={track.title}
+                    artist={track.artist}
+                    imageUrl={track.artworkUrl || track.artworkData}
+                    onClick={() => handlePlayTrack(index)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-[var(--replay-elevated)]/50 border border-[var(--replay-border)] rounded-2xl overflow-hidden">
+                <div className="grid grid-cols-3 md:grid-cols-5 px-4 py-3 text-xs md:text-sm text-[var(--replay-mid-grey)] uppercase tracking-wide bg-white/5">
+                  <span className="col-span-2 md:col-span-3">Title</span>
+                  <span className="hidden md:block">Album</span>
+                  <span className="text-right">Time</span>
+                </div>
+                <div className="divide-y divide-white/5">
+                  {displayTracks.map((track, index) => (
+                    <button
+                      key={track.id}
+                      className="w-full text-left grid grid-cols-3 md:grid-cols-5 items-center px-4 py-3 hover:bg-white/5 transition-colors"
+                      onClick={() => handlePlayTrack(index)}
+                    >
+                      <div className="col-span-2 md:col-span-3">
+                        <div className="text-[var(--replay-off-white)] font-semibold truncate">{track.title}</div>
+                        <div className="text-[var(--replay-mid-grey)] text-sm truncate">{track.artist}</div>
+                      </div>
+                      <div className="hidden md:block text-[var(--replay-mid-grey)] text-sm truncate">{track.album || "—"}</div>
+                      <div className="text-[var(--replay-mid-grey)] text-sm text-right">{formatDuration(track.duration)}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
           )}
 
           {activeTab === "albums" && (
