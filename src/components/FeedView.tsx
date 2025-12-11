@@ -800,161 +800,146 @@ export function FeedView() {
         </div>
       </div>
 
-      {/* Main Content - Horizontal sliding container for smooth tab transitions */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div
-          className="flex h-full transition-transform duration-300 ease-out"
-          style={{
-            width: `${tabCount * 100}%`,
-            transform: slideTransform
-          }}
-        >
-          {/* Following Tab Panel */}
-          {isAuthenticated && (
-            <div className="h-full overflow-hidden relative" style={{ width: `${100 / tabCount}%` }}>
-              <div className="absolute inset-0 pt-14 overflow-y-auto px-3 py-4 sm:px-4 pb-24">
-                {followingTracks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20 px-4">
-                    <UserPlus className="w-14 h-14 sm:w-16 sm:h-16 text-white/20 mb-4" />
-                    <p className="text-white/60 text-base sm:text-lg font-medium mb-2 text-center">No tracks yet</p>
-                    <p className="text-white/40 text-sm text-center max-w-xs">
-                      Follow producers to see their latest releases here
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-w-2xl mx-auto">
-                    <p className="text-white/50 text-xs px-1 mb-3">Latest from artists you follow</p>
-                    {followingTracks.map((track, index) => {
-                      const isCurrentTrack = currentTrack?.id === track.id;
-                      const isTrackPlaying = isCurrentTrack && isPlaying;
-                      return (
-                        <div
-                          key={track.id}
-                          className="bg-white/5 hover:bg-white/8 active:bg-white/10 rounded-xl p-3 transition-all cursor-pointer"
-                          onClick={() => {
-                            const queueTracks = followingTracks.map(t => ({
-                              id: t.id,
-                              title: t.title,
-                              artist: t.artist,
-                              album: t.album || '',
-                              duration: t.duration,
-                              coverUrl: t.cover_url || '',
-                              fileUrl: '',
-                              fileData: null,
-                              fileKey: t.file_key,
-                              playCount: t.play_count || 0,
-                              isLiked: likedTracks.has(t.id),
-                              addedAt: t.created_at ? new Date(t.created_at) : new Date()
-                            }));
-                            setQueue(queueTracks as any[], index);
-                          }}
-                        >
-                          <div className="flex items-center gap-3">
-                            {/* Album art */}
-                            <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
-                              {track.cover_url ? (
-                                <img src={track.cover_url} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center">
-                                  <Music className="w-6 h-6 text-white/40" />
-                                </div>
-                              )}
-                              {/* Play overlay */}
-                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                                {isTrackPlaying ? (
-                                  <Pause className="w-6 h-6 text-white" fill="currentColor" />
-                                ) : (
-                                  <Play className="w-6 h-6 text-white ml-0.5" fill="currentColor" />
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Track info */}
-                            <div className="flex-1 min-w-0">
-                              <h3 className={`font-semibold truncate text-sm ${isCurrentTrack ? 'text-violet-400' : 'text-white'}`}>
-                                {track.title}
-                              </h3>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  window.location.hash = `#/producer/${track.user_id}`;
-                                }}
-                                className="text-white/60 text-xs truncate hover:text-white/80 transition-colors"
-                              >
-                                @{track.username}
-                              </button>
-                              <div className="flex items-center gap-2 mt-1 text-white/40 text-[10px]">
-                                {track.genre && <span>#{track.genre}</span>}
-                                {track.bpm && <span>{track.bpm} BPM</span>}
-                              </div>
-                            </div>
-
-                            {/* Stats & actions */}
-                            <div className="flex items-center gap-2">
-                              <div className="flex items-center gap-1 text-white/50 text-xs">
-                                <Heart className="w-3.5 h-3.5" />
-                                {formatCount(track.likes_count || 0)}
-                              </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleLike(track, e);
-                                }}
-                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                                  likedTracks.has(track.id) ? 'bg-red-500/20 text-red-500' : 'bg-white/10 text-white/70 hover:text-white'
-                                }`}
-                              >
-                                <Heart className={`w-4 h-4 ${likedTracks.has(track.id) ? 'fill-current' : ''}`} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Discover (For You) Tab Panel */}
-          <div className="h-full overflow-hidden relative" style={{ width: `${100 / tabCount}%` }}>
-            {(() => {
-              const filteredTracks = discoverTracks;
-
-          return (
-          <>
-          {filteredTracks.length === 0 ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <Music className="w-16 h-16 text-white/20 mb-4" />
-              <p className="text-white/60 text-lg font-medium mb-2 text-center">
-                No tracks yet
-              </p>
-              <p className="text-white/40 text-sm text-center px-4">
-                Be the first to share your music!
+      {/* Main Content */}
+      {/* Following Tab */}
+      {activeTab === 'following' && isAuthenticated && (
+        <div className="absolute inset-0 pt-14 overflow-y-auto px-3 py-4 sm:px-4 pb-24">
+          {followingTracks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 px-4">
+              <UserPlus className="w-14 h-14 sm:w-16 sm:h-16 text-white/20 mb-4" />
+              <p className="text-white/60 text-base sm:text-lg font-medium mb-2 text-center">No tracks yet</p>
+              <p className="text-white/40 text-sm text-center max-w-xs">
+                Follow producers to see their latest releases here
               </p>
             </div>
           ) : (
-            <div
-              ref={containerRef}
-              className="absolute inset-0 overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
-              style={{
-                WebkitOverflowScrolling: 'touch',
-                overscrollBehavior: 'contain',
-                touchAction: 'pan-y'
-              }}
-              onScroll={handleScroll}
-            >
-                {filteredTracks.map((track, idx) => {
-                  const isCurrentlyPlaying = currentTrack?.id === track.id && isPlaying;
-                  const isLiked = likedTracks.has(track.id);
-                  const isSaved = savedTracks.has(track.id);
+            <div className="space-y-2 max-w-2xl mx-auto">
+              <p className="text-white/50 text-xs px-1 mb-3">Latest from artists you follow</p>
+              {followingTracks.map((track, index) => {
+                const isCurrentTrack = currentTrack?.id === track.id;
+                const isTrackPlaying = isCurrentTrack && isPlaying;
+                return (
+                  <div
+                    key={track.id}
+                    className="bg-white/5 hover:bg-white/8 active:bg-white/10 rounded-xl p-3 transition-all cursor-pointer"
+                    onClick={() => {
+                      const queueTracks = followingTracks.map(t => ({
+                        id: t.id,
+                        title: t.title,
+                        artist: t.artist,
+                        album: t.album || '',
+                        duration: t.duration,
+                        coverUrl: t.cover_url || '',
+                        fileUrl: '',
+                        fileData: null,
+                        fileKey: t.file_key,
+                        playCount: t.play_count || 0,
+                        isLiked: likedTracks.has(t.id),
+                        addedAt: t.created_at ? new Date(t.created_at) : new Date()
+                      }));
+                      setQueue(queueTracks as any[], index);
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      {/* Album art */}
+                      <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
+                        {track.cover_url ? (
+                          <img src={track.cover_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center">
+                            <Music className="w-6 h-6 text-white/40" />
+                          </div>
+                        )}
+                        {/* Play overlay */}
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                          {isTrackPlaying ? (
+                            <Pause className="w-6 h-6 text-white" fill="currentColor" />
+                          ) : (
+                            <Play className="w-6 h-6 text-white ml-0.5" fill="currentColor" />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Track info */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className={`font-semibold truncate text-sm ${isCurrentTrack ? 'text-violet-400' : 'text-white'}`}>
+                          {track.title}
+                        </h3>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.location.hash = `#/producer/${track.user_id}`;
+                          }}
+                          className="text-white/60 text-xs truncate hover:text-white/80 transition-colors"
+                        >
+                          @{track.username}
+                        </button>
+                        <div className="flex items-center gap-2 mt-1 text-white/40 text-[10px]">
+                          {track.genre && <span>#{track.genre}</span>}
+                          {track.bpm && <span>{track.bpm} BPM</span>}
+                        </div>
+                      </div>
+
+                      {/* Stats & actions */}
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 text-white/50 text-xs">
+                          <Heart className="w-3.5 h-3.5" />
+                          {formatCount(track.likes_count || 0)}
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleLike(track, e);
+                          }}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                            likedTracks.has(track.id) ? 'bg-red-500/20 text-red-500' : 'bg-white/10 text-white/70 hover:text-white'
+                          }`}
+                        >
+                          <Heart className={`w-4 h-4 ${likedTracks.has(track.id) ? 'fill-current' : ''}`} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Discover (For You) Tab */}
+      {activeTab === 'foryou' && (
+        discoverTracks.length === 0 ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <Music className="w-16 h-16 text-white/20 mb-4" />
+            <p className="text-white/60 text-lg font-medium mb-2 text-center">
+              No tracks yet
+            </p>
+            <p className="text-white/40 text-sm text-center px-4">
+              Be the first to share your music!
+            </p>
+          </div>
+        ) : (
+          <div
+            ref={containerRef}
+            className="absolute inset-0 overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+            style={{
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehavior: 'contain',
+              touchAction: 'pan-y'
+            }}
+            onScroll={handleScroll}
+          >
+            {discoverTracks.map((track, idx) => {
+              const isCurrentlyPlaying = currentTrack?.id === track.id && isPlaying;
+              const isLiked = likedTracks.has(track.id);
+              const isSaved = savedTracks.has(track.id);
                   const isFollowing = followedUsers.has(track.user_id);
 
                   return (
                     <div
                       key={track.id}
-                      ref={idx >= filteredTracks.length - 2 ? nearEndRef : undefined}
+                      ref={idx >= discoverTracks.length - 2 ? nearEndRef : undefined}
                       className="h-[100dvh] min-h-[100dvh] snap-start snap-always relative flex flex-col select-none"
                       onClick={() => handleDoubleTap(track)}
                     >
@@ -1700,45 +1685,39 @@ export function FeedView() {
                   );
                 })}
 
-                {/* Loading more indicator */}
-                {loadingMore && (
-                  <div className="h-[50vh] flex items-center justify-center">
-                    <div className="flex items-center gap-3 text-white/60">
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                      <span className="text-sm font-medium">Loading more...</span>
-                    </div>
-                  </div>
-                )}
+            {/* Loading more indicator */}
+            {loadingMore && (
+              <div className="h-[50vh] flex items-center justify-center">
+                <div className="flex items-center gap-3 text-white/60">
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  <span className="text-sm font-medium">Loading more...</span>
+                </div>
               </div>
             )}
-          </>
-          );
-        })()}
           </div>
+        )
+      )}
 
-          {/* Beats Tab Panel */}
-          <div className="h-full overflow-hidden relative" style={{ width: `${100 / tabCount}%` }}>
-            {(() => {
-              const filteredTracks = discoverTracks.filter(t => t.is_beat);
-
-              return (
-                <>
-                  {filteredTracks.length === 0 ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <Music className="w-16 h-16 text-white/20 mb-4" />
-                      <p className="text-white/60 text-lg font-medium mb-2 text-center">No beats yet</p>
-                      <p className="text-white/40 text-sm text-center px-4">Be the first to upload a beat!</p>
-                    </div>
-                  ) : (
-                    <div
-                      className="absolute inset-0 overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
-                      style={{
-                        WebkitOverflowScrolling: 'touch',
-                        overscrollBehavior: 'contain',
-                        touchAction: 'pan-y'
-                      }}
-                    >
-                      {filteredTracks.map((track, idx) => {
+      {/* Beats Tab */}
+      {activeTab === 'beats' && (
+        (() => {
+          const beatTracks = discoverTracks.filter(t => t.is_beat);
+          return beatTracks.length === 0 ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <Music className="w-16 h-16 text-white/20 mb-4" />
+              <p className="text-white/60 text-lg font-medium mb-2 text-center">No beats yet</p>
+              <p className="text-white/40 text-sm text-center px-4">Be the first to upload a beat!</p>
+            </div>
+          ) : (
+            <div
+              className="absolute inset-0 overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+              style={{
+                WebkitOverflowScrolling: 'touch',
+                overscrollBehavior: 'contain',
+                touchAction: 'pan-y'
+              }}
+            >
+              {beatTracks.map((track, idx) => {
                         const isCurrentlyPlaying = currentTrack?.id === track.id && isPlaying;
                         const isLiked = likedTracks.has(track.id);
                         const isFollowingUser = followedUsers.has(track.user_id);
@@ -1855,15 +1834,11 @@ export function FeedView() {
                             </div>
                           </div>
                         );
-                      })}
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      </div>
+              })}
+            </div>
+          );
+        })()
+      )}
 
       {/* Comments Modal */}
       {showComments && selectedTrack && (
