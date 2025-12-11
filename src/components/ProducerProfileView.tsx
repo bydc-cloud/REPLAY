@@ -615,6 +615,22 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
   // Popular tracks (top 5 by plays/likes)
   const popularTracks = tracks.slice(0, showAllTracks ? tracks.length : 5);
 
+  // If no targetUserId (not logged in and no userId passed), show login prompt
+  if (!targetUserId) {
+    return (
+      <div className="p-8 text-center">
+        <User className="w-12 h-12 mx-auto text-white/20 mb-4" />
+        <p className="text-white/60 mb-2">Please log in to view profiles</p>
+        <button
+          onClick={() => window.location.hash = '#/'}
+          className="px-4 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-lg text-sm font-medium transition-colors"
+        >
+          Go to Login
+        </button>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
