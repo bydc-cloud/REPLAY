@@ -840,17 +840,19 @@ export function FeedView() {
                       className="h-[100dvh] min-h-[100dvh] snap-start snap-always relative flex flex-col select-none"
                       onClick={() => handleDoubleTap(track)}
                     >
-                      {/* Full-screen Background with parallax-like effect */}
+                      {/* Full-screen Background - Album cover on mobile, blurred on desktop */}
                       <div className="absolute inset-0 overflow-hidden">
                         {track.cover_url ? (
                           <>
+                            {/* Mobile: Show actual album cover as background with subtle blur */}
                             <img
                               src={track.cover_url}
                               alt=""
-                              className="w-full h-full object-cover scale-110 blur-3xl opacity-60"
+                              className="w-full h-full object-cover md:scale-110 md:blur-3xl md:opacity-60 blur-sm opacity-90"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/95" />
-                            <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/30" />
+                            {/* Mobile gradient overlay - darker at bottom for text readability */}
+                            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/90 md:from-black/40 md:via-transparent md:to-black/95" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/20 md:from-black/30 md:to-black/30" />
                           </>
                         ) : (
                           <div className="w-full h-full bg-gradient-to-br from-violet-950 via-black to-indigo-950" />
@@ -910,7 +912,7 @@ export function FeedView() {
                       {/* Lyrics Overlay - Semi-transparent, keeps UI visible */}
                       {showLyrics && (
                         <div
-                          className="absolute inset-0 z-15 flex flex-col pointer-events-none"
+                          className="absolute inset-0 z-20 flex flex-col md:hidden"
                           onTouchStart={(e) => {
                             const touch = e.touches[0];
                             (e.currentTarget as any).touchStartY = touch.clientY;
@@ -926,20 +928,34 @@ export function FeedView() {
                             }
                           }}
                         >
-                          <div className="absolute inset-0 bg-black/55 md:bg-black/35 backdrop-blur-sm" />
-                          <div className="relative flex-1 flex items-center justify-center px-4 py-20 md:px-12 md:py-24">
-                            <div className="pointer-events-none w-full max-w-4xl md:max-w-3xl mx-auto bg-black/35 md:bg-black/30 border border-white/10 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur-lg">
-                              <div className="px-4 py-6 md:px-8 md:py-10">
-                                <LyricsVisualizer
-                                  currentTime={currentTime}
-                                  duration={duration}
-                                  isPlaying={isCurrentlyPlaying}
-                                  trackId={track.id}
-                                  trackTitle={track.title}
-                                  trackArtist={track.artist}
-                                  audioLevels={audioLevels}
-                                />
-                              </div>
+                          {/* Background overlay */}
+                          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+
+                          {/* Close hint at top */}
+                          <div className="relative z-10 pt-20 pb-4 text-center">
+                            <p className="text-white/40 text-xs">Swipe up or down to close</p>
+                          </div>
+
+                          {/* Lyrics content - centered with proper height */}
+                          <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 pb-32 min-h-0">
+                            <div className="w-full h-full max-h-[60vh] flex flex-col">
+                              <LyricsVisualizer
+                                currentTime={currentTime}
+                                duration={duration}
+                                isPlaying={isCurrentlyPlaying}
+                                trackId={track.id}
+                                trackTitle={track.title}
+                                trackArtist={track.artist}
+                                audioLevels={audioLevels}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Track info at bottom */}
+                          <div className="relative z-10 px-6 pb-24">
+                            <div className="text-center">
+                              <h3 className="text-white font-bold text-lg truncate">{track.title}</h3>
+                              <p className="text-white/60 text-sm">{track.artist}</p>
                             </div>
                           </div>
                         </div>
@@ -1139,8 +1155,9 @@ export function FeedView() {
 
                             {/* Lyrics - Centered and prominent */}
                             {showLyrics && (
-                              <div className="absolute inset-0 flex items-center justify-center px-8">
-                                <div className="max-w-3xl w-full">
+                              <div className="absolute inset-0 flex flex-col items-center justify-center px-8 py-24">
+                                {/* Lyrics container with explicit height */}
+                                <div className="max-w-3xl w-full h-[50vh] flex flex-col bg-black/30 backdrop-blur-sm rounded-3xl border border-white/10 p-8">
                                   <LyricsVisualizer
                                     currentTime={currentTime}
                                     duration={duration}
@@ -1153,7 +1170,7 @@ export function FeedView() {
                                 </div>
                                 {/* Subtle visualizer in background when lyrics are showing */}
                                 {showVisualizer && (
-                                  <div className="absolute inset-0 opacity-30 pointer-events-none">
+                                  <div className="absolute inset-0 opacity-30 pointer-events-none -z-10">
                                     <AudioVisualizerOverlay isPlaying={isCurrentlyPlaying} frequencyData={frequencyData} audioLevels={audioLevels} />
                                   </div>
                                 )}
