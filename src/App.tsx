@@ -151,8 +151,11 @@ function AppContent() {
     );
   }
 
-  // Landing page for unauthenticated users OR when viewing about page
-  if ((!isAuthenticated && currentView === "landing") || currentView === "about") {
+  // Landing page for unauthenticated users (unless viewing a producer profile) OR when viewing about page
+  // Allow unauthenticated users to view producer profiles publicly
+  const isViewingProducerProfile = route.type === 'producer';
+
+  if ((!isAuthenticated && currentView === "landing" && !isViewingProducerProfile) || currentView === "about") {
     return (
       <LandingPage
         onGetStarted={() => {
@@ -170,7 +173,7 @@ function AppContent() {
   }
 
   // Auth page
-  if (!isAuthenticated && currentView === "auth") {
+  if (!isAuthenticated && currentView === "auth" && !isViewingProducerProfile) {
     return (
       <AuthPage
         onBack={() => setCurrentView("landing")}

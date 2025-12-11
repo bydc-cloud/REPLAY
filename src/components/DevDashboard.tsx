@@ -20,18 +20,6 @@ import {
 import { useHashRouter } from "../hooks/useHashRouter";
 import { useAuth } from "../contexts/PostgresAuthContext";
 
-interface UserWithTracks {
-  id: string;
-  email: string;
-  username: string;
-  display_name?: string;
-  avatar_url?: string;
-  created_at: string;
-  tracks_count: number;
-  total_plays: number;
-  is_producer: boolean;
-}
-
 interface UserTrack {
   id: string;
   title: string;
@@ -40,6 +28,16 @@ interface UserTrack {
   duration: number;
   play_count: number;
   likes_count: number;
+  created_at: string;
+  user_id?: string;
+}
+
+interface WaitlistUser {
+  id: string;
+  email: string;
+  username: string;
+  display_name?: string;
+  avatar_url?: string;
   created_at: string;
 }
 
@@ -84,9 +82,8 @@ export const DevDashboard = () => {
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [allUsers, setAllUsers] = useState<UserWithTracks[]>([]);
-  const [usersLoading, setUsersLoading] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserWithTracks | null>(null);
+  const [allTracks, setAllTracks] = useState<UserTrack[]>([]);
+  const [selectedUser, setSelectedUser] = useState<WaitlistUser | null>(null);
   const [userTracks, setUserTracks] = useState<UserTrack[]>([]);
   const [userTracksLoading, setUserTracksLoading] = useState(false);
   const { navigate } = useHashRouter();
@@ -109,43 +106,45 @@ export const DevDashboard = () => {
     }
   };
 
-  const fetchAllUsers = async () => {
-    setUsersLoading(true);
+  // Fetch all tracks from discover API to count tracks per user
+  const fetchAllTracks = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/admin/users`);
-      if (!response.ok) throw new Error("Failed to fetch users");
+      const response = await fetch(`${API_BASE}/api/discover/tracks?limit=500`);
+      if (!response.ok) throw new Error("Failed to fetch tracks");
       const data = await response.json();
-      setAllUsers(data);
+      setAllTracks(data);
     } catch (e) {
-      console.error("Failed to fetch users:", e);
-    } finally {
-      setUsersLoading(false);
+      console.error("Failed to fetch tracks:", e);
     }
   };
 
-  const fetchUserTracks = async (userId: string) => {
-    setUserTracksLoading(true);
-    try {
-      const response = await fetch(`${API_BASE}/api/admin/users/${userId}/tracks`);
-      if (!response.ok) throw new Error("Failed to fetch user tracks");
-      const data = await response.json();
-      setUserTracks(data);
-    } catch (e) {
-      console.error("Failed to fetch user tracks:", e);
-      setUserTracks([]);
-    } finally {
-      setUserTracksLoading(false);
-    }
+  // Filter tracks for a specific user
+  const getTracksForUser = (userId: string): UserTrack[] => {
+    return allTracks.filter((track) => track.user_id === userId);
   };
 
-  const handleUserClick = (user: UserWithTracks) => {
+  // Get track count for a user
+  const getTrackCountForUser = (userId: string): number => {
+    return getTracksForUser(userId).length;
+  };
+
+  // Get total plays for a user
+  const getTotalPlaysForUser = (userId: string): number => {
+    return getTracksForUser(userId).reduce((sum, track) => sum + (track.play_count || 0), 0);
+  };
+
+  const handleUserClick = (user: WaitlistUser) => {
     setSelectedUser(user);
-    fetchUserTracks(user.id);
+    setUserTracksLoading(true);
+    // Get tracks for this user from already-fetched data
+    const tracks = getTracksForUser(user.id);
+    setUserTracks(tracks);
+    setUserTracksLoading(false);
   };
 
   useEffect(() => {
     fetchAnalytics();
-    fetchAllUsers();
+    fetchAllTracks();
   }, []);
 
   const formatDate = (dateStr: string) => {
@@ -362,67 +361,33 @@ export const DevDashboard = () => {
           </div>
         </div>
 
-        {/* Recent Signups */}
+        {/* All Users - Enhanced from Waitlist Signups */}
         <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-blue-400" />
-            Recent Waitlist Signups
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-white/50 text-sm border-b border-white/10">
-                  <th className="pb-3 font-medium">Name</th>
-                  <th className="pb-3 font-medium">Email</th>
-                  <th className="pb-3 font-medium">Joined</th>
-                </tr>
-              </thead>
-              <tbody>
-                {analytics.users.recent.map((user) => (
-                  <tr
-                    key={user.id}
-                    className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                  >
-                    <td className="py-3 text-white">{user.username}</td>
-                    <td className="py-3 text-white/70">{user.email}</td>
-                    <td className="py-3 text-white/50 text-sm">
-                      {formatDate(user.created_at)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* All Users with Track Counts */}
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 mt-8">
           <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <Users className="w-5 h-5 text-purple-400" />
             All Users
             <span className="ml-auto text-sm font-normal text-white/50">
-              {allUsers.length} users
+              {analytics.users.recent.length} users
             </span>
           </h2>
-          {usersLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
-            </div>
-          ) : (
-            <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
-              <table className="w-full">
-                <thead className="sticky top-0 bg-[#1a1a1a]">
-                  <tr className="text-left text-white/50 text-sm border-b border-white/10">
-                    <th className="pb-3 font-medium">User</th>
-                    <th className="pb-3 font-medium">Email</th>
-                    <th className="pb-3 font-medium text-center">Tracks</th>
-                    <th className="pb-3 font-medium text-center">Total Plays</th>
-                    <th className="pb-3 font-medium">Joined</th>
-                    <th className="pb-3 font-medium"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allUsers.map((u) => (
+          <p className="text-white/40 text-sm mb-4">Click on a user to see their tracks</p>
+          <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+            <table className="w-full">
+              <thead className="sticky top-0 bg-[#1a1a1a]">
+                <tr className="text-left text-white/50 text-sm border-b border-white/10">
+                  <th className="pb-3 font-medium">User</th>
+                  <th className="pb-3 font-medium">Email</th>
+                  <th className="pb-3 font-medium text-center">Tracks</th>
+                  <th className="pb-3 font-medium text-center">Total Plays</th>
+                  <th className="pb-3 font-medium">Joined</th>
+                  <th className="pb-3 font-medium"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {analytics.users.recent.map((u) => {
+                  const trackCount = getTrackCountForUser(u.id);
+                  const totalPlays = getTotalPlaysForUser(u.id);
+                  return (
                     <tr
                       key={u.id}
                       onClick={() => handleUserClick(u)}
@@ -431,16 +396,12 @@ export const DevDashboard = () => {
                       <td className="py-3">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
-                            {u.avatar_url ? (
-                              <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="text-white font-semibold text-sm">
-                                {(u.display_name || u.username || '?').charAt(0).toUpperCase()}
-                              </span>
-                            )}
+                            <span className="text-white font-semibold text-sm">
+                              {(u.username || '?').charAt(0).toUpperCase()}
+                            </span>
                           </div>
                           <div>
-                            <div className="text-white font-medium">{u.display_name || u.username}</div>
+                            <div className="text-white font-medium">{u.username}</div>
                             <div className="text-white/50 text-sm">@{u.username}</div>
                           </div>
                         </div>
@@ -448,14 +409,14 @@ export const DevDashboard = () => {
                       <td className="py-3 text-white/70">{u.email}</td>
                       <td className="py-3 text-center">
                         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-sm font-medium ${
-                          u.tracks_count > 0 ? 'bg-purple-500/20 text-purple-300' : 'bg-white/5 text-white/40'
+                          trackCount > 0 ? 'bg-purple-500/20 text-purple-300' : 'bg-white/5 text-white/40'
                         }`}>
                           <Music className="w-3.5 h-3.5" />
-                          {u.tracks_count}
+                          {trackCount}
                         </span>
                       </td>
                       <td className="py-3 text-center">
-                        <span className="text-white/70">{u.total_plays?.toLocaleString() || 0}</span>
+                        <span className="text-white/70">{totalPlays.toLocaleString()}</span>
                       </td>
                       <td className="py-3 text-white/50 text-sm">
                         {formatDate(u.created_at)}
@@ -464,11 +425,11 @@ export const DevDashboard = () => {
                         <ChevronRight className="w-4 h-4 text-white/30" />
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Footer */}
@@ -509,16 +470,16 @@ export const DevDashboard = () => {
               </div>
               <div className="flex gap-4 mt-4">
                 <div className="bg-purple-500/20 px-4 py-2 rounded-xl">
-                  <div className="text-2xl font-bold text-purple-300">{selectedUser.tracks_count}</div>
+                  <div className="text-2xl font-bold text-purple-300">{userTracks.length}</div>
                   <div className="text-xs text-purple-300/70">Tracks</div>
                 </div>
                 <div className="bg-green-500/20 px-4 py-2 rounded-xl">
-                  <div className="text-2xl font-bold text-green-300">{selectedUser.total_plays?.toLocaleString() || 0}</div>
+                  <div className="text-2xl font-bold text-green-300">{userTracks.reduce((sum, t) => sum + (t.play_count || 0), 0).toLocaleString()}</div>
                   <div className="text-xs text-green-300/70">Total Plays</div>
                 </div>
                 <div className="bg-blue-500/20 px-4 py-2 rounded-xl">
-                  <div className="text-2xl font-bold text-blue-300">{selectedUser.is_producer ? 'Yes' : 'No'}</div>
-                  <div className="text-xs text-blue-300/70">Producer</div>
+                  <div className="text-2xl font-bold text-blue-300">{userTracks.length > 0 ? 'Yes' : 'No'}</div>
+                  <div className="text-xs text-blue-300/70">Has Tracks</div>
                 </div>
               </div>
             </div>
