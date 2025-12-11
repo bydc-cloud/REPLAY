@@ -124,7 +124,7 @@ export const LandingPage = ({ onGetStarted, onSignIn, onBackToApp, showBackButto
   const [activeVisualizer, setActiveVisualizer] = useState(0);
   const [scrollY, setScrollY] = useState(0);
   const [activeSection, setActiveSection] = useState<string>('');
-  const [heroVisualizerIndex, setHeroVisualizerIndex] = useState(0);
+  const [heroVisualizerIndex, setHeroVisualizerIndex] = useState(3); // start on circle to showcase latest design
 
   // Scroll reveal refs for Apple-style animations
   const visualizerSectionReveal = useScrollReveal(0.1);

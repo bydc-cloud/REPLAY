@@ -103,6 +103,13 @@ function AppContent() {
     }
   }, [route]);
 
+  // Always render the app shell when navigating directly to a producer profile (prevents blank screen)
+  useEffect(() => {
+    if (route.type === 'producer' && currentView !== 'app') {
+      setCurrentView('app');
+    }
+  }, [route, currentView]);
+
   // Show loading state with modern music-themed animation
   if (isLoading) {
     return (

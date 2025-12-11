@@ -49,22 +49,22 @@ function parseRoute(hash: string): RoutePattern {
   }
 
   // Parameterized routes
-  const trackMatch = path.match(/^track\/([a-zA-Z0-9-]+)$/);
+  const trackMatch = path.match(/^track\/([a-zA-Z0-9_-]+)$/);
   if (trackMatch) {
     return { type: 'track', id: trackMatch[1] };
   }
 
-  const playlistMatch = path.match(/^playlist\/([a-zA-Z0-9-]+)$/);
+  const playlistMatch = path.match(/^playlist\/([a-zA-Z0-9_-]+)$/);
   if (playlistMatch) {
     return { type: 'playlist', id: playlistMatch[1] };
   }
 
-  const producerMatch = path.match(/^producer\/([a-zA-Z0-9-]+)$/);
+  const producerMatch = path.match(/^producer\/([a-zA-Z0-9_-]+)$/);
   if (producerMatch) {
     return { type: 'producer', id: producerMatch[1] };
   }
 
-  const packMatch = path.match(/^pack\/([a-zA-Z0-9-]+)$/);
+  const packMatch = path.match(/^pack\/([a-zA-Z0-9_-]+)$/);
   if (packMatch) {
     return { type: 'pack', id: packMatch[1] };
   }
