@@ -801,7 +801,7 @@ export function FeedView() {
       </div>
 
       {/* Main Content - Horizontal sliding container for smooth tab transitions */}
-      <div className="fixed inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden">
         <div
           className="flex h-full transition-transform duration-300 ease-out"
           style={{
@@ -811,8 +811,8 @@ export function FeedView() {
         >
           {/* Following Tab Panel */}
           {isAuthenticated && (
-            <div className="h-full overflow-hidden" style={{ width: `${100 / tabCount}%` }}>
-              <div className="h-full pt-14 overflow-y-auto px-3 py-4 sm:px-4 pb-24">
+            <div className="h-full overflow-hidden relative" style={{ width: `${100 / tabCount}%` }}>
+              <div className="absolute inset-0 pt-14 overflow-y-auto px-3 py-4 sm:px-4 pb-24">
                 {followingTracks.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 px-4">
                     <UserPlus className="w-14 h-14 sm:w-16 sm:h-16 text-white/20 mb-4" />
@@ -918,26 +918,26 @@ export function FeedView() {
           )}
 
           {/* Discover (For You) Tab Panel */}
-          <div className="h-full overflow-hidden" style={{ width: `${100 / tabCount}%` }}>
+          <div className="h-full overflow-hidden relative" style={{ width: `${100 / tabCount}%` }}>
             {(() => {
               const filteredTracks = discoverTracks;
 
           return (
           <>
           {filteredTracks.length === 0 ? (
-            <div className="fixed inset-0 flex flex-col items-center justify-center">
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
               <Music className="w-16 h-16 text-white/20 mb-4" />
               <p className="text-white/60 text-lg font-medium mb-2 text-center">
-                {activeTab === 'beats' ? 'No beats yet' : 'No tracks yet'}
+                No tracks yet
               </p>
               <p className="text-white/40 text-sm text-center px-4">
-                {activeTab === 'beats' ? 'Be the first to upload a beat!' : 'Be the first to share your music!'}
+                Be the first to share your music!
               </p>
             </div>
           ) : (
             <div
               ref={containerRef}
-              className="fixed inset-0 overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+              className="absolute inset-0 overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
               style={{
                 WebkitOverflowScrolling: 'touch',
                 overscrollBehavior: 'contain',
@@ -1717,21 +1717,21 @@ export function FeedView() {
           </div>
 
           {/* Beats Tab Panel */}
-          <div className="h-full overflow-hidden" style={{ width: `${100 / tabCount}%` }}>
+          <div className="h-full overflow-hidden relative" style={{ width: `${100 / tabCount}%` }}>
             {(() => {
               const filteredTracks = discoverTracks.filter(t => t.is_beat);
 
               return (
                 <>
                   {filteredTracks.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <Music className="w-16 h-16 text-white/20 mb-4" />
                       <p className="text-white/60 text-lg font-medium mb-2 text-center">No beats yet</p>
                       <p className="text-white/40 text-sm text-center px-4">Be the first to upload a beat!</p>
                     </div>
                   ) : (
                     <div
-                      className="h-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+                      className="absolute inset-0 overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
                       style={{
                         WebkitOverflowScrolling: 'touch',
                         overscrollBehavior: 'contain',
