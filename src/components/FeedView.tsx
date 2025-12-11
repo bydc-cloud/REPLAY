@@ -984,7 +984,7 @@ export function FeedView() {
                       />
 
                       {/* Top right controls - mute, visualizer, lyrics */}
-                      <div className="absolute top-16 right-4 z-20 flex flex-col gap-2">
+                      <div className="absolute top-20 md:top-16 right-4 z-20 flex flex-col gap-2">
                         {/* Mute button */}
                         <button
                           onClick={toggleMute}
@@ -1780,6 +1780,49 @@ export function FeedView() {
                                   #{track.genre}
                                 </span>
                               )}
+                            </div>
+
+                            {/* Top right controls - mute, visualizer, lyrics */}
+                            <div className="absolute top-20 md:top-16 right-4 z-20 flex flex-col gap-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleMute();
+                                }}
+                                className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center border border-white/10 active:scale-90 transition-transform"
+                              >
+                                {isMuted ? (
+                                  <VolumeX className="w-5 h-5 text-white/80" />
+                                ) : (
+                                  <Volume2 className="w-5 h-5 text-white/80" />
+                                )}
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowVisualizer(!showVisualizer);
+                                }}
+                                className={`w-10 h-10 rounded-full backdrop-blur-sm flex items-center justify-center border active:scale-90 transition-all ${
+                                  showVisualizer
+                                    ? 'bg-violet-500/40 border-violet-400/40 text-violet-300'
+                                    : 'bg-black/40 border-white/10 text-white/80'
+                                }`}
+                              >
+                                <Activity className="w-5 h-5" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowLyrics(!showLyrics);
+                                }}
+                                className={`w-10 h-10 rounded-full backdrop-blur-sm flex items-center justify-center border active:scale-90 transition-all ${
+                                  showLyrics
+                                    ? 'bg-violet-500/40 border-violet-400/40 text-violet-300'
+                                    : 'bg-black/40 border-white/10 text-white/80'
+                                }`}
+                              >
+                                <Type className="w-5 h-5" />
+                              </button>
                             </div>
 
                             {/* Right side actions */}
