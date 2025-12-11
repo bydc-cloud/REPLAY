@@ -141,9 +141,68 @@ export function ProducerProfileView({ userId, onBack, onNavigate }: ProducerProf
           twitter: data.social_links?.twitter || '',
           youtube: data.social_links?.youtube || ''
         });
+      } else {
+        // If producer profile not found, try to get basic user info and create a minimal profile
+        console.log('Producer profile not found, trying user endpoint...');
+        try {
+          // Try to get user info from tracks or create minimal profile
+          const tracksResponse = await fetch(`${API_URL}/api/discover/tracks?limit=100`);
+          if (tracksResponse.ok) {
+            const tracks = await tracksResponse.json();
+            const userTrack = tracks.find((t: any) => t.user_id === targetUserId);
+            if (userTrack) {
+              // Create a minimal profile from track data
+              setProfile({
+                user_id: targetUserId,
+                username: userTrack.artist || targetUserId.slice(0, 8),
+                display_name: userTrack.artist,
+                bio: '',
+                avatar_url: userTrack.cover_url || '',
+                banner_url: '',
+                is_verified: false,
+                is_producer: true,
+                followers_count: 0,
+                following_count: 0,
+                tracks_count: tracks.filter((t: any) => t.user_id === targetUserId).length,
+              });
+              return;
+            }
+          }
+        } catch (e) {
+          console.error('Failed to fetch user from tracks:', e);
+        }
+
+        // Last resort: create a placeholder profile
+        setProfile({
+          user_id: targetUserId,
+          username: targetUserId.slice(0, 8),
+          display_name: 'User',
+          bio: '',
+          avatar_url: '',
+          banner_url: '',
+          is_verified: false,
+          is_producer: false,
+          followers_count: 0,
+          following_count: 0,
+          tracks_count: 0,
+        });
       }
     } catch (err) {
       console.error('Failed to fetch profile:', err);
+      // On error, still show a basic profile
+      setProfile({
+        user_id: targetUserId,
+        username: targetUserId.slice(0, 8),
+        display_name: 'User',
+        bio: '',
+        avatar_url: '',
+        banner_url: '',
+        is_verified: false,
+        is_producer: false,
+        followers_count: 0,
+        following_count: 0,
+        tracks_count: 0,
+      });
     }
   }, [targetUserId]);
 
