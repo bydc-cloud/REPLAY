@@ -776,9 +776,9 @@ export function FeedView() {
   }
 
   return (
-    <div className="fixed inset-0 bg-black">
+    <div className="absolute inset-0 bg-black">
       {/* Top Tabs - Premium pill design with sliding indicator */}
-      <div className="fixed top-[72px] md:top-0 left-0 right-0 z-30 px-4 pt-1 pb-2 pointer-events-none">
+      <div className="absolute top-[72px] md:top-0 left-0 right-0 z-30 px-4 pt-1 pb-2 pointer-events-none">
         <div className="flex items-center justify-center pointer-events-auto">
           <div className="relative flex items-center w-full max-w-xs md:max-w-sm p-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/[0.08] shadow-lg overflow-hidden">
             <div
