@@ -223,6 +223,8 @@ export function FeedView() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [activeTab, setActiveTab] = useState<FeedTab>('foryou');
+  const [isTabTransitioning, setIsTabTransitioning] = useState(false);
+  const [previousTab, setPreviousTab] = useState<FeedTab>('foryou');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [likedTracks, setLikedTracks] = useState<Set<string>>(new Set());
   const [savedTracks, setSavedTracks] = useState<Set<string>>(new Set());
@@ -257,6 +259,16 @@ export function FeedView() {
   // For authenticated: Following (0) | Discover (1) | Beats (2)
   // For unauthenticated: Discover (0) | Beats (1)
   const slideTransform = `translateX(-${activeTabIndex * 100}%)`;
+
+  // Handle tab change with smooth animation
+  const handleTabChange = useCallback((newTab: FeedTab) => {
+    if (newTab === activeTab) return;
+    setPreviousTab(activeTab);
+    setIsTabTransitioning(true);
+    setActiveTab(newTab);
+    // Reset transition state after animation completes
+    setTimeout(() => setIsTabTransitioning(false), 400);
+  }, [activeTab]);
 
   // Listen for external events to open post modal (from MobileBottomNav)
   useEffect(() => {
@@ -493,6 +505,34 @@ export function FeedView() {
       }
     };
   }, [loading, discoverTracks.length, followingTracks.length]);
+
+  // Track end detection - auto-scroll to next track when song finishes
+  const wasPlayingRef = useRef<boolean>(false);
+  useEffect(() => {
+    // Detect when a track ends (was playing, now not, and near end of duration)
+    if (wasPlayingRef.current && !isPlaying && duration > 0 && currentTime >= duration - 0.5) {
+      // Track finished - scroll to next one
+      const tracks = activeTab === 'following' ? followingTracks :
+                     activeTab === 'beats' ? discoverTracks.filter(t => t.is_beat) :
+                     discoverTracks;
+
+      if (currentIndex < tracks.length - 1) {
+        // Scroll to next track
+        const nextIndex = currentIndex + 1;
+        setCurrentIndex(nextIndex);
+
+        // Scroll the container to the next track
+        if (containerRef.current) {
+          const scrollHeight = containerRef.current.clientHeight;
+          containerRef.current.scrollTo({
+            top: scrollHeight * nextIndex,
+            behavior: 'smooth'
+          });
+        }
+      }
+    }
+    wasPlayingRef.current = isPlaying;
+  }, [isPlaying, currentTime, duration, currentIndex, activeTab, followingTracks, discoverTracks]);
 
   // Scroll-based autoplay effect
   useEffect(() => {
@@ -906,7 +946,7 @@ export function FeedView() {
             {tabOptions.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as FeedTab)}
+                onClick={() => handleTabChange(tab.id as FeedTab)}
                 className={`relative flex-1 px-4 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${
                   activeTab === tab.id ? 'text-white scale-105' : 'text-white/60 hover:text-white/80'
                 }`}
@@ -921,8 +961,19 @@ export function FeedView() {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content with smooth tab transitions */}
       {/* Following Tab - Video style like Discover */}
+      <div
+        className={`absolute inset-0 transition-all duration-400 ease-out ${
+          activeTab === 'following' && isAuthenticated
+            ? 'opacity-100 scale-100 pointer-events-auto'
+            : 'opacity-0 scale-[0.98] pointer-events-none absolute'
+        }`}
+        style={{
+          transition: 'opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+          willChange: 'opacity, transform'
+        }}
+      >
       {activeTab === 'following' && isAuthenticated && (
         followingTracks.length === 0 ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -1037,8 +1088,8 @@ export function FeedView() {
                     </button>
                   </div>
 
-                  {/* Track info overlay - bottom left */}
-                  <div className="absolute bottom-24 left-4 right-20 z-20">
+                  {/* Track info overlay - bottom left - above mobile nav */}
+                  <div className="absolute bottom-[100px] left-4 right-20 z-20">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="px-2 py-0.5 bg-green-500/30 text-green-300 text-xs rounded-full font-medium">
                         Following
@@ -1066,8 +1117,8 @@ export function FeedView() {
                     )}
                   </div>
 
-                  {/* Right side action buttons */}
-                  <div className="absolute right-3 bottom-28 flex flex-col items-center gap-5 z-20">
+                  {/* Right side action buttons - above mobile nav */}
+                  <div className="absolute right-3 bottom-[140px] flex flex-col items-center gap-5 z-20">
                     {/* Profile avatar */}
                     <button
                       onClick={(e) => {
@@ -1164,8 +1215,20 @@ export function FeedView() {
           </div>
         )
       )}
+      </div>
 
       {/* Discover (For You) Tab */}
+      <div
+        className={`absolute inset-0 transition-all duration-400 ease-out ${
+          activeTab === 'foryou'
+            ? 'opacity-100 scale-100 pointer-events-auto'
+            : 'opacity-0 scale-[0.98] pointer-events-none'
+        }`}
+        style={{
+          transition: 'opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+          willChange: 'opacity, transform'
+        }}
+      >
       {activeTab === 'foryou' && (
         discoverTracks.length === 0 ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -1292,9 +1355,46 @@ export function FeedView() {
                           {/* Background overlay */}
                           <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
 
-                          {/* Close hint at top */}
-                          <div className="relative z-10 pt-20 pb-4 text-center">
-                            <p className="text-white/40 text-xs">Swipe up or down to close</p>
+                          {/* Top bar with close button and controls */}
+                          <div className="relative z-10 pt-16 px-4 flex items-center justify-between">
+                            {/* Close button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowLyrics(false);
+                              }}
+                              className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20 active:scale-90 transition-transform"
+                            >
+                              <X className="w-5 h-5 text-white" />
+                            </button>
+
+                            {/* Toggle controls */}
+                            <div className="flex items-center gap-2">
+                              {/* Visualizer toggle */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowVisualizer(!showVisualizer);
+                                }}
+                                className={`w-10 h-10 rounded-full backdrop-blur-sm flex items-center justify-center border active:scale-90 transition-all ${
+                                  showVisualizer
+                                    ? 'bg-violet-500/40 border-violet-400/40 text-violet-300'
+                                    : 'bg-white/10 border-white/20 text-white/80'
+                                }`}
+                              >
+                                <Activity className="w-5 h-5" />
+                              </button>
+                              {/* Lyrics toggle (active state) */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowLyrics(false);
+                                }}
+                                className="w-10 h-10 rounded-full bg-violet-500/40 border border-violet-400/40 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-all"
+                              >
+                                <Type className="w-5 h-5 text-violet-300" />
+                              </button>
+                            </div>
                           </div>
 
                           {/* Lyrics content - centered with proper height */}
@@ -1313,7 +1413,7 @@ export function FeedView() {
                           </div>
 
                           {/* Track info at bottom */}
-                          <div className="relative z-10 px-6 pb-24">
+                          <div className="relative z-10 px-6 pb-[100px]">
                             <div className="text-center">
                               <h3 className="text-white font-bold text-lg truncate">{track.title}</h3>
                               <p className="text-white/60 text-sm">{track.artist}</p>
@@ -1337,8 +1437,8 @@ export function FeedView() {
                           }}
                         />
 
-                        {/* Right side action buttons - Slightly larger for better tap targets */}
-                        <div className="absolute right-3 bottom-[100px] z-20 flex flex-col items-center gap-2">
+                        {/* Right side action buttons - Positioned above mobile nav */}
+                        <div className="absolute right-3 bottom-[140px] z-20 flex flex-col items-center gap-2">
                           {/* Profile avatar */}
                           <button
                             onClick={(e) => {
@@ -1434,17 +1534,58 @@ export function FeedView() {
 
                         </div>
 
-                        {/* Center play button - Clean minimal design */}
-                        <div className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-all duration-300 ${
-                          isCurrentlyPlaying ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
-                        }`} style={{ marginBottom: '5vh' }}>
-                          <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
-                            <Play className="w-7 h-7 text-white ml-0.5" fill="currentColor" />
-                          </div>
+                        {/* Center album cover with play button - Like Following tab */}
+                        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none" style={{ marginBottom: '5vh' }}>
+                          <button
+                            className="pointer-events-auto active:scale-95 transition-transform duration-200"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (currentTrack?.id === track.id) {
+                                togglePlayPause();
+                              } else {
+                                handlePlayTrack(track);
+                              }
+                            }}
+                          >
+                            <div className="relative w-36 h-36 rounded-2xl overflow-hidden shadow-2xl shadow-black/60 ring-1 ring-white/10">
+                              {track.cover_url ? (
+                                <img src={track.cover_url} alt={track.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-violet-600 to-purple-700 flex items-center justify-center">
+                                  <Music className="w-14 h-14 text-white/30" />
+                                </div>
+                              )}
+                              <div className={`absolute inset-0 bg-black/30 flex items-center justify-center transition-opacity duration-200 ${
+                                isCurrentlyPlaying ? 'opacity-0' : 'opacity-100'
+                              }`}>
+                                <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                                  <Play className="w-7 h-7 text-white ml-0.5" fill="currentColor" />
+                                </div>
+                              </div>
+                              {/* Playing indicator */}
+                              {isCurrentlyPlaying && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className="flex items-end gap-0.5 h-6">
+                                    {[0, 1, 2, 3].map((i) => (
+                                      <div
+                                        key={i}
+                                        className="w-1 bg-white/80 rounded-full animate-pulse"
+                                        style={{
+                                          height: `${40 + Math.random() * 60}%`,
+                                          animationDelay: `${i * 0.1}s`,
+                                          animationDuration: '0.5s'
+                                        }}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </button>
                         </div>
 
                         {/* Bottom content - Track info + Producer - sits above mobile nav bar */}
-                        <div className="relative z-10 px-4 pb-[80px] pr-16">
+                        <div className="relative z-10 px-4 pb-[100px] pr-16">
                           {/* Track title - larger font, comes first */}
                           <h2 className="text-white font-bold text-lg leading-snug mb-1 line-clamp-2">
                             {track.title}
@@ -1955,8 +2096,20 @@ export function FeedView() {
           </div>
         )
       )}
+      </div>
 
       {/* Beats Tab */}
+      <div
+        className={`absolute inset-0 transition-all duration-400 ease-out ${
+          activeTab === 'beats'
+            ? 'opacity-100 scale-100 pointer-events-auto'
+            : 'opacity-0 scale-[0.98] pointer-events-none'
+        }`}
+        style={{
+          transition: 'opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+          willChange: 'opacity, transform'
+        }}
+      >
       {activeTab === 'beats' && (
         (() => {
           const beatTracks = discoverTracks.filter(t => t.is_beat);
@@ -2000,8 +2153,8 @@ export function FeedView() {
                               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/60" />
                             </div>
 
-                            {/* Track info overlay */}
-                            <div className="absolute bottom-24 left-4 right-20 z-20">
+                            {/* Track info overlay - above mobile nav */}
+                            <div className="absolute bottom-[100px] left-4 right-20 z-20">
                               <h2 className="text-white text-lg font-bold truncate">{track.title}</h2>
                               <button
                                 onClick={(e) => {
@@ -2062,8 +2215,8 @@ export function FeedView() {
                               </button>
                             </div>
 
-                            {/* Right side actions */}
-                            <div className="absolute right-3 bottom-28 flex flex-col items-center gap-5 z-20">
+                            {/* Right side actions - above mobile nav */}
+                            <div className="absolute right-3 bottom-[140px] flex flex-col items-center gap-5 z-20">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -2097,6 +2250,7 @@ export function FeedView() {
           );
         })()
       )}
+      </div>
 
       {/* Comments Modal */}
       {showComments && selectedTrack && (
