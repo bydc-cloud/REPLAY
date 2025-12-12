@@ -375,17 +375,35 @@ export function FeedView() {
     setCommentsLoading(false);
   }, []);
 
+  // Fetch user's liked tracks to pre-populate the likedTracks set
+  const fetchUserLikedTracks = useCallback(async () => {
+    if (!token) return;
+    try {
+      const response = await fetch(`${API_URL}/api/liked-tracks`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const likedIds = new Set<string>(data.map((t: { id: string }) => t.id));
+        setLikedTracks(likedIds);
+      }
+    } catch (err) {
+      console.error('Failed to fetch liked tracks:', err);
+    }
+  }, [token]);
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       await Promise.all([
         isAuthenticated ? fetchFollowingTracks() : Promise.resolve(),
+        isAuthenticated ? fetchUserLikedTracks() : Promise.resolve(),
         fetchDiscoverTracks(false)
       ]);
       setLoading(false);
     };
     loadData();
-  }, [isAuthenticated, fetchFollowingTracks, fetchDiscoverTracks]);
+  }, [isAuthenticated, fetchFollowingTracks, fetchUserLikedTracks, fetchDiscoverTracks]);
 
   // Track current index based on scroll position (one item per viewport)
   const handleScroll = useCallback(() => {
@@ -440,7 +458,43 @@ export function FeedView() {
   // Auto-play when scrolling to a new track (TikTok-style single track playback)
   const prevIndexRef = useRef<number>(-1); // Start at -1 to trigger initial play
   const hasInitialPlayedRef = useRef<boolean>(false);
+  const initialPlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Initial autoplay effect - runs once when tracks are loaded
+  useEffect(() => {
+    if (loading || hasInitialPlayedRef.current) return;
+
+    const tracks = activeTab === 'following' ? followingTracks :
+                   activeTab === 'beats' ? discoverTracks.filter(t => t.is_beat) :
+                   discoverTracks;
+
+    if (tracks.length === 0) return;
+
+    const track = tracks[0];
+    if (!track) return;
+
+    // Mark as played and set initial index
+    hasInitialPlayedRef.current = true;
+    prevIndexRef.current = 0;
+
+    // Clear any existing timer
+    if (initialPlayTimerRef.current) {
+      clearTimeout(initialPlayTimerRef.current);
+    }
+
+    // Delay autoplay to ensure UI is ready
+    initialPlayTimerRef.current = setTimeout(() => {
+      handlePlayTrack(track);
+    }, 500);
+
+    return () => {
+      if (initialPlayTimerRef.current) {
+        clearTimeout(initialPlayTimerRef.current);
+      }
+    };
+  }, [loading, discoverTracks.length, followingTracks.length]);
+
+  // Scroll-based autoplay effect
   useEffect(() => {
     if ((activeTab !== 'foryou' && activeTab !== 'beats' && activeTab !== 'following') || loading) return;
 
@@ -454,18 +508,8 @@ export function FeedView() {
     const track = tracks[currentIndex];
     if (!track) return;
 
-    // Auto-play on initial load (only once)
-    if (!hasInitialPlayedRef.current && !loading) {
-      hasInitialPlayedRef.current = true;
-      prevIndexRef.current = currentIndex;
-      const timer = setTimeout(() => {
-        handlePlayTrack(track);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-
-    // Auto-play when scrolling to a new track
-    if (prevIndexRef.current !== currentIndex) {
+    // Auto-play when scrolling to a new track (not on initial load)
+    if (prevIndexRef.current !== currentIndex && prevIndexRef.current !== -1) {
       prevIndexRef.current = currentIndex;
       // Clear any ongoing double-tap animation when track changes
       setDoubleTapHeart(null);
@@ -483,6 +527,8 @@ export function FeedView() {
   const handleLike = async (track: DiscoverTrack, e?: React.MouseEvent) => {
     e?.stopPropagation();
     const wasLiked = likedTracks.has(track.id);
+
+    // Optimistically update liked state
     setLikedTracks(prev => {
       const newSet = new Set(prev);
       if (newSet.has(track.id)) {
@@ -493,15 +539,62 @@ export function FeedView() {
       return newSet;
     });
 
+    // Optimistically update like count in discover tracks
+    setDiscoverTracks(prev => prev.map(t =>
+      t.id === track.id
+        ? { ...t, likes_count: Math.max(0, (t.likes_count || 0) + (wasLiked ? -1 : 1)) }
+        : t
+    ));
+
+    // Optimistically update like count in following tracks
+    setFollowingTracks(prev => prev.map(t =>
+      t.id === track.id
+        ? { ...t, likes_count: Math.max(0, (t.likes_count || 0) + (wasLiked ? -1 : 1)) }
+        : t
+    ));
+
     if (!token) return;
 
     try {
-      await fetch(`${API_URL}/api/tracks/${track.id}/like`, {
+      const response = await fetch(`${API_URL}/api/tracks/${track.id}/like`, {
         method: wasLiked ? 'DELETE' : 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
+
+      // If request failed, revert the optimistic update
+      if (!response.ok) {
+        setLikedTracks(prev => {
+          const newSet = new Set(prev);
+          if (wasLiked) {
+            newSet.add(track.id);
+          } else {
+            newSet.delete(track.id);
+          }
+          return newSet;
+        });
+        setDiscoverTracks(prev => prev.map(t =>
+          t.id === track.id
+            ? { ...t, likes_count: Math.max(0, (t.likes_count || 0) + (wasLiked ? 1 : -1)) }
+            : t
+        ));
+        setFollowingTracks(prev => prev.map(t =>
+          t.id === track.id
+            ? { ...t, likes_count: Math.max(0, (t.likes_count || 0) + (wasLiked ? 1 : -1)) }
+            : t
+        ));
+      }
     } catch (err) {
       console.error('Failed to like track:', err);
+      // Revert on error
+      setLikedTracks(prev => {
+        const newSet = new Set(prev);
+        if (wasLiked) {
+          newSet.add(track.id);
+        } else {
+          newSet.delete(track.id);
+        }
+        return newSet;
+      });
     }
   };
 
@@ -797,20 +890,29 @@ export function FeedView() {
   return (
     <div className="absolute inset-0 bg-black">
       {/* Top Tabs - Premium pill design with sliding indicator */}
-      <div className="absolute top-[72px] md:top-0 left-0 right-0 z-30 px-4 pt-1 pb-2 pointer-events-none">
+      {/* Safe area: mobile header ~56px + extra padding = 64px, desktop sidebar no header = 16px */}
+      <div className="absolute top-[env(safe-area-inset-top,0px)] md:top-0 left-0 right-0 z-30 pt-[64px] md:pt-4 px-4 pb-3 pointer-events-none">
         <div className="flex items-center justify-center pointer-events-auto">
-          <div className="relative flex items-center w-full max-w-xs md:max-w-sm p-0.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/[0.08] shadow-lg overflow-hidden">
+          <div className="relative flex items-center w-full max-w-[280px] md:max-w-sm p-1 rounded-full bg-black/70 backdrop-blur-2xl border border-white/10 shadow-2xl overflow-hidden">
+            {/* Sliding indicator with spring animation */}
             <div
-              className="absolute inset-y-0 rounded-full bg-gradient-to-r from-violet-500 to-purple-600 shadow-md shadow-purple-500/30 transition-all duration-250"
-              style={{ width: sliderWidth, left: sliderLeft }}
+              className="absolute inset-y-1 rounded-full bg-gradient-to-r from-violet-500 to-purple-600 shadow-lg shadow-purple-500/40"
+              style={{
+                width: sliderWidth,
+                left: sliderLeft,
+                transition: 'left 0.4s cubic-bezier(0.32, 0.72, 0, 1), width 0.4s cubic-bezier(0.32, 0.72, 0, 1)'
+              }}
             />
             {tabOptions.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as FeedTab)}
-                className={`relative flex-1 px-3.5 py-1.5 rounded-full text-[11px] font-semibold tracking-wide transition-colors ${
-                  activeTab === tab.id ? 'text-white' : 'text-white/70 hover:text-white'
+                className={`relative flex-1 px-4 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 ${
+                  activeTab === tab.id ? 'text-white scale-105' : 'text-white/60 hover:text-white/80'
                 }`}
+                style={{
+                  transition: 'color 0.3s ease, transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)'
+                }}
               >
                 {tab.label}
               </button>
